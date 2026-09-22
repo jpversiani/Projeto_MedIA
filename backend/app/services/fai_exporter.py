@@ -20,7 +20,7 @@ def gerar_fai_ledi_payload(atendimento: AtendimentoSOAP) -> Dict[str, Any]:
         "cabecalho": {
             "uuidDadoSerializado": uuid_ficha,
             "tipoDadoSerializado": 7, # 7 = Ficha de Atendimento Individual (FAI)
-            "cnesDadoSerializado": "2761234",
+            "cnesDadoSerializado": "3180115",
             "ineDadoSerializado": "0001452361",
             "codIbge": "3143302", # Montes Claros - MG
             "versao": "5.3.0",
@@ -30,7 +30,7 @@ def gerar_fai_ledi_payload(atendimento: AtendimentoSOAP) -> Dict[str, Any]:
             "headerTransport": {
                 "profissionalCNS": "700123456789012",
                 "cboCodigo_2002": "225142", # Médico de Família
-                "cnes": "2761234",
+                "cnes": "3180115",
                 "ine": "0001452361",
                 "dataAtendimento": data_atendimento_str
             },

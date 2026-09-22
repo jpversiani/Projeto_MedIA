@@ -7,27 +7,35 @@ from app.models.terminologia import CIAP2, CID10
 
 def seed_database(db: Session):
     # 1. Estabelecimento e Equipe
-    est = db.query(Estabelecimento).filter(Estabelecimento.cnes == "2761234").first()
+    est = db.query(Estabelecimento).first()
     if not est:
         est = Estabelecimento(
-            cnes="2761234",
-            nome_fantasia="ESF Santos Reis - Montes Claros",
-            razao_social="Prefeitura Municipal de Montes Claros - Secretaria de Saúde",
+            cnes="3180115",
+            nome_fantasia="ESFSB M1 CIDADE CRISTO REI",
+            razao_social="Prefeitura Municipal de Montes Claros - CNPJ 22.678.874/0001-35",
             municipio_ibge="3143302", # Montes Claros - MG
-            logradouro="Rua Dr. Santos",
-            numero="500",
-            bairro="Santos Reis"
+            logradouro="Rua Principal",
+            numero="S/N",
+            bairro="Cidade Cristo Rei"
         )
         db.add(est)
         db.flush()
 
         equipe = Equipe(
             ine="0001452361",
-            nome="Equipe 01 - Santos Reis",
+            nome="Equipe 01 - Cidade Cristo Rei",
             tipo_equipe="eSF",
             estabelecimento_id=est.id
         )
         db.add(equipe)
+    else:
+        est.cnes = "3180115"
+        est.nome_fantasia = "ESFSB M1 CIDADE CRISTO REI"
+        est.razao_social = "Prefeitura Municipal de Montes Claros - CNPJ 22.678.874/0001-35"
+        est.bairro = "Cidade Cristo Rei"
+        if est.equipes:
+            est.equipes[0].nome = "Equipe 01 - Cidade Cristo Rei"
+
 
     # 2. Profissionais
     prof_medico = db.query(Profissional).filter(Profissional.cpf == "11122233344").first()

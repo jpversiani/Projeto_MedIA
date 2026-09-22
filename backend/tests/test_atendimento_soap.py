@@ -61,6 +61,6 @@ def test_atendimento_soap_com_ciap2_e_cid10(client):
     assert resp_fai.status_code == 200
     fai = resp_fai.json()
     assert fai["cabecalho"]["tipoDadoSerializado"] == 7
-    assert fai["cabecalho"]["cnesDadoSerializado"] == "2761234"
+    assert fai["cabecalho"]["cnesDadoSerializado"] == "3180115"
     assert "K86" in fai["fichaAtendimentoIndividualMaster"]["atendimentosIndividuais"][0]["problemaCondicaoAvaliada"]["ciap2"]
 
