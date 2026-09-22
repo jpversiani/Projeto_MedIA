@@ -143,6 +143,30 @@
           </div>
         </div>
 
+        <!-- PAINEL BRHealth AI COPILOT -->
+        <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-blue-900 rounded-xl p-4 text-white shadow-md space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="bg-indigo-500/30 text-indigo-200 border border-indigo-400/40 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i> BRHealth Copilot IA
+              </span>
+              <span class="text-xs text-indigo-200">Assistente de Escuta Clínica & Estruturação SOAP</span>
+            </div>
+            <span class="text-[11px] text-indigo-300">Sugere CIAP-2 + CID-10 e Alertas de Alergia</span>
+          </div>
+
+          <div class="flex flex-col md:flex-row gap-3">
+            <textarea id="copilot-input-relato" rows="2" placeholder="Cole ou digite aqui o relato/conversa com o paciente (ex: 'Paciente hipertenso relatando dor de cabeça na nuca há 3 dias. PA 160/100...')" class="flex-1 text-sm bg-slate-900/60 border border-indigo-400/30 rounded-lg p-2.5 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-400"></textarea>
+            <button onclick="acionarCopilotIA()" id="btn-copilot-ia" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold px-5 py-2 rounded-lg text-sm shadow flex items-center justify-center space-x-2 shrink-0">
+              <i class="fa-solid fa-brain"></i>
+              <span>Gerar SOAP com IA</span>
+            </button>
+          </div>
+
+          <!-- Alertas de Segurança Gerados pela IA -->
+          <div id="copilot-alertas-container" class="space-y-1 hidden"></div>
+        </div>
+
         <!-- Formulário SOAP -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           

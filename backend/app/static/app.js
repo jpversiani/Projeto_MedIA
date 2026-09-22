@@ -251,6 +251,78 @@ function renderizarProblemasSelecionados() {
   });
 }
 
+async function acionarCopilotIA() {
+  const relato = document.getElementById("copilot-input-relato").value.trim();
+  if (!relato) {
+    alert("Digite ou cole um relato clínico para a IA analisar.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-copilot-ia");
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Analisando...</span>`;
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      relato_clinico: relato,
+      cidadao_id: pacienteAtivo ? pacienteAtivo.id : null,
+      pressao_aferida: document.getElementById("soap-pa").textContent !== '--' ? document.getElementById("soap-pa").textContent : null
+    };
+
+    const res = await fetch("/api/v1/copilot/gerar-soap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      alert("Erro ao comunicar com o Copilot IA.");
+      return;
+    }
+
+    const data = await res.json();
+
+    // Preencher campos do SOAP
+    document.getElementById("soap-motivo").value = data.subjetivo_motivo || "";
+    document.getElementById("soap-subjetivo-notas").value = data.subjetivo_notas || "";
+    document.getElementById("soap-exame-fisico").value = data.objetivo_exame_fisico || "";
+    document.getElementById("soap-avaliacao-notas").value = data.avaliacao_notas || "";
+    document.getElementById("soap-conduta").value = data.plano_conduta || "";
+    document.getElementById("soap-prescricao").value = data.plano_prescricoes || "";
+    document.getElementById("soap-exames").value = data.plano_exames || "";
+
+    // Anexar problemas CIAP-2 e CID-10 sugeridos
+    if (data.problemas_sugeridos && data.problemas_sugeridos.length > 0) {
+      data.problemas_sugeridos.forEach(p => {
+        adicionarProblema(p.tipo_codigo, p.codigo, p.descricao);
+      });
+    }
+
+    // Exibir alertas de segurança se houver
+    const alertasContainer = document.getElementById("copilot-alertas-container");
+    alertasContainer.innerHTML = "";
+    if (data.alertas_seguranca && data.alertas_seguranca.length > 0) {
+      alertasContainer.classList.remove("hidden");
+      data.alertas_seguranca.forEach(a => {
+        const div = document.createElement("div");
+        div.className = "bg-amber-500/20 border border-amber-400 text-amber-200 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2";
+        div.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-300"></i><span>${a}</span>`;
+        alertasContainer.appendChild(div);
+      });
+    } else {
+      alertasContainer.classList.add("hidden");
+    }
+
+  } catch (err) {
+    console.error("Erro no Copilot:", err);
+    alert("Falha ao processar com IA.");
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}
+
 async function finalizarAtendimentoSOAP() {
   if (!pacienteAtivo) {
     alert("Selecione um paciente antes de finalizar o atendimento.");
