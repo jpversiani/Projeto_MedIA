@@ -35,11 +35,15 @@ def seed_database(db: Session):
         prof_medico = Profissional(
             cns="700123456789012",
             cpf="11122233344",
-            nome="Dra. Ana Paula Medeiros",
+            nome="Dra. Francelli Neves Versiani",
             cbo="225142",
-            cbo_descricao="Médica de Família e Comunidade"
+            cbo_descricao="Médica de Família e Comunidade / Clínica Geral"
         )
         db.add(prof_medico)
+    else:
+        prof_medico.nome = "Dra. Francelli Neves Versiani"
+        prof_medico.cbo_descricao = "Médica de Família e Comunidade / Clínica Geral"
+
 
     prof_enf = db.query(Profissional).filter(Profissional.cpf == "22233344455").first()
     if not prof_enf:

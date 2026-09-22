@@ -12,4 +12,4 @@ def test_listar_profissionais(client):
     profs = res.json()
     assert len(profs) >= 2
     nomes = [p["nome"] for p in profs]
-    assert any("Dra. Ana Paula Medeiros" in n for n in nomes)
+    assert any("Dra. Francelli Neves Versiani" in n for n in nomes)
