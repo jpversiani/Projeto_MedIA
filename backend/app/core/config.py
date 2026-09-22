@@ -2,7 +2,7 @@ import os
 from pydantic import BaseModel
 
 class Settings(BaseModel):
-    PROJECT_NAME: str = "e-SUS APS Open Source"
+    PROJECT_NAME: str = "OpenSUS - Prontuário Eletrônico do Cidadão (PEC)"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     

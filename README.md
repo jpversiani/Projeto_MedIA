@@ -1,4 +1,4 @@
-# 🏥 e-SUS APS Open Source (Prontuário Eletrônico do Cidadão - PEC)
+# 🏥 OpenSUS (Prontuário Eletrônico Aberto do Cidadão - PEC)
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
@@ -6,7 +6,7 @@
 [![Tests](https://img.shields.io/badge/Pytest-10%20passed-success.svg)](https://docs.pytest.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Réplica de arquitetura aberta, moderna e de alta performance do **e-SUS APS (PEC - Prontuário Eletrônico do Cidadão)**, desenvolvida para atender os padrões clínicos, estruturais e de dados da Atenção Primária à Saúde do Sistema Único de Saúde (SUS).
+O **OpenSUS** é uma iniciativa aberta, moderna e de alta performance que reimagina o **e-SUS APS (PEC - Prontuário Eletrônico do Cidadão)**, desenvolvida para atender com agilidade e simplicidade os padrões clínicos, estruturais e de interoperabilidade da Atenção Primária à Saúde do Sistema Único de Saúde (SUS).
 
 ---
 
