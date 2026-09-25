@@ -1,0 +1,25 @@
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── queue_service.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── v1/
+│   │   │   ├── __init__.py
+│   │   │   ├── queue.py
+│   │   │   └── telemedicina.py
+│   │   └── dependencies.py
+│   ├── static/
+│   │   └── painel_triagem.html
+│   └── main.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_queue.py
+│   ├── test_schemas.py
+│   └── test_services.py
+├── requirements.txt
+└── pytest.ini

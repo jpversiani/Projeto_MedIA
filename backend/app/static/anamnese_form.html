@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<!--
+  Arquivo: backend/app/static/anamnese_form.html
+  Projeto MedIA — SUS/APS: formulário de anamnese estruturada da Atenção Primária.
+
+  Recursos:
+    - Seções colapsáveis (queixa principal, HDA, antecedentes, medicações, alergias, hábitos);
+    - Chips de seleção rápida para antecedentes comuns (HAS, DM, Tabagismo etc.) com CID-10;
+    - Autosave em localStorage a cada mudança, com indicador "Salvo às HH:MM:SS";
+    - Geração de JSON estruturado (CIAP-2, CID-10, CNS/CPF) pronto para POST em /api/v1;
+    - Validação de CNS e CPF (dígitos verificadores oficiais) antes do envio.
+
+  Acesso: http://<host>/static/anamnese_form.html
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedIA — Anamnese Estruturada (APS/SUS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Cabeçalho institucional (paleta eSUS) */
+    .esus-header { background: linear-gradient(135deg, #0b5394 0%, #0284c7 100%); }
+
+    /* Campo de entrada reutilizável (CSS puro para não depender de @apply do CDN) */
+    .input-base {
+      width: 100%;
+      border-radius: 0.5rem;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .input-base:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+    .input-base:disabled { background: #f1f5f9; cursor: not-allowed; color: #94a3b8; }
+    .input-base::placeholder { color: #94a3b8; }
+
+    /* Destaque de erro de validação */
+    .invalido { border-color: #ef4444 !important; box-shadow: 0 0 0 1px #ef4444 !important; }
+
+    /* Rotação suave da seta das seções colapsáveis */
+    .icone-seta { transition: transform .2s ease; }
+
+    /* Rolagem discreta no painel do JSON */
+    #json-preview::-webkit-scrollbar { width: 8px; }
+    #json-preview::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Toasts */
+    .toast { animation: toast-entrada .25s ease; }
+    @keyframes toast-entrada { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- ================= Cabeçalho institucional ================= -->
+  <header class="esus-header text-white px-4 sm:px-6 py-3 shadow-md flex flex-wrap items-center justify-between gap-3 sticky top-0 z-40">
+    <div class="flex items-center space-x-3">
+      <div class="bg-white text-blue-900 font-black px-2.5 py-1 rounded text-lg tracking-wider">OpenSUS</div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">Anamnese Estruturada</h1>
+        <p class="text-xs text-blue-100">Atenção Primária à Saúde (APS) · Queixa principal · HDA · Antecedentes · Hábitos</p>
+      </div>
+    </div>
+
+    <div class="flex items-center flex-wrap gap-3">
+      <!-- Indicador de autosave em localStorage -->
+      <div id="indicador-autosave" class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs font-medium text-blue-50" role="status" aria-live="polite">
+        <span id="ponto-autosave" class="w-2 h-2 rounded-full bg-slate-300"></span>
+        <span id="texto-autosave">Rascunho local</span>
+      </div>
+
+      <button id="btn-limpar-rascunho" type="button"
+              class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-blue-50 text-sm font-medium px-3 py-2 rounded-lg transition"
+              title="Apaga o rascunho salvo neste navegador">
+        <i class="fa-solid fa-trash-can text-xs"></i><span class="hidden sm:inline">Limpar rascunho</span>
+      </button>
+
+      <button id="btn-gerar-json" type="button"
+              class="inline-flex items-center gap-2 bg-white text-blue-800 hover:bg-blue-50 text-sm font-semibold px-4 py-2 rounded-lg shadow transition"
+              title="Gerar JSON pronto para POST (atalho: Ctrl+S)">
+        <i class="fa-solid fa-code text-xs"></i>Gerar JSON
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= Conteúdo principal ================= -->
+  <main class="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- Barra de ferramentas das seções -->
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <p class="text-xs text-slate-500">
+        <i class="fa-solid fa-circle-info mr-1"></i>
+        Clique no título de cada seção para expandir/recolher. O rascunho é salvo automaticamente neste navegador.
+      </p>
+      <div class="flex gap-2">
+        <button id="btn-expandir" type="button" class="text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition">
+          <i class="fa-solid fa-angles-down mr-1 text-[10px]"></i>Expandir tudo
+        </button>
+        <button id="btn-recolher" type="button" class="text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition">
+          <i class="fa-solid fa-angles-up mr-1 text-[10px]"></i>Recolher tudo
+        </button>
+      </div>
+    </div>
+
+    <form id="form-anamnese" novalidate class="space-y-3">
+
+      <!-- ============ 1. IDENTIFICAÇÃO DO CIDADÃO ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="true" aria-controls="secao-identificacao" data-alvo="secao-identificacao">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center"><i class="fa-solid fa-id-card text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">1. Identificação do Cidadão</span>
+              <span class="block text-xs text-slate-500">CNS/CPF (padrão SUS) e dados do atendimento</span>
+            </span>
+          </span>
+          <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+        </button>
+        <div id="secao-identificacao" class="px-5 pb-5 pt-4 border-t border-slate-100">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="cns" class="block text-xs font-semibold text-slate-600 mb-1">CNS <span class="text-red-500">*</span></label>
+              <input id="cns" name="cns" type="text" inputmode="numeric" maxlength="15"
+                     class="input-base" placeholder="15 dígitos — ex.: 000 0000 0000 0000">
+              <p class="hidden mt-1 text-xs text-red-600" data-erro-para="cns"></p>
+            </div>
+            <div>
+              <label for="cpf" class="block text-xs font-semibold text-slate-600 mb-1">CPF</label>
+              <input id="cpf" name="cpf" type="text" inputmode="numeric" maxlength="14"
+                     class="input-base" placeholder="000.000.000-00">
+              <p class="hidden mt-1 text-xs text-red-600" data-erro-para="cpf"></p>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="nome" class="block text-xs font-semibold text-slate-600 mb-1">Nome completo</label>
+              <input id="nome" name="nome" type="text" class="input-base" placeholder="Nome social e civil do cidadão">
+            </div>
+            <div>
+              <label for="data_nascimento" class="block text-xs font-semibold text-slate-600 mb-1">Data de nascimento</label>
+              <input id="data_nascimento" name="data_nascimento" type="date" class="input-base">
+            </div>
+            <div>
+              <label for="sexo" class="block text-xs font-semibold text-slate-600 mb-1">Sexo</label>
+              <select id="sexo" name="sexo" class="input-base">
+                <option value="">Selecione…</option>
+                <option value="feminino">Feminino</option>
+                <option value="masculino">Masculino</option>
+                <option value="intersexual">Intersexual</option>
+                <option value="nao_informado">Não informado</option>
+              </select>
+            </div>
+            <div>
+              <label for="cnes" class="block text-xs font-semibold text-slate-600 mb-1">CNES da unidade</label>
+              <input id="cnes" name="cnes" type="text" inputmode="numeric" maxlength="7" class="input-base" placeholder="Ex.: 3180115">
+            </div>
+            <div>
+              <label for="profissional" class="block text-xs font-semibold text-slate-600 mb-1">Profissional responsável</label>
+              <input id="profissional" name="profissional" type="text" class="input-base" placeholder="Ex.: Dra. Maria Silva">
+            </div>
+            <div class="sm:col-span-2">
+              <label for="cbo" class="block text-xs font-semibold text-slate-600 mb-1">Ocupação (CBO)</label>
+              <input id="cbo" name="cbo" list="cbo-comuns" type="text" class="input-base" placeholder="Selecione ou digite o código CBO">
+              <datalist id="cbo-comuns">
+                <option value="225125 — Médico clínico"></option>
+                <option value="223565 — Enfermeiro"></option>
+                <option value="515135 — Agente comunitário de saúde"></option>
+                <option value="322205 — Técnico de enfermagem"></option>
+                <option value="225135 — Médico de família e comunidade"></option>
+              </datalist>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 2. QUEIXA PRINCIPAL ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-queixa" data-alvo="secao-queixa">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center"><i class="fa-solid fa-comment-medical text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">2. Queixa Principal <span class="text-red-500">*</span></span>
+              <span class="block text-xs text-slate-500">Motivo da consulta + início dos sintomas + código CIAP-2</span>
+            </span>
+          </span>
+          <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+        </button>
+        <div id="secao-queixa" class="hidden px-5 pb-5 pt-4 border-t border-slate-100">
+          <div class="space-y-4">
+            <div>
+              <label for="queixa" class="block text-xs font-semibold text-slate-600 mb-1">Descrição da queixa principal <span class="text-red-500">*</span></label>
+              <textarea id="queixa" name="queixa" rows="3" class="input-base"
+                        placeholder="Relato do cidadão, com as próprias palavras. Ex.: 'Dor de cabeça há três dias.'"></textarea>
+              <p class="hidden mt-1 text-xs text-red-600" data-erro-para="queixa"></p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="inicio_sintomas" class="block text-xs font-semibold text-slate-600 mb-1">Início dos sintomas</label>
+                <input id="inicio_sintomas" name="inicio_sintomas" type="text" class="input-base" placeholder="Ex.: há 3 dias">
+              </div>
+              <div>
+                <label for="ciap2" class="block text-xs font-semibold text-slate-600 mb-1">Motivo de contato (CIAP-2)</label>
+                <input id="ciap2" name="ciap2" type="text" list="ciap2-comuns" class="input-base" placeholder="Ex.: N01 — Dor de cabeça">
+                <datalist id="ciap2-comuns">
+                  <option value="A04 — Perda de peso"></option>
+                  <option value="D01 — Dor abdominal"></option>
+                  <option value="D10 — Náusea"></option>
+                  <option value="D12 — Diarreia"></option>
+                  <option value="H01 — Dor na orelha"></option>
+                  <option value="L01 — Sintoma nas costas (lombalgia)"></option>
+                  <option value="N01 — Dor de cabeça"></option>
+                  <option value="N05 — Tontura/vertigem"></option>
+                  <option value="P01 — Sentir-se ansioso/tenso"></option>
+                  <option value="P03 — Sentir-se deprimido"></option>
+                  <option value="R05 — Tosse"></option>
+                  <option value="R21 — Sintomas de garganta"></option>
+                  <option value="R74 — Dispneia"></option>
+                  <option value="T90 — Febre"></option>
+                  <option value="U01 — Micção dolorosa"></option>
+                </datalist>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 3. HISTÓRIA DA DOENÇA ATUAL (HDA) ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-hda" data-alvo="secao-hda">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center"><i class="fa-solid fa-book-medical text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">3. História da Doença Atual (HDA) <span class="text-red-500">*</span></span>
+              <span class="block text-xs text-slate-500">Narrativa cronológica — seção "S" do método SOAP</span>
+            </span>
+          </span>
+          <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+        </button>
+        <div id="secao-hda" class="hidden px-5 pb-5 pt-4 border-t border-slate-100">
+          <label for="hda" class="block text-xs font-semibold text-slate-600 mb-1">Evolução do quadro atual <span class="text-red-500">*</span></label>
+          <textarea id="hda" name="hda" rows="7" class="input-base"
+                    placeholder="Início, evolução, fatores de agravo/melhora, sintomas associados, medidas já adotadas e negativas relevantes (revisão de sistemas quando aplicável)."></textarea>
+          <p class="hidden mt-1 text-xs text-red-600" data-erro-para="hda"></p>
+        </div>
+      </section>
+
+      <!-- ============ 4. ANTECEDENTES PESSOAIS ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-antecedentes" data-alvo="secao-antecedentes">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center"><i class="fa-solid fa-clipboard-list text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">4. Antecedentes Pessoais</span>
+              <span class="block text-xs text-slate-500">Condições pré-existentes do cidadão (CID-10)</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-3">
+            <span data-badge="antecedentes" class="hidden text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full"></span>
+            <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+          </span>
+        </button>
+        <div id="secao-antecedentes" class="hidden px-5 pb-5 pt-4 border-t border-slate-100 space-y-4">
+
+          <!-- Chips de seleção rápida para antecedentes comuns -->
+          <div>
+            <p class="text-xs font-semibold text-slate-600 mb-2">Seleção rápida (condições comuns na APS)</p>
+            <div id="chips-antecedentes" class="flex flex-wrap gap-2" role="group" aria-label="Antecedentes pessoais comuns">
+              <button type="button" data-chip-id="has"             data-descricao="Hipertensão arterial sistêmica"  data-cid10="I10"    aria-pressed="false" class="chip-antecedente" title="CID-10 I10">HAS</button>
+              <button type="button" data-chip-id="dm2"             data-descricao="Diabetes mellitus tipo 2"        data-cid10="E11"    aria-pressed="false" class="chip-antecedente" title="CID-10 E11">DM tipo 2</button>
+              <button type="button" data-chip-id="tabagismo"       data-descricao="Tabagismo"                       data-cid10="F17.1"  aria-pressed="false" class="chip-antecedente" title="CID-10 F17.1">Tabagismo</button>
+              <button type="button" data-chip-id="etilismo"        data-descricao="Uso nocivo de álcool"            data-cid10="F10.1"  aria-pressed="false" class="chip-antecedente" title="CID-10 F10.1">Etilismo</button>
+              <button type="button" data-chip-id="dlp"             data-descricao="Dislipidemia"                    data-cid10="E78.5"  aria-pressed="false" class="chip-antecedente" title="CID-10 E78.5">Dislipidemia</button>
+              <button type="button" data-chip-id="obesidade"       data-descricao="Obesidade"                       data-cid10="E66.9"  aria-pressed="false" class="chip-antecedente" title="CID-10 E66.9">Obesidade</button>
+              <button type="button" data-chip-id="asma"            data-descricao="Asma"                            data-cid10="J45"    aria-pressed="false" class="chip-antecedente" title="CID-10 J45">Asma</button>
+              <button type="button" data-chip-id="dpoc"            data-descricao="Doença pulmonar obstrutiva crônica (DPOC)" data-cid10="J44" aria-pressed="false" class="chip-antecedente" title="CID-10 J44">DPOC</button>
+              <button type="button" data-chip-id="ic"              data-descricao="Insuficiência cardíaca"          data-cid10="I50.9"  aria-pressed="false" class="chip-antecedente" title="CID-10 I50.9">Insuficiência cardíaca</button>
+              <button type="button" data-chip-id="dac"             data-descricao="Doença arterial coronariana"     data-cid10="I25.1"  aria-pressed="false" class="chip-antecedente" title="CID-10 I25.1">Doença coronariana</button>
+              <button type="button" data-chip-id="avc"             data-descricao="Acidente vascular cerebral (AVC)" data-cid10="I64"   aria-pressed="false" class="chip-antecedente" title="CID-10 I64">AVC</button>
+              <button type="button" data-chip-id="drc"             data-descricao="Doença renal crônica"            data-cid10="N18.9"  aria-pressed="false" class="chip-antecedente" title="CID-10 N18.9">DRC</button>
+              <button type="button" data-chip-id="hipotireoidismo" data-descricao="Hipotireoidismo"                 data-cid10="E03.9"  aria-pressed="false" class="chip-antecedente" title="CID-10 E03.9">Hipotireoidismo</button>
+              <button type="button" data-chip-id="depressao"       data-descricao="Depressão"                       data-cid10="F32"    aria-pressed="false" class="chip-antecedente" title="CID-10 F32">Depressão</button>
+              <button type="button" data-chip-id="ansiedade"       data-descricao="Transtorno de ansiedade"         data-cid10="F41"    aria-pressed="false" class="chip-antecedente" title="CID-10 F41">Ansiedade</button>
+              <button type="button" data-chip-id="cancer"          data-descricao="Neoplasia maligna (câncer)"      data-cid10="C80"    aria-pressed="false" class="chip-antecedente" title="CID-10 C80">Câncer</button>
+              <button type="button" data-chip-id="epilepsia"       data-descricao="Epilepsia"                       data-cid10="G40"    aria-pressed="false" class="chip-antecedente" title="CID-10 G40">Epilepsia</button>
+            </div>
+          </div>
+
+          <!-- Lista de antecedentes selecionados (chips) e manuais -->
+          <div id="lista-antecedentes-pessoais" class="space-y-2"></div>
+
+          <button id="btn-add-antecedente" type="button"
+                  class="text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-lg transition">
+            <i class="fa-solid fa-plus mr-1 text-xs"></i>Adicionar antecedente manual
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ 5. ANTECEDENTES FAMILIARES ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-familiares" data-alvo="secao-familiares">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center"><i class="fa-solid fa-users text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">5. Antecedentes Familiares</span>
+              <span class="block text-xs text-slate-500">Condições em parentes de primeiro e segundo graus</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-3">
+            <span data-badge="familiares" class="hidden text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full"></span>
+            <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+          </span>
+        </button>
+        <div id="secao-familiares" class="hidden px-5 pb-5 pt-4 border-t border-slate-100 space-y-3">
+          <div id="lista-familiares" class="space-y-2"></div>
+          <button id="btn-add-familiar" type="button"
+                  class="text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-2 rounded-lg transition">
+            <i class="fa-solid fa-plus mr-1 text-xs"></i>Adicionar antecedente familiar
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ 6. MEDICAÇÕES EM USO ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-medicacoes" data-alvo="secao-medicacoes">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center"><i class="fa-solid fa-pills text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">6. Medicações em Uso</span>
+              <span class="block text-xs text-slate-500">Nome, dose, frequência e uso contínuo</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-3">
+            <span data-badge="medicacoes" class="hidden text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full"></span>
+            <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+          </span>
+        </button>
+        <div id="secao-medicacoes" class="hidden px-5 pb-5 pt-4 border-t border-slate-100 space-y-3">
+          <div id="lista-medicacoes" class="space-y-2"></div>
+          <button id="btn-add-medicacao" type="button"
+                  class="text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg transition">
+            <i class="fa-solid fa-plus mr-1 text-xs"></i>Adicionar medicação
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ 7. ALERGIAS ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-alergias" data-alvo="secao-alergias">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">7. Alergias</span>
+              <span class="block text-xs text-slate-500">Substâncias, reações e gravidade</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-3">
+            <span data-badge="alergias" class="hidden text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full"></span>
+            <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+          </span>
+        </button>
+        <div id="secao-alergias" class="hidden px-5 pb-5 pt-4 border-t border-slate-100 space-y-3">
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" name="nega_alergias" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            Cidadão nega alergias conhecidas
+          </label>
+          <div id="container-alergias" class="space-y-2"></div>
+          <button id="btn-add-alergia" type="button"
+                  class="text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg transition">
+            <i class="fa-solid fa-plus mr-1 text-xs"></i>Adicionar alergia
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ 8. HÁBITOS DE VIDA ============ -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <button type="button" class="cabecalho-secao w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition"
+                aria-expanded="false" aria-controls="secao-habitos" data-alvo="secao-habitos">
+          <span class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center"><i class="fa-solid fa-lungs text-sm"></i></span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-slate-800">8. Hábitos de Vida</span>
+              <span class="block text-xs text-slate-500">Tabagismo, etilismo, atividade física e outras drogas</span>
+            </span>
+          </span>
+          <i class="icone-seta fa-solid fa-chevron-down text-slate-400 text-xs" style="transform: rotate(-90deg)"></i>
+        </button>
+        <div id="secao-habitos" class="hidden px-5 pb-5 pt-4 border-t border-slate-100">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label for="tabagismo_situacao" class="block text-xs font-semibold text-slate-600">Tabagismo</label>
+              <select id="tabagismo_situacao" name="tabagismo_situacao" class="input-base">
+                <option value="nao_fumante">Não fumante</option>
+                <option value="fumante">Fumante</option>
+                <option value="ex_fumante">Ex-fumante</option>
+              </select>
+              <input id="tabagismo_carga" name="tabagismo_carga" type="number" min="0" step="1" class="input-base"
+                     placeholder="Carga tabágica (maços-ano)" aria-label="Carga tabágica em maços-ano">
+            </div>
+            <div class="space-y-2">
+              <label for="etilismo_situacao" class="block text-xs font-semibold text-slate-600">Etilismo</label>
+              <select id="etilismo_situacao" name="etilismo_situacao" class="input-base">
+                <option value="nao_consome">Não consome</option>
+                <option value="consome">Consome</option>
+                <option value="ex_consumidor">Ex-consumidor</option>
+              </select>
+              <input id="etilismo_detalhe" name="etilismo_detalhe" type="text" class="input-base"
+                     placeholder="Ex.: 2 cervejas/dia, fins de semana" aria-label="Detalhe do consumo de álcool">
+            </div>
+            <div>
+              <label for="atividade_fisica" class="block text-xs font-semibold text-slate-600">Atividade física</label>
+              <select id="atividade_fisica" name="atividade_fisica" class="input-base">
+                <option value="sedentario">Sedentário</option>
+                <option value="irregular">Irregular (1–2x/semana)</option>
+                <option value="regular">Regular (≥ 3x/semana)</option>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label for="drogas_situacao" class="block text-xs font-semibold text-slate-600">Outras drogas</label>
+              <select id="drogas_situacao" name="drogas_situacao" class="input-base">
+                <option value="nao">Não faz uso</option>
+                <option value="sim">Faz uso</option>
+                <option value="passado">Usou no passado</option>
+              </select>
+              <input id="drogas_detalhe" name="drogas_detalhe" type="text" class="input-base"
+                     placeholder="Substância e frequência (opcional)" aria-label="Detalhe sobre uso de outras drogas">
+            </div>
+          </div>
+        </div>
+      </section>
+    </form>
+
+    <!-- Nota de privacidade / rascunho local -->
+    <p class="mt-4 text-xs text-slate-400 flex items-start gap-2">
+      <i class="fa-solid fa-shield-halved mt-0.5"></i>
+      Rascunho armazenado apenas neste dispositivo (localStorage), conforme boas práticas de proteção de dados (LGPD).
+      Nenhum dado é enviado à API sem confirmação explícita em "Gerar JSON → Enviar".
+    </p>
+  </main>
+
+  <!-- ================= Modal de geração do JSON ================= -->
+  <div id="modal-json" class="fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-json">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" data-fechar-modal></div>
+    <div class="relative w-full max-w-3xl max-h-[85vh] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h2 id="titulo-modal-json" class="text-base font-semibold text-slate-800">
+          <i class="fa-solid fa-code text-blue-600 mr-2"></i>JSON da anamnese — pronto para POST
+        </h2>
+        <button type="button" data-fechar-modal class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-500 transition" aria-label="Fechar modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="px-5 pt-3 text-xs text-slate-500">
+        Estrutura alinhada aos padrões SUS/APS (CNS/CPF, CIAP-2, CID-10). Envio via
+        <code class="bg-slate-100 px-1 py-0.5 rounded">POST</code> para
+        <code id="endpoint-modal" class="bg-slate-100 px-1 py-0.5 rounded font-mono"></code>
+      </p>
+      <pre id="json-preview" class="mx-5 my-3 flex-1 min-h-0 overflow-auto rounded-lg bg-slate-900 text-emerald-200 text-xs font-mono p-4" aria-label="Pré-visualização do JSON"></pre>
+      <div class="flex flex-wrap items-center justify-end gap-2 px-5 py-4 border-t border-slate-100">
+        <button id="btn-copiar-json" type="button" class="text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-3 py-2 rounded-lg transition">
+          <i class="fa-regular fa-copy mr-1"></i>Copiar
+        </button>
+        <button id="btn-baixar-json" type="button" class="text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 px-3 py-2 rounded-lg transition">
+          <i class="fa-solid fa-download mr-1"></i>Baixar .json
+        </button>
+        <button id="btn-enviar-json" type="button" class="text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg shadow transition">
+          <i class="fa-solid fa-paper-plane mr-1"></i>Enviar para a API
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Área de toasts -->
+  <div id="toasts" class="fixed bottom-4 right-4 z-50 space-y-2 w-80 max-w-[90vw]" aria-live="polite"></div>
+
+  <!-- Estilização dos chips (CSS puro para independência do CDN) -->
+  <style>
+    .chip-antecedente {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      border: 1px solid #cbd5e1; background: #ffffff; color: #475569;
+      font-size: 0.75rem; font-weight: 600; line-height: 1;
+      padding: 0.5rem 0.75rem; border-radius: 9999px; cursor: pointer;
+      transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .chip-antecedente:hover { border-color: #2563eb; color: #1d4ed8; }
+    .chip-antecedente[aria-pressed="true"] {
+      background: #2563eb; border-color: #2563eb; color: #ffffff;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, .35);
+    }
+    .chip-antecedente:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+  </style>
+
+  <script type="module">
+    /**
+     * Formulário de Anamnese Estruturada — Projeto MedIA (SUS/APS).
+     *
+     * Módulo responsável por:
+     *   - Seções colapsáveis com acessibilidade (aria-expanded/aria-controls);
+     *   - Chips de seleção rápida para antecedentes pessoais comuns (HAS, DM, Tabagismo…);
+     *   - Linhas dinâmicas para antecedentes manuais, familiares, medicações e alergias;
+     *   - Autosave em localStorage a cada mudança (debounce de 600 ms) com indicador "Salvo";
+     *   - Validação oficial de CNS e CPF (dígitos verificadores);
+     *   - Geração de JSON estruturado (CNS/CPF, CIAP-2, CID-10, hábitos) pronto para POST.
+     */
+
+    /* ============================== Constantes ============================== */
+
+    /** Chave do rascunho de anamnese no localStorage. */
+    const CHAVE_RASCUNHO = "media.anamnese.rascunho.v1";
+
+    /** Versão do esquema do formulário (incrementar ao mudar o formato do JSON). */
+    const VERSAO_FORMULARIO = "1.0";
+
+    /** Endpoint da API v1 que recebe a anamnese estruturada (ajustável por sprint). */
+    const ENDPOINT_ANAMNESE = "/api/v1/atendimentos/anamnese";
+
+    /** Atraso do debounce do autosave (ms) — evita gravar a cada tecla digitada. */
+    const ATRASO_AUTOSAVE_MS = 600;
+
+    /** Campos escalares persistidos no rascunho (nomes dos inputs do formulário). */
+    const CAMPOS_ESCALARES = [
+      "cns", "cpf", "nome", "data_nascimento", "sexo",
+      "cnes", "profissional", "cbo",
+      "queixa", "ciap2", "inicio_sintomas", "hda",
+      "tabagismo_situacao", "tabagismo_carga",
+      "etilismo_situacao", "etilismo_detalhe",
+      "atividade_fisica",
+      "drogas_situacao", "drogas_detalhe",
+    ];
+
+    /* ============================== Referências ============================== */
+
+    const $ = (id) => document.getElementById(id);
+
+    const form = $("form-anamnese");
+    const listaAntecedentes = $("lista-antecedentes-pessoais");
+    const listaFamiliares = $("lista-familiares");
+    const listaMedicacoesEmUso = $("lista-medicacoes");
+    const listaAlergias = $("container-alergias");
+    const chipsAntecedentes = [...document.querySelectorAll("[data-chip-id]")];
+    const modalJson = $("modal-json");
+    const preJson = $("json-preview");
+    const areaToasts = $("toasts");
+
+    /* ============================== Estado interno ============================== */
+
+    /** Temporizador do debounce do autosave. */
+    let temporizadorAutosave = null;
+
+    /** Verdadeiro enquanto o rascunho está sendo restaurado (evita loop de autosave). */
+    let restaurando = false;
+
+    /** Último payload gerado (usado por copiar/baixar/enviar do modal). */
+    let payloadAtual = null;
+
+    /* ============================== Utilidades ============================== */
+
+    /** Remove caracteres não numéricos de um texto. */
+    const soDigitos = (texto) => (texto || "").replace(/\D/g, "");
+
+    /** Remove espaços das extremidades, retornando string vazia para nulos. */
+    const limpar = (texto) => (texto ?? "").trim();
+
+    /** Converte texto em inteiro, retornando null quando inválido. */
+    function inteiroOuNulo(texto) {
+      const numero = Number.parseInt(texto, 10);
+      return Number.isFinite(numero) ? numero : null;
+    }
+
+    /** Extrai o código CIAP-2 (letra + 2 dígitos) do campo, se presente. */
+    function extrairCodigoCiap2(texto) {
+      const coincidencia = limpar(texto).toUpperCase().match(/^[A-Z]\d{2}/);
+      return coincidencia ? coincidencia[0] : "";
+    }
+
+    /** Valida o CNS pelo algoritmo oficial (soma ponderada divisível por 11). */
+    function validarCNS(valor) {
+      const cns = soDigitos(valor);
+      if (cns.length !== 15) return false;
+      // CNS válido começa com 1, 2 (tradicional) ou 7, 8, 9 (provisório).
+      if (!/^[12789]/.test(cns)) return false;
+      let soma = 0;
+      for (let i = 0; i < 15; i += 1) soma += Number(cns[i]) * (15 - i);
+      return soma % 11 === 0;
+    }
+
+    /** Valida o CPF pelos dígitos verificadores (módulo 11). */
+    function validarCPF(valor) {
+      const cpf = soDigitos(valor);
+      if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+      const calcularDigito = (fatia, pesoInicial) => {
+        let soma = 0;
+        for (let i = 0; i < fatia.length; i += 1) soma += Number(fatia[i]) * (pesoInicial - i);
+        const resto = (soma * 10) % 11;
+        return resto === 10 ? 0 : resto;
+      };
+      return calcularDigito(cpf.slice(0, 9), 10) === Number(cpf[9])
+        && calcularDigito(cpf.slice(0, 10), 11) === Number(cpf[10]);
+    }
+
+    /* ============================== Toasts ============================== */
+
+    /**
+     * Exibe uma notificação rápida ao usuário.
+     * @param {"sucesso"|"erro"|"info"} tipo - Tipo visual do toast.
+     * @param {string} mensagem - Texto em português exibido ao usuário.
+     */
+    function exibirToast(tipo, mensagem) {
+      const estilos = {
+        sucesso: { icone: "fa-circle-check", cor: "text-emerald-600" },
+        erro: { icone: "fa-circle-exclamation", cor: "text-red-600" },
+        info: { icone: "fa-circle-info", cor: "text-blue-600" },
+      };
+      const { icone, cor } = estilos[tipo] ?? estilos.info;
+      const toast = document.createElement("div");
+      toast.className = "toast flex items-start gap-2 bg-white border border-slate-200 shadow-lg rounded-lg px-3 py-2.5 text-sm text-slate-700";
+      toast.setAttribute("role", "status");
+      toast.innerHTML = `<i class="fa-solid ${icone} ${cor} mt-0.5"></i><span class="flex-1"></span>`;
+      toast.querySelector("span").textContent = mensagem;
+      areaToasts.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = "opacity .3s ease";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 320);
+      }, 4200);
+    }
+
+    /* ============================== Indicador de autosave ============================== */
+
+    /**
+     * Atualiza o indicador do cabeçalho.
+     * @param {"idle"|"salvando"|"salvo"|"erro"} estado - Estado visual do autosave.
+     * @param {string} [texto] - Texto opcional; o padrão depende do estado.
+     */
+    function definirIndicador(estado, texto) {
+      const ponto = $("ponto-autosave");
+      const rotulo = $("texto-autosave");
+      const padroes = {
+        idle: { classe: "bg-slate-300", texto: "Rascunho local" },
+        salvando: { classe: "bg-amber-400 animate-pulse", texto: "Salvando…" },
+        salvo: { classe: "bg-emerald-500", texto: "Salvo" },
+        erro: { classe: "bg-red-500", texto: "Falha ao salvar" },
+      };
+      const padrao = padroes[estado] ?? padroes.idle;
+      ponto.className = `w-2 h-2 rounded-full ${padrao.classe}`;
+      rotulo.textContent = texto ?? padrao.texto;
+    }
+
+    /* ============================== Leitura do formulário ============================== */
+
+    /** Lê os campos escalares (textos, selects e checkboxes de nível superior). */
+    function lerCamposEscalares() {
+      const campos = {};
+      for (const nome of [...CAMPOS_ESCALARES, "nega_alergias"]) {
+        const elemento = form.elements[nome];
+        if (!elemento) continue;
+        campos[nome] = elemento.type === "checkbox" ? elemento.checked : elemento.value;
+      }
+      return campos;
+    }
+
+    /**
+     * Lê todas as linhas dinâmicas de um contêiner.
+     * @param {HTMLElement} container - Contêiner das linhas.
+     * @param {string[]} nomes - Atributos `name` coletados em cada linha.
+     * @returns {Array<Object<string, string|boolean>>} Conteúdo de cada linha.
+     */
+    function lerLinhas(container, nomes) {
+      const linhas = [];
+      container.querySelectorAll(".linha-dinamica").forEach((linha) => {
+        const item = {};
+        nomes.forEach((nome) => {
+          const elemento = linha.querySelector(`[name="${nome}"]`);
+          if (elemento) item[nome] = elemento.type === "checkbox" ? elemento.checked : elemento.value;
+        });
+        linhas.push(item);
+      });
+      return linhas;
+    }
+
+    /** IDs dos chips atualmente selecionados. */
+    function idsChipsSelecionados() {
+      return chipsAntecedentes
+        .filter((chip) => chip.getAttribute("aria-pressed") === "true")
+        .map((chip) => chip.dataset.chipId);
+    }
+
+    /** Lê o estado completo do formulário (fonte única de verdade). */
+    function lerEstado() {
+      return {
+        versao: VERSAO_FORMULARIO,
+        campos: lerCamposEscalares(),
+        chips: idsChipsSelecionados(),
+        antecedentesManuais: lerLinhas(listaAntecedentes, ["ant_descricao", "ant_cid10"]),
+        familiares: lerLinhas(listaFamiliares, ["fam_parentesco", "fam_descricao", "fam_cid10"]),
+        medicacoes: lerLinhas(listaMedicacoesEmUso, ["med_nome", "med_dose", "med_frequencia", "med_continuo"]),
+        alergias: lerLinhas(listaAlergias, ["alg_substancia", "alg_reacao", "alg_gravidade"]),
+        salvoEm: new Date().toISOString(),
+      };
+    }
+
+    /* ============================== Autosave ============================== */
+
+    /** Agenda a gravação do rascunho com debounce após qualquer mudança. */
+    function agendarAutosave() {
+      if (restaurando) return;
+      definirIndicador("salvando");
+      clearTimeout(temporizadorAutosave);
+      temporizadorAutosave = setTimeout(salvarRascunho, ATRASO_AUTOSAVE_MS);
+    }
+
+    /** Grava o estado atual no localStorage (imediato, sem debounce). */
+    function salvarRascunho() {
+      try {
+        localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(lerEstado()));
+        definirIndicador("salvo", `Salvo às ${new Date().toLocaleTimeString("pt-BR")}`);
+      } catch (erro) {
+        definirIndicador("erro");
+        exibirToast("erro", "Não foi possível salvar o rascunho neste navegador.");
+      }
+    }
+
+    /** Descarta o rascunho local e devolve o formulário ao estado inicial. */
+    function limparRascunho() {
+      const confirmado = window.confirm("Limpar o rascunho salvo e todos os campos do formulário?");
+      if (!confirmado) return;
+      try { localStorage.removeItem(CHAVE_RASCUNHO); } catch (erro) { /* navegador sem localStorage */ }
+      restaurando = true;
+      aplicarEstado(estadoVazio());
+      restaurando = false;
+      definirIndicador("idle");
+      exibirToast("info", "Rascunho apagado. Formulário reiniciado.");
+    }
+
+    /* ============================== Seções colapsáveis ============================== */
+
+    /** Aplica o estado aberto/fechado a uma seção a partir do botão de cabeçalho. */
+    function aplicarExpansao(botao, aberto) {
+      const alvo = $(botao.dataset.alvo);
+      if (!alvo) return;
+      alvo.classList.toggle("hidden", !aberto);
+      botao.setAttribute("aria-expanded", String(aberto));
+      const seta = botao.querySelector(".icone-seta");
+      if (seta) seta.style.transform = aberto ? "" : "rotate(-90deg)";
+    }
+
+    function iniciarSecoes() {
+      document.querySelectorAll(".cabecalho-secao").forEach((botao) => {
+        botao.addEventListener("click", () => {
+          const alvo = $(botao.dataset.alvo);
+          aplicarExpansao(botao, alvo.classList.contains("hidden"));
+        });
+      });
+      $("btn-expandir").addEventListener("click", () =>
+        document.querySelectorAll(".cabecalho-secao").forEach((b) => aplicarExpansao(b, true)));
+      $("btn-recolher").addEventListener("click", () =>
+        document.querySelectorAll(".cabecalho-secao").forEach((b) => aplicarExpansao(b, false)));
+    }
+
+    /** Garante que a seção de um campo com erro esteja visível. */
+    function abrirSecaoDoCampo(campo) {
+      const elemento = form.elements[campo];
+      const secao = elemento?.closest("section");
+      const botao = secao?.querySelector(".cabecalho-secao");
+      if (botao) aplicarExpansao(botao, true);
+    }
+
+    /* ============================== Contadores nas seções ============================== */
+
+    /** Atualiza os badges de quantidade nos cabeçalhos das seções. */
+    function atualizarContadores() {
+      const selecionados = idsChipsSelecionados().length + lerLinhas(listaAntecedentes, ["ant_descricao"]).filter((l) => limpar(l.ant_descricao)).length;
+      setarContador("antecedentes", selecionados);
+      setarContador("familiares", lerLinhas(listaFamiliares, ["fam_descricao"]).filter((l) => limpar(l.fam_descricao)).length);
+      setarContador("medicacoes", lerLinhas(listaMedicacoesEmUso, ["med_nome"]).filter((l) => limpar(l.med_nome)).length);
+      setarContador("alergias", form.elements["nega_alergias"].checked ? 0 : lerLinhas(listaAlergias, ["alg_substancia"]).filter((l) => limpar(l.alg_substancia)).length);
+    }
+
+    /** Atualiza um badge de contagem (oculta quando zero). */
+    function setarContador(nome, quantidade) {
+      const badge = document.querySelector(`[data-badge="${nome}"]`);
+      if (!badge) return;
+      badge.textContent = `${quantidade} ${quantidade === 1 ? "item" : "itens"}`;
+      badge.classList.toggle("hidden", quantidade === 0);
+    }
+
+    /* ============================== Chips de antecedentes ============================== */
+
+    /** Registro dos chips: id → {descricao, cid10} (lido do próprio DOM). */
+    const MAPA_CHIPS = new Map(
+      chipsAntecedentes.map((chip) => [chip.dataset.chipId, { descricao: chip.dataset.descricao, cid10: chip.dataset.cid10 }]),
+    );
+
+    /** Marca/desmarca visualmente um chip. */
+    function aplicarEstadoChip(chip, selecionado) {
+      chip.setAttribute("aria-pressed", String(selecionado));
+    }
+
+    /** Alterna um chip: cria/remove a linha correspondente na lista de antecedentes. */
+    function alternarChip(chip) {
+      const id = chip.dataset.chipId;
+      const selecionado = chip.getAttribute("aria-pressed") === "true";
+      if (selecionado) {
+        aplicarEstadoChip(chip, false);
+        listaAntecedentes.querySelector(`[data-chip-id="${id}"]`)?.remove();
+      } else {
+        aplicarEstadoChip(chip, true);
+        listaAntecedentes.appendChild(criarLinhaAntecedenteDeChip(id));
+      }
+      atualizarContadores();
+      agendarAutosave();
+    }
+
+    /** Cria a linha de leitura (não editável) de um antecedente vindo de chip. */
+    function criarLinhaAntecedenteDeChip(id) {
+      const dados = MAPA_CHIPS.get(id);
+      const linha = document.createElement("div");
+      linha.className = "linha-dinamica flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2";
+      linha.dataset.chipId = id;
+      linha.innerHTML = `
+        <span class="flex-1 min-w-0 truncate text-sm text-slate-700" data-texto-chip></span>
+        <span class="text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded">CID-10 ${dados.cid10}</span>
+        <button type="button" data-remover class="w-7 h-7 rounded-lg hover:bg-blue-100 text-blue-600 transition" title="Remover antecedente" aria-label="Remover ${dados.descricao}">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>`;
+      linha.querySelector("[data-texto-chip]").textContent = dados.descricao;
+      return linha;
+    }
+
+    /** Linha manual de antecedente pessoal (descrição + CID-10 editáveis). */
+    function criarLinhaAntecedenteManual(descricao = "", cid10 = "") {
+      const linha = document.createElement("div");
+      linha.className = "linha-dinamica flex flex-wrap items-center gap-2";
+      linha.innerHTML = `
+        <input name="ant_descricao" type="text" class="input-base flex-1 min-w-[12rem]" placeholder="Ex.: Hipotireoidismo desde 2015">
+        <input name="ant_cid10" type="text" list="cid10-comuns" class="input-base w-36" placeholder="CID-10 (opcional)">
+        <button type="button" data-remover class="w-9 h-9 shrink-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition" title="Remover linha" aria-label="Remover antecedente manual">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>`;
+      linha.querySelector('[name="ant_descricao"]').value = descricao;
+      linha.querySelector('[name="ant_cid10"]').value = cid10;
+      return linha;
+    }
+
+    /** Seleciona um chip conhecido, criando sua linha correspondente. */
+    function selecionarChipPorId(id) {
+      const chip = chipsAntecedentes.find((c) => c.dataset.chipId === id);
+      if (!chip || chip.getAttribute("aria-pressed") === "true") return;
+      aplicarEstadoChip(chip, true);
+      if (!listaAntecedentes.querySelector(`[data-chip-id="${id}"]`)) {
+        listaAntecedentes.appendChild(criarLinhaAntecedenteDeChip(id));
+      }
+    }
+
+    /** Desmarca todos os chips e limpa a lista de antecedentes pessoais. */
+    function resetarChips() {
+      chipsAntecedentes.forEach((chip) => aplicarEstadoChip(chip, false));
+      listaAntecedentes.replaceChildren();
+    }
+
+    function iniciarChips() {
+      chipsAntecedentes.forEach((chip) => chip.addEventListener("click", () => alternarChip(chip)));
+    }
+
+    /* ============================== Linhas dinâmicas ============================== */
+
+    /** Linha de antecedente familiar: parentesco + descrição + CID-10. */
+    function criarLinhaFamiliar(dados = {}) {
+      const linha = document.createElement("div");
+      linha.className = "linha-dinamica flex flex-wrap items-center gap-2";
+      linha.innerHTML = `
+        <select name="fam_parentesco" class="input-base w-40" aria-label="Parentesco">
+          <option value="">Parentesco…</option>
+          <option value="mae">Mãe</option>
+          <option value="pai">Pai</option>
+          <option value="irmao">Irmão(ã)</option>
+          <option value="filho">Filho(a)</option>
+          <option value="avos">Avô/Avó</option>
+          <option value="tio">Tio/Tia</option>
+          <option value="outro">Outro</option>
+        </select>
+        <input name="fam_descricao" type="text" class="input-base flex-1 min-w-[12rem]" placeholder="Ex.: Diabetes mellitus tipo 2">
+        <input name="fam_cid10" type="text" list="cid10-comuns" class="input-base w-32" placeholder="CID-10">
+        <button type="button" data-remover class="w-9 h-9 shrink-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition" title="Remover linha">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>`;
+      linha.querySelector('[name="fam_parentesco"]').value = dados.fam_parentesco ?? "";
+      linha.querySelector('[name="fam_descricao"]').value = dados.fam_descricao ?? "";
+      linha.querySelector('[name="fam_cid10"]').value = dados.fam_cid10 ?? "";
+      return linha;
+    }
+
+    /** Linha de medicação em uso: nome + dose + frequência + uso contínuo. */
+    function criarLinhaMedicacao(dados = {}) {
+      const linha = document.createElement("div");
+      linha.className = "linha-dinamica flex flex-wrap items-center gap-2";
+      linha.innerHTML = `
+        <input name="med_nome" type="text" class="input-base flex-1 min-w-[12rem]" placeholder="Ex.: Losartana potássica">
+        <input name="med_dose" type="text" class="input-base w-32" placeholder="Dose: 50 mg">
+        <input name="med_frequencia" type="text" class="input-base w-40" placeholder="Frequência: 1x/dia">
+        <label class="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">
+          <input type="checkbox" name="med_continuo" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600">uso contínuo
+        </label>
+        <button type="button" data-remover class="w-9 h-9 shrink-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition" title="Remover linha">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>`;
+      linha.querySelector('[name="med_nome"]').value = dados.med_nome ?? "";
+      linha.querySelector('[name="med_dose"]').value = dados.med_dose ?? "";
+      linha.querySelector('[name="med_frequencia"]').value = dados.med_frequencia ?? "";
+      linha.querySelector('[name="med_continuo"]').checked = Boolean(dados.med_continuo);
+      return linha;
+    }
+
+    /** Linha de alergia: substância + reação + gravidade. */
+    function criarLinhaAlergia(dados = {}) {
+      const linha = document.createElement("div");
+      linha.className = "linha-dinamica flex flex-wrap items-center gap-2";
+      linha.innerHTML = `
+        <input name="alg_substancia" type="text" class="input-base flex-1 min-w-[10rem]" placeholder="Substância: Ex.: Dipirona">
+        <input name="alg_reacao" type="text" class="input-base flex-1 min-w-[10rem]" placeholder="Reação: Ex.: urticária generalizada">
+        <select name="alg_gravidade" class="input-base w-40" aria-label="Gravidade da reação">
+          <option value="leve">Reação leve</option>
+          <option value="moderada">Reação moderada</option>
+          <option value="grave">Reação grave (anafilaxia)</option>
+        </select>
+        <button type="button" data-remover class="w-9 h-9 shrink-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition" title="Remover linha">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>`;
+      linha.querySelector('[name="alg_substancia"]').value = dados.alg_substancia ?? "";
+      linha.querySelector('[name="alg_reacao"]').value = dados.alg_reacao ?? "";
+      linha.querySelector('[name="alg_gravidade"]').value = dados.alg_gravidade ?? "leve";
+      return linha;
+    }
+
+    /** Remove uma linha dinâmica, desmarcando o chip associado quando existir. */
+    function removerLinha(linha) {
+      if (!linha) return;
+      if (linha.dataset.chipId) {
+        const chip = chipsAntecedentes.find((c) => c.dataset.chipId === linha.dataset.chipId);
+        if (chip) aplicarEstadoChip(chip, false);
+      }
+      linha.remove();
+      atualizarContadores();
+      agendarAutosave();
+    }
+
+    /** Conecta o clique de remoção por delegação em todos os contêineres de linhas. */
+    function iniciarRemocao(container) {
+      container.addEventListener("click", (evento) => {
+        const botao = evento.target.closest("[data-remover]");
+        if (!botao) return;
+        removerLinha(botao.closest(".linha-dinamica"));
+      });
+    }
+
+    /* ============================== Regras condicionais ============================== */
+
+    /** Habilita/desabilita campos detalhados dos hábitos conforme a situação. */
+    function aplicarRegrasHabitos() {
+      form.elements["tabagismo_carga"].disabled = form.elements["tabagismo_situacao"].value === "nao_fumante";
+      form.elements["etilismo_detalhe"].disabled = form.elements["etilismo_situacao"].value === "nao_consome";
+      form.elements["drogas_detalhe"].disabled = form.elements["drogas_situacao"].value === "nao";
+    }
+
+    /** Bloqueia a edição da lista de alergias quando o cidadão nega alergias. */
+    function aplicarRegrasAlergias() {
+      const nega = form.elements["nega_alergias"].checked;
+      listaAlergias.classList.toggle("opacity-50", nega);
+      listaAlergias.classList.toggle("pointer-events-none", nega);
+      $("btn-add-alergia").disabled = nega;
+    }
+
+    /* ============================== Montagem do JSON (POST) ============================== */
+
+    /** Converte os chips selecionados em itens de antecedentes pessoais. */
+    function antecedentesDeChips(ids) {
+      return ids.flatMap((id) => {
+        const dados = MAPA_CHIPS.get(id);
+        return dados ? [{ descricao: dados.descricao, cid10: dados.cid10, origem: "selecao_rapida" }] : [];
+      });
+    }
+
+    /** Converte as linhas manuais em itens de antecedentes pessoais. */
+    function antecedentesManuais(linhas) {
+      return linhas
+        .filter((linha) => limpar(linha.ant_descricao))
+        .map((linha) => ({
+          descricao: limpar(linha.ant_descricao),
+          cid10: limpar(linha.ant_cid10).toUpperCase(),
+          origem: "informacao_manual",
+        }));
+    }
+
+    /**
+     * Monta o JSON final da anamnese, pronto para POST na API v1.
+     * Estrutura alinhada aos padrões SUS/APS: CNS/CPF, CIAP-2, CID-10 e SOAP.
+     * @returns {object} Payload serializável com `JSON.stringify`.
+     */
+    function montarPayload() {
+      const estado = lerEstado();
+      const c = estado.campos;
+      return {
+        versao_formulario: VERSAO_FORMULARIO,
+        identificacao: {
+          cns: soDigitos(c.cns),
+          cpf: soDigitos(c.cpf),
+          nome: limpar(c.nome),
+          data_nascimento: c.data_nascimento || null,
+          sexo: c.sexo || null,
+        },
+        atendimento: {
+          data_hora: new Date().toISOString(),
+          cnes: soDigitos(c.cnes),
+          profissional: limpar(c.profissional),
+          cbo: limpar(c.cbo).split("—")[0].trim() || null,
+        },
+        queixa_principal: {
+          descricao: limpar(c.queixa),
+          ciap2: extrairCodigoCiap2(c.ciap2),
+          inicio_sintomas: limpar(c.inicio_sintomas),
+        },
+        historia_doenca_atual: limpar(c.hda),
+        antecedentes_pessoais: [
+          ...antecedentesDeChips(estado.chips),
+          ...antecedentesManuais(estado.antecedentesManuais),
+        ],
+        antecedentes_familiares: estado.familiares
+          .filter((linha) => limpar(linha.fam_descricao))
+          .map((linha) => ({
+            descricao: limpar(linha.fam_descricao),
+            cid10: limpar(linha.fam_cid10).toUpperCase(),
+            parentesco: linha.fam_parentesco || null,
+          })),
+        medicacoes_em_uso: estado.medicacoes
+          .filter((linha) => limpar(linha.med_nome))
+          .map((linha) => ({
+            nome: limpar(linha.med_nome),
+            dose: limpar(linha.med_dose) || null,
+            frequencia: limpar(linha.med_frequencia) || null,
+            uso_continuo: Boolean(linha.med_continuo),
+          })),
+        alergias: {
+          nega_alergias: Boolean(c.nega_alergias),
+          itens: estado.alergias
+            .filter((linha) => limpar(linha.alg_substancia))
+            .map((linha) => ({
+              substancia: limpar(linha.alg_substancia),
+              reacao: limpar(linha.alg_reacao) || null,
+              gravidade: linha.alg_gravidade || "leve",
+            })),
+        },
+        habitos: {
+          tabagismo: {
+            situacao: c.tabagismo_situacao,
+            carga_macos_ano: inteiroOuNulo(c.tabagismo_carga),
+          },
+          etilismo: {
+            situacao: c.etilismo_situacao,
+            detalhe: limpar(c.etilismo_detalhe) || null,
+          },
+          atividade_fisica: c.atividade_fisica,
+          outras_drogas: {
+            situacao: c.drogas_situacao,
+            detalhe: limpar(c.drogas_detalhe) || null,
+          },
+        },
+      };
+    }
+
+    /* ============================== Validação para envio ============================== */
+
+    /**
+     * Valida o payload antes da geração/envio.
+     * @param {object} payload - JSON da anamnese.
+     * @returns {Array<{campo: string, mensagem: string}>} Lista de inconsistências.
+     */
+    function validarParaEnvio(payload) {
+      const erros = [];
+      if (!payload.queixa_principal.descricao) {
+        erros.push({ campo: "queixa", mensagem: "Informe a queixa principal." });
+      }
+      if (!payload.historia_doenca_atual) {
+        erros.push({ campo: "hda", mensagem: "Descreva a história da doença atual (HDA)." });
+      }
+      if (payload.identificacao.cns && !validarCNS(payload.identificacao.cns)) {
+        erros.push({ campo: "cns", mensagem: "CNS inválido — verifique os 15 dígitos." });
+      }
+      if (payload.identificacao.cpf && !validarCPF(payload.identificacao.cpf)) {
+        erros.push({ campo: "cpf", mensagem: "CPF inválido — verifique os 11 dígitos." });
+      }
+      return erros;
+    }
+
+    /** Destaca um campo inválido e exibe a mensagem correspondente. */
+    function marcarInvalido(campo, mensagem) {
+      const elemento = form.elements[campo];
+      if (elemento) {
+        elemento.classList.add("invalido");
+        elemento.setAttribute("aria-invalid", "true");
+      }
+      const aviso = form.querySelector(`[data-erro-para="${campo}"]`);
+      if (aviso) {
+        aviso.textContent = mensagem;
+        aviso.classList.remove("hidden");
+      }
+    }
+
+    /** Limpa todos os destaques de validação do formulário. */
+    function limparValidacoes() {
+      form.querySelectorAll(".invalido").forEach((el) => {
+        el.classList.remove("invalido");
+        el.removeAttribute("aria-invalid");
+      });
+      form.querySelectorAll("[data-erro-para]").forEach((aviso) => aviso.classList.add("hidden"));
+    }
+
+    /* ============================== Modal do JSON ============================== */
+
+    function abrirModal() {
+      modalJson.classList.remove("hidden");
+      modalJson.classList.add("flex");
+    }
+
+    function fecharModal() {
+      modalJson.classList.add("hidden");
+      modalJson.classList.remove("flex");
+    }
+
+    /** Executa a validação e, se válida, abre o modal com o JSON pronto para POST. */
+    function gerarJSON() {
+      limparValidacoes();
+      payloadAtual = montarPayload();
+      const erros = validarParaEnvio(payloadAtual);
+      if (erros.length > 0) {
+        erros.forEach(({ campo, mensagem }) => {
+          marcarInvalido(campo, mensagem);
+          abrirSecaoDoCampo(campo);
+        });
+        form.elements[erros[0].campo]?.focus();
+        exibirToast("erro", "Corrija os campos destacados antes de gerar o JSON.");
+        return;
+      }
+      $("endpoint-modal").textContent = `POST ${ENDPOINT_ANAMNESE}`;
+      preJson.textContent = JSON.stringify(payloadAtual, null, 2);
+      abrirModal();
+    }
+
+    /** Copia o JSON para a área de transferência (com fallback antigo). */
+    async function copiarJSON() {
+      if (!payloadAtual) return;
+      const texto = JSON.stringify(payloadAtual, null, 2);
+      try {
+        await navigator.clipboard.writeText(texto);
+        exibirToast("sucesso", "JSON copiado para a área de transferência.");
+      } catch (erro) {
+        // Fallback para navegadores sem Clipboard API.
+        const area = document.createElement("textarea");
+        area.value = texto;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        exibirToast("info", "JSON copiado (método alternativo).");
+      }
+    }
+
+    /** Baixa o JSON como arquivo .json nomeado com a data de hoje. */
+    function baixarJSON() {
+      if (!payloadAtual) return;
+      const blob = new Blob([JSON.stringify(payloadAtual, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const nome = payloadAtual.identificacao.nome
+        ? payloadAtual.identificacao.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")
+        : "sem-identificacao";
+      link.href = url;
+      link.download = `anamnese-${nome}-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      exibirToast("sucesso", "Arquivo JSON gerado para download.");
+    }
+
+    /** Envia o JSON por POST ao endpoint configurado da API v1. */
+    async function enviarJSON(botao) {
+      if (!payloadAtual) return;
+      const conteudoOriginal = botao.innerHTML;
+      botao.disabled = true;
+      botao.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Enviando…';
+      try {
+        const resposta = await fetch(ENDPOINT_ANAMNESE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify(payloadAtual),
+        });
+        if (resposta.ok) {
+          exibirToast("sucesso", "Anamnese registrada com sucesso na API.");
+        } else {
+          exibirToast("erro", `A API respondeu com HTTP ${resposta.status} — verifique o endpoint.`);
+        }
+      } catch (erro) {
+        exibirToast("erro", "Falha de conexão com a API. O JSON permanece disponível para cópia.");
+      } finally {
+        botao.disabled = false;
+        botao.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i>Enviar para a API';
+      }
+    }
+
+    /* ============================== Restauração do rascunho ============================== */
+
+    /** Estado inicial (formulário limpo, sem chips). */
+    function estadoVazio() {
+      return {
+        versao: VERSAO_FORMULARIO,
+        campos: {},
+        chips: [],
+        antecedentesManuais: [],
+        familiares: [],
+        medicacoes: [],
+        alergias: [],
+      };
+    }
+
+    /** Aplica um estado (rascunho) ao formulário, reconstruindo linhas dinâmicas. */
+    function aplicarEstado(estado) {
+      form.reset();
+      resetarChips();
+      listaAntecedentes.replaceChildren();
+      listaFamiliares.replaceChildren();
+      listaMedicacoesEmUso.replaceChildren();
+      listaAlergias.replaceChildren();
+
+      Object.entries(estado.campos ?? {}).forEach(([nome, valor]) => {
+        const elemento = form.elements[nome];
+        if (!elemento) return;
+        if (elemento.type === "checkbox") elemento.checked = Boolean(valor);
+        else elemento.value = valor ?? "";
+      });
+
+      (estado.chips ?? []).forEach((id) => selecionarChipPorId(id));
+      (estado.antecedentesManuais ?? []).forEach((linha) =>
+        listaAntecedentes.appendChild(criarLinhaAntecedenteManual(linha.ant_descricao ?? "", linha.ant_cid10 ?? "")));
+      (estado.familiares ?? []).forEach((linha) => listaFamiliares.appendChild(criarLinhaFamiliar(linha)));
+      (estado.medicacoes ?? []).forEach((linha) => listaMedicacoesEmUso.appendChild(criarLinhaMedicacao(linha)));
+      (estado.alergias ?? []).forEach((linha) => listaAlergias.appendChild(criarLinhaAlergia(linha)));
+
+      aplicarRegrasHabitos();
+      aplicarRegrasAlergias();
+      atualizarContadores();
+    }
+
+    /** Restaura o rascunho salvo no localStorage, quando existente. */
+    function restaurarRascunho() {
+      let bruto;
+      try { bruto = localStorage.getItem(CHAVE_RASCUNHO); } catch (erro) { bruto = null; }
+      if (!bruto) { definirIndicador("idle"); return; }
+      try {
+        const estado = JSON.parse(bruto);
+        restaurando = true;
+        aplicarEstado(estado);
+        restaurando = false;
+        const hora = estado.salvoEm ? new Date(estado.salvoEm).toLocaleTimeString("pt-BR") : null;
+        definirIndicador("salvo", hora ? `Rascunho restaurado · salvo às ${hora}` : "Rascunho restaurado");
+        exibirToast("info", "Rascunho anterior restaurado automaticamente.");
+      } catch (erro) {
+        restaurando = false;
+        definirIndicador("idle");
+        exibirToast("erro", "Rascunho corrompido — o formulário iniciou limpo.");
+      }
+    }
+
+    /* ============================== Inicialização ============================== */
+
+    function iniciar() {
+      iniciarSecoes();
+      iniciarChips();
+      [listaAntecedentes, listaFamiliares, listaMedicacoesEmUso, listaAlergias].forEach(iniciarRemocao);
+
+      // Autosave a cada mudança (delegação no formulário: input + change).
+      form.addEventListener("input", (evento) => {
+        if (restaurando) return;
+        if (evento.target.classList.contains("invalido")) evento.target.classList.remove("invalido");
+        const aviso = form.querySelector(`[data-erro-para="${evento.target.name}"]`);
+        if (aviso) aviso.classList.add("hidden");
+        agendarAutosave();
+      });
+      form.addEventListener("change", (evento) => {
+        if (restaurando) return;
+        aplicarRegrasHabitos();
+        aplicarRegrasAlergias();
+        atualizarContadores();
+        agendarAutosave();
+      });
+
+      // Evita submit nativo (não há ação server-side neste formulário).
+      form.addEventListener("submit", (evento) => evento.preventDefault());
+
+      // Botões de adicionar linhas dinâmicas.
+      $("btn-add-antecedente").addEventListener("click", () => {
+        listaAntecedentes.appendChild(criarLinhaAntecedenteManual());
+        listaAntecedentes.lastElementChild.querySelector('[name="ant_descricao"]').focus();
+        atualizarContadores();
+        agendarAutosave();
+      });
+      $("btn-add-familiar").addEventListener("click", () => {
+        listaFamiliares.appendChild(criarLinhaFamiliar());
+        listaFamiliares.lastElementChild.querySelector('[name="fam_descricao"]').focus();
+        atualizarContadores();
+        agendarAutosave();
+      });
+      $("btn-add-medicacao")?.addEventListener("click", () => {
+        listaMedicacoesEmUso.appendChild(criarLinhaMedicacao());
+        listaMedicacoesEmUso.lastElementChild.querySelector('[name="med_nome"]').focus();
+        atualizarContadores();
+        agendarAutosave();
+      });
+      $("btn-add-alergia").addEventListener("click", () => {
+        listaAlergias.appendChild(criarLinhaAlergia());
+        listaAlergias.lastElementChild.querySelector('[name="alg_substancia"]').focus();
+        atualizarContadores();
+        agendarAutosave();
+      });
+
+      // Ações do cabeçalho.
+      $("btn-limpar-rascunho").addEventListener("click", limparRascunho);
+      $("btn-gerar-json").addEventListener("click", gerarJSON);
+
+      // Ações do modal.
+      modalJson.addEventListener("click", (evento) => {
+        if (evento.target.closest("[data-fechar-modal]")) fecharModal();
+      });
+      $("btn-copiar-json").addEventListener("click", copiarJSON);
+      $("btn-baixar-json").addEventListener("click", baixarJSON);
+      $("btn-enviar-json").addEventListener("click", (evento) => enviarJSON(evento.currentTarget));
+
+      // Atalhos: Ctrl+S gera o JSON; Esc fecha o modal.
+      document.addEventListener("keydown", (evento) => {
+        if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === "s") {
+          evento.preventDefault();
+          gerarJSON();
+        }
+        if (evento.key === "Escape" && !modalJson.classList.contains("hidden")) fecharModal();
+      });
+
+      // Garante a gravação do rascunho antes de sair da página.
+      window.addEventListener("beforeunload", () => {
+        if (!restaurando) {
+          try { localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify(lerEstado())); } catch (erro) { /* sem localStorage */ }
+        }
+      });
+
+      restaurarRascunho();
+    }
+
+    iniciar();
+  </script>
+
+  <!-- Datalist compartilhado de CID-10 comuns (usado nas linhas dinâmicas) -->
+  <datalist id="cid10-comuns">
+    <option value="I10"></option>
+    <option value="E11"></option>
+    <option value="F17.1"></option>
+    <option value="F10.1"></option>
+    <option value="E78.5"></option>
+    <option value="E66.9"></option>
+    <option value="J45"></option>
+    <option value="J44"></option>
+    <option value="I50.9"></option>
+    <option value="I25.1"></option>
+    <option value="I64"></option>
+    <option value="N18.9"></option>
+    <option value="E03.9"></option>
+    <option value="F32"></option>
+    <option value="F41"></option>
+    <option value="C80"></option>
+    <option value="G40"></option>
+    <option value="K21"></option>
+    <option value="D50"></option>
+  </datalist>
+</body>
+</html>

@@ -1,0 +1,1 @@
+The file exists at backend/app/static/js/webrtc_manager.js but is very partial. Let me read the test to match its API, since instructions demand test coverage (pytest).

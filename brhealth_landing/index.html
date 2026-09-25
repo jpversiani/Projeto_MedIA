@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BRHealth — Telemedicina Inteligente</title>
+<style>
+  :root {
+    --blue-50:  #eef5ff;
+    --blue-100: #dbe8ff;
+    --blue-200: #bfd6ff;
+    --blue-300: #93baff;
+    --blue-400: #6096ff;
+    --blue-500: #3b76f6;
+    --blue-600: #2563eb;
+    --blue-700: #1e4fd6;
+    --blue-800: #1e40af;
+    --blue-900: #1e3a8a;
+    --ink:      #0b1220;
+    --ink-soft: #3a4a63;
+    --bg:       #f7faff;
+    --ease: cubic-bezier(.22,.61,.36,1);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior:smooth; }
+
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--blue-500); color:#fff; }
+
+  /* ---------- Background blobs ---------- */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity:.45;
+    z-index:-1;
+    pointer-events:none;
+    animation: drift 18s var(--ease) infinite alternate;
+  }
+  .blob.b1 { width:560px; height:560px; background:radial-gradient(circle,#7fb2ff,#2563eb00 70%); top:-160px; left:-120px; }
+  .blob.b2 { width:460px; height:460px; background:radial-gradient(circle,#6ee7ff,#2563eb00 70%); top:30%; right:-140px; animation-delay:-6s; }
+  .blob.b3 { width:520px; height:520px; background:radial-gradient(circle,#a5c8ff,#2563eb00 70%); bottom:-200px; left:30%; animation-delay:-12s; }
+
+  @keyframes drift {
+    0%   { transform: translate(0,0) scale(1); }
+    50%  { transform: translate(40px,-30px) scale(1.08); }
+    100% { transform: translate(-30px,40px) scale(.95); }
+  }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    padding: 16px 24px;
+    transition: padding .4s var(--ease);
+  }
+  nav.scrolled {
+    padding: 10px 24px;
+    background: rgba(255,255,255,.72);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    backdrop-filter: blur(18px) saturate(180%);
+    border-bottom: 1px solid rgba(59,118,246,.12);
+  }
+  .nav-inner {
+    max-width:1180px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px;
+  }
+  .logo {
+    display:flex; align-items:center; gap:10px;
+    font-weight:700; font-size:1.25rem; letter-spacing:-.02em;
+    color:var(--ink); text-decoration:none;
+  }
+  .logo-mark {
+    width:34px; height:34px; border-radius:10px;
+    background: linear-gradient(135deg,#4f8bff,#2563eb 55%,#1e4fd6);
+    display:grid; place-items:center;
+    color:#fff; font-weight:800; font-size:1.05rem;
+    box-shadow: 0 6px 16px rgba(37,99,235,.35);
+  }
+  .nav-links { display:flex; align-items:center; gap:32px; }
+  .nav-links a {
+    color:var(--ink-soft); text-decoration:none; font-size:.95rem; font-weight:500;
+    transition:color .2s;
+  }
+  .nav-links a:hover { color:var(--blue-600); }
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    border:none; cursor:pointer; text-decoration:none;
+    font-weight:600; font-size:.95rem; border-radius:999px;
+    padding:11px 22px;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg,#3b76f6,#2563eb);
+    color:#fff;
+    box-shadow: 0 8px 24px rgba(37,99,235,.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(37,99,235,.45); }
+  .btn-ghost {
+    background: rgba(37,99,235,.08); color:var(--blue-700);
+  }
+  .btn-ghost:hover { background: rgba(37,99,235,.15); transform: translateY(-2px); }
+  .btn-lg { padding:15px 30px; font-size:1.05rem; }
+  .btn .arrow { transition: transform .25s var(--ease); }
+  .btn:hover .arrow { transform: translateX(4px); }
+
+  .burger { display:none; background:none; border:none; cursor:pointer; flex-direction:column; gap:5px; padding:6px; }
+  .burger span { width:24px; height:2px; background:var(--ink); border-radius:2px; transition:.3s; }
+
+  /* ---------- Hero ---------- */
+  header {
+    position:relative;
+    padding: 170px 24px 80px;
+    text-align:center;
+    overflow:hidden;
+  }
+  .badge {
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:.85rem; font-weight:600; color:var(--blue-700);
+    background: rgba(37,99,235,.08);
+    border:1px solid rgba(37,99,235,.18);
+    padding:8px 16px; border-radius:999px;
+    margin-bottom:28px;
+    animation: fadeUp .8s var(--ease) both;
+  }
+  .badge .dot { width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.5); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.5);} 70%{box-shadow:0 0 0 9px rgba(34,197,94,0);} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0);} }
+
+  h1 {
+    font-size: clamp(2.6rem, 6.5vw, 5rem);
+    line-height:1.04; letter-spacing:-.035em;
+    font-weight:800;
+    max-width: 15ch; margin:0 auto 26px;
+    animation: fadeUp .8s var(--ease) .08s both;
+  }
+  .grad {
+    background: linear-gradient(100deg,#0ea5e9 0%, #2563eb 45%, #1e4fd6 90%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .sub {
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    color:var(--ink-soft); max-width:52ch; margin:0 auto 40px;
+    line-height:1.6; font-weight:400;
+    animation: fadeUp .8s var(--ease) .16s both;
+  }
+  .hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; animation: fadeUp .8s var(--ease) .24s both; }
+
+  @keyframes fadeUp { from{opacity:0; transform:translateY(28px);} to{opacity:1; transform:none;} }
+
+  /* ---------- Product mock ---------- */
+  .mock-wrap {
+    position:relative;
+    margin: 90px auto 0;
+    max-width: 1000px;
+    perspective: 1400px;
+  }
+  .mock-glow {
+    position:absolute; inset:6% 8% -8% 8%;
+    background: radial-gradient(ellipse at 50% 40%, rgba(37,99,235,.4), rgba(37,99,235,0) 65%);
+    filter: blur(40px);
+    z-index:0;
+  }
+  .mock {
+    position:relative; z-index:1;
+    background: linear-gradient(180deg, #0e1730, #101c3d 60%, #0d1528);
+    border-radius: 24px;
+    border:1px solid rgba(147,186,255,.18);
+    padding: 22px;
+    box-shadow: 0 60px 120px -40px rgba(11,30,80,.55);
+    transform: rotateX(2deg) rotateY(-3deg);
+    transition: transform .3s var(--ease);
+    will-change: transform;
+  }
+  .mock-top { display:flex; align-items:center; gap:8px; margin-bottom:18px; padding:0 6px; }
+  .mock-top i { width:11px; height:11px; border-radius:50%; }
+  .mock-top i:nth-child(1){background:#ff5f57;} .mock-top i:nth-child(2){background:#febc2e;} .mock-top i:nth-child(3){background:#28c840;}
+  .mock-url {
+    margin-left:12px; flex:1; text-align:center;
+    background:rgba(255,255,255,.06); border-radius:8px;
+    color:#9db4e0; font-size:.8rem; padding:5px 10px;
+  }
+  .mock-body { display:grid; grid-template-columns: 180px 1fr; gap:18px; }
+  .mock-side { background:rgba(255,255,255,.04); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .mock-side .m-item { display:flex; align-items:center; gap:9px; color:#c3d3f4; font-size:.82rem; padding:7px 9px; border-radius:9px; }
+  .mock-side .m-item.on { background:rgba(59,118,246,.22); color:#fff; font-weight:600; }
+  .m-ico { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; background:rgba(59,118,246,.25); font-size:.65rem; }
+  .mock-main { background:rgba(255,255,255,.045); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:14px; }
+  .m-row { display:flex; justify-content:space-between; align-items:center; }
+  .m-title { color:#fff; font-weight:700; font-size:1rem; }
+  .m-chip { background:rgba(34,197,94,.16); color:#4ade80; font-size:.72rem; font-weight:600; padding:4px 10px; border-radius:999px; }
+  .m-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .m-card { background:rgba(255,255,255,.05); border:1px solid rgba(147,186,255,.1); border-radius:11px; padding:12px; }
+  .m-label { color:#8aa3d4; font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .m-val { color:#e8efff; font-size:.92rem; font-weight:600; }
+  .m-bars { display:flex; align-items:flex-end; gap:6px; height:56px; padding-top:6px; }
+  .m-bars span { flex:1; background:linear-gradient(180deg,#4f8bff,#2563eb); border-radius:4px 4px 0 0; animation:grow 1.4s var(--ease) both; transform-origin:bottom; }
+  @keyframes grow { from{transform:scaleY(0);} to{transform:scaleY(1);} }
+  .m-ai {
+    display:flex; gap:10px; align-items:flex-start;
+    background: rgba(37,99,235,.12); border:1px solid rgba(147,186,255,.16);
+    border-radius:11px; padding:12px;
+  }
+  .m-ai .m-ico { background:linear-gradient(135deg,#4f8bff,#1e4fd6); }
+  .m-ai p { color:#dce7ff; font-size:.8rem; line-height:1.5; }
+  .m-ai p b { color:#fff; }
+
+  .float-card {
+    position:absolute; z-index:2;
+    background:rgba(255,255,255,.9);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border:1px solid rgba(147,186,255,.25);
+    border-radius:16px;
+    padding:14px 18px;
+    box-shadow: 0 24px 50px -20px rgba(11,30,80,.35);
+    display:flex; align-items:center; gap:12px;
+    animation: float 6s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+  .float-card .ic { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:1.3rem; }
+  .float-card .t { font-size:.9rem; font-weight:700; }
+  .float-card .s { font-size:.76rem; color:var(--ink-soft); }
+  .fc1 { top:14%; right:-46px; animation-delay:-2s; }
+  .fc2 { bottom:10%; left:-52px; animation-delay:-4s; }
+
+  /* ---------- Sections base ---------- */
+  section { position:relative; padding: 110px 24px; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  .reveal { opacity:0; transform: translateY(40px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+  .reveal.in { opacity:1; transform:none; }
+
+  .sec-label {
+    font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.16em;
+    color:var(--blue-600); margin-bottom:14px;
+  }
+  h2 { font-size: clamp(2rem, 4.5vw, 3.2rem); letter-spacing:-.03em; line-height:1.08; font-weight:800; }
+  .sec-head { text-align:center; max-width:720px; margin:0 auto 70px; }
+  .sec-head p { margin-top:18px; color:var(--ink-soft); font-size:1.1rem; line-height:1.65; }
+
+  /* ---------- Logos strip ---------- */
+  .strip { padding: 40px 24px; opacity:0; transition:opacity 1s; }
+  .strip.in { opacity:1; }
+  .strip p { text-align:center; font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; color:#8aa0c2; margin-bottom:26px; }
+  .marquee { overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent); mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent); }
+  .marquee-track { display:flex; gap:56px; width:max-content; animation:scroll 28s linear infinite; }
+  .marquee-track span { font-weight:700; font-size:1.15rem; color:#b9c8e6; letter-spacing:-.01em; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+  @keyframes scroll { to { transform:translateX(-50%); } }
+
+  /* ---------- Features ---------- */
+  .features { background:#fff; }
+  .feat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:22px; }
+  .feat-card {
+    position:relative;
+    background:#fff;
+    border:1px solid #e6edf9;
+    border-radius:20px;
+    padding:32px 28px;
+    overflow:hidden;
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s;
+  }
+  .feat-card::before {
+    content:""; position:absolute; inset:0 0 auto 0; height:3px;
+    background: linear-gradient(90deg,#0ea5e9,#2563eb,#1e4fd6);
+    transform: scaleX(0); transform-origin:left; transition:transform .45s var(--ease);
+  }
+  .feat-card:hover { transform: translateY(-8px); box-shadow: 0 30px 60px -25px rgba(37,99,235,.25); border-color:#d3e2ff; }
+  .feat-card:hover::before { transform: scaleX(1); }
+  .feat-ico {
+    width:56px; height:56px; border-radius:16px;
+    display:grid; place-items:center; font-size:1.5rem;
+    background:linear-gradient(135deg, #eaf2ff, #d9e7ff);
+    margin-bottom:20px;
+    transition: transform .35s var(--ease);
+  }
+  .feat-card:hover .feat-ico { transform: scale(1.08) rotate(-3deg); }
+  .feat-card h3 { font-size:1.2rem; font-weight:700; margin-bottom:10px; letter-spacing:-.01em; }
+  .feat-card p { color:var(--ink-soft); font-size:.95rem; line-height:1.65; }
+  .feat-card .tag {
+    display:inline-block; margin-top:16px; font-size:.72rem; font-weight:700;
+    color:var(--blue-600); background:rgba(37,99,235,.08); padding:4px 10px; border-radius:999px;
+  }
+
+  /* ---------- Spotlight (split) ---------- */
+  .spotlight { background: linear-gradient(180deg, #fff, #eef5ff); }
+  .split { display:grid; grid-template-columns:1.05fr .95fr; gap:70px; align-items:center; }
+  .split h2 { margin-bottom:20px; }
+  .split p { color:var(--ink-soft); line-height:1.7; font-size:1.05rem; }
+  .check-list { margin-top:26px; display:flex; flex-direction:column; gap:14px; }
+  .check-list li { list-style:none; display:flex; gap:12px; align-items:flex-start; color:var(--ink); font-weight:500; font-size:.98rem; }
+  .check-list .ck {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff;
+    display:grid; place-items:center; font-size:.7rem; margin-top:1px;
+  }
+  .phone {
+    position:relative; margin:0 auto;
+    width:300px; height:600px; border-radius:44px;
+    background:linear-gradient(180deg,#101c3d,#0d1528);
+    border:1px solid rgba(147,186,255,.2);
+    box-shadow: 0 50px 100px -30px rgba(11,30,80,.5);
+    padding:14px;
+    transform: rotate(3deg);
+  }
+  .phone-screen { width:100%; height:100%; border-radius:32px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
+  .ph-top { background:linear-gradient(135deg,#2563eb,#1e4fd6); color:#fff; padding:20px 18px; }
+  .ph-top small { opacity:.75; font-size:.72rem; }
+  .ph-top h4 { font-size:1.1rem; margin-top:2px; }
+  .ph-call { background:rgba(255,255,255,.16); margin-top:14px; padding:10px 14px; border-radius:12px; font-size:.85rem; font-weight:600; display:flex; gap:10px; align-items:center; }
+  .ph-body { padding:16px; display:flex; flex-direction:column; gap:12px; flex:1; overflow:hidden; }
+  .ph-bubble { max-width:85%; padding:11px 14px; border-radius:16px; font-size:.8rem; line-height:1.45; }
+  .ph-bubble.pac { align-self:flex-start; background:#eef2fb; color:#33415c; border-bottom-left-radius:5px; }
+  .ph-bubble.doc { align-self:flex-end; background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff; border-bottom-right-radius:5px; }
+  .ph-soap { background:#f0f6ff; border:1px solid #dbe8ff; border-radius:14px; padding:12px; font-size:.72rem; }
+  .ph-soap b { color:var(--blue-700); }
+  .ph-soap p { color:#44526e; line-height:1.5; margin-top:4px; }
+  .ph-actions { display:flex; gap:10px; padding:14px 16px; }
+  .ph-btn { flex:1; text-align:center; background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff; border-radius:999px; padding:11px; font-size:.8rem; font-weight:700; }
+
+  /* ---------- Metrics ---------- */
+  .metrics { background:linear-gradient(135deg,#0b1220,#101c3d 55%,#0d1528); color:#fff; border-radius:0; }
+  .metrics h2 { color:#fff; }
+  .metrics .sec-label { color:#7fb2ff; }
+  .metrics .sec-head p { color:#9db4e0; }
+  .metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:28px; }
+  .metric { text-align:center; padding:30px 16px; border-radius:20px; background:rgba(255,255,255,.04); border:1px solid rgba(147,186,255,.12); transition:transform .3s var(--ease), background .3s; }
+  .metric:hover { transform:translateY(-6px); background:rgba(255,255,255,.07); }
+  .metric .num { font-size:2.6rem; font-weight:800; letter-spacing:-.03em; background:linear-gradient(100deg,#7fb2ff,#4f8bff 50%,#93baff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .metric .lbl { margin-top:8px; color:#a9bce4; font-size:.9rem; }
+
+  /* ---------- Testimonial ---------- */
+  .testimonial { background:#fff; }
+  .quote {
+    max-width:780px; margin:0 auto; text-align:center;
+  }
+  .quote .big { font-size:clamp(1.4rem,3vw,2rem); font-weight:600; line-height:1.45; letter-spacing:-.02em; color:#12224a; }
+  .quote .big b { background:linear-gradient(100deg,#0ea5e9,#2563eb); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .quote .who { margin-top:26px; display:flex; align-items:center; justify-content:center; gap:14px; }
+  .avatar { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,#4f8bff,#1e4fd6); color:#fff; display:grid; place-items:center; font-weight:700; }
+  .quote .name { font-weight:700; font-size:.98rem; text-align:left; }
+  .quote .role { font-size:.8rem; color:var(--ink-soft); text-align:left; }
+  .stars { margin-bottom:20px; color:#fbbf24; font-size:1.1rem; letter-spacing:4px; }
+
+  /* ---------- CTA ---------- */
+  .cta-wrap { text-align:center; position:relative; }
+  .cta-card {
+    position:relative;
+    max-width:900px; margin:0 auto;
+    border-radius:32px;
+    padding:80px 40px;
+    overflow:hidden;
+    background:linear-gradient(135deg,#0ea5e9,#2563eb 55%,#1e4fd6);
+    color:#fff;
+    box-shadow: 0 60px 120px -40px rgba(30,64,175,.6);
+  }
+  .cta-card::before, .cta-card::after {
+    content:""; position:absolute; border-radius:50%;
+    background:rgba(255,255,255,.12); filter:blur(20px);
+  }
+  .cta-card::before { width:340px; height:340px; top:-140px; right:-80px; }
+  .cta-card::after { width:280px; height:280px; bottom:-120px; left:-60px; }
+  .cta-card h2 { color:#fff; position:relative; }
+  .cta-card p { color:#dce9ff; margin:20px auto 36px; max-width:44ch; font-size:1.1rem; line-height:1.65; position:relative; }
+  .cta-card .btn { position:relative; }
+  .cta-card .btn-white { background:#fff; color:var(--blue-700); box-shadow:0 10px 30px rgba(0,0,0,.2); }
+  .cta-card .btn-white:hover { transform:translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,.28); }
+  .cta-note { margin-top:18px; font-size:.82rem; opacity:.75; position:relative; }
+
+  /* ---------- Footer ---------- */
+  footer { background:#0b1220; color:#8aa0c2; padding:70px 24px 30px; }
+  .foot-grid { max-width:1180px; margin:0 auto; display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:40px; padding-bottom:50px; border-bottom:1px solid rgba(147,186,255,.1); }
+  .foot-brand p { margin-top:14px; font-size:.88rem; line-height:1.6; max-width:30ch; }
+  .foot-col h5 { color:#fff; font-size:.82rem; text-transform:uppercase; letter-spacing:.12em; margin-bottom:18px; }
+  .foot-col a { display:block; color:#8aa0c2; text-decoration:none; font-size:.9rem; padding:6px 0; transition:color .2s; }
+  .foot-col a:hover { color:#7fb2ff; }
+  .foot-bottom { max-width:1180px; margin:0 auto; padding-top:26px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:.8rem; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .nav-links { display:none; }
+    .burger { display:flex; }
+    .mock-body { grid-template-columns:1fr; }
+    .mock-side { flex-direction:row; overflow-x:auto; }
+    .float-card { display:none; }
+    .split { grid-template-columns:1fr; gap:56px; }
+    .foot-grid { grid-template-columns:1fr 1fr; }
+    .metrics { border-radius:0; }
+  }
+  @media (max-width: 520px) {
+    .foot-grid { grid-template-columns:1fr; }
+    .hero-cta .btn { width:100%; justify-content:center; }
+  }
+
+  .no-scroll { overflow:hidden; }
+  .mobile-menu {
+    position:fixed; inset:0; z-index:200;
+    background:rgba(255,255,255,.96);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:26px;
+  }
+  .mobile-menu.open { display:flex; }
+  .mobile-menu a { font-size:1.5rem; font-weight:700; color:var(--ink); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<!-- Background blobs -->
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="blob b3"></div>
+
+<!-- Nav -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#top"><span class="logo-mark">B</span> BRHealth</a>
+    <div class="nav-links">
+      <a href="#recursos">Recursos</a>
+      <a href="#plataforma">Plataforma</a>
+      <a href="#impacto">Impacto</a>
+      <a href="#seguranca">Segurança</a>
+      <a href="#" class="btn btn-ghost">Entrar</a>
+      <a href="#demo" class="btn btn-primary">Agendar demo</a>
+    </div>
+    <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#recursos">Recursos</a>
+  <a href="#plataforma">Plataforma</a>
+  <a href="#impacto">Impacto</a>
+  <a href="#demo" class="btn btn-primary">Agendar demo</a>
+</div>
+
+<!-- Hero -->
+<header id="top">
+  <span class="badge"><span class="dot"></span> Telemedicina com Inteligência Artificial</span>
+  <h1>A consulta médica <span class="grad">digital, inteligente</span> e humana.</h1>
+  <p class="sub">O BRHealth une teleconsulta em alta definição com um copiloto de IA que escuta, organiza e escreve o prontuário enquanto você cuida do que importa: o paciente.</p>
+  <div class="hero-cta">
+    <a href="#demo" class="btn btn-primary btn-lg">Começar agora <span class="arrow">→</span></a>
+    <a href="#plataforma" class="btn btn-ghost btn-lg">Ver a plataforma</a>
+  </div>
+
+  <div class="mock-wrap" id="mockWrap">
+    <div class="mock-glow"></div>
+    <div class="mock">
+      <div class="mock-top">
+        <i></i><i></i><i></i>
+        <div class="mock-url">app.brhealth.com.br</div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-side">
+          <div class="m-item on"><span class="m-ico">🏠</span> Prontuário</div>
+          <div class="m-item"><span class="m-ico">📹</span> Teleconsulta</div>
+          <div class="m-item"><span class="m-ico">🤖</span> Copiloto IA</div>
+          <div class="m-item"><span class="m-ico">💊</span> Prescrição</div>
+          <div class="m-item"><span class="m-ico">📊</span> Painel</div>
+        </div>
+        <div class="mock-main">
+          <div class="m-row">
+            <div class="m-title">Maria Silva · 47 anos</div>
+            <span class="m-chip">● Em consulta</span>
+          </div>
+          <div class="m-grid">
+            <div class="m-card"><div class="m-label">PA</div><div class="m-val">128 × 82 mmHg</div></div>
+            <div class="m-card"><div class="m-label">FC</div><div class="m-val">76 bpm</div></div>
+            <div class="m-card"><div class="m-label">IMC</div><div class="m-val">27,4</div></div>
+            <div class="m-card"><div class="m-label">SpO₂</div><div class="m-val">98%</div></div>
+          </div>
+          <div class="m-card">
+            <div class="m-label">Pressão arterial · últimas consultas</div>
+            <div class="m-bars"><span style="height:45%"></span><span style="height:62%"></span><span style="height:54%"></span><span style="height:75%"></span><span style="height:68%"></span><span style="height:88%"></span><span style="height:80%"></span></div>
+          </div>
+          <div class="m-ai">
+            <span class="m-ico">✦</span>
+            <p><b>Copiloto IA</b> · Redigindo SOAP automaticamente…<br>“Cefaleia em região occipital há 3 dias, sem febre…”</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="float-card fc1">
+      <div class="ic" style="background:rgba(37,99,235,.12)">📹</div>
+      <div><div class="t">HD + E2E</div><div class="s">Vídeo criptografado</div></div>
+    </div>
+    <div class="float-card fc2">
+      <div class="ic" style="background:rgba(34,197,94,.14)">🤖</div>
+      <div><div class="t">SOAP em segundos</div><div class="s">Rascunho automático</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- Strip -->
+<div class="strip" id="strip">
+  <div class="wrap">
+    <p>Pronto para integrar com o ecossistema de saúde</p>
+    <div class="marquee">
+      <div class="marquee-track">
+        <span>🔒 ICP-Brasil</span><span>🏥 Prontuário Eletrônico</span><span>⚡ WebRTC</span><span>🧠 IA Generativa</span><span>📜 Resolução CFM 2.314/2022</span><span>🧬 LGPD</span><span>🔗 RNDS</span>
+        <span>🔒 ICP-Brasil</span><span>🏥 Prontuário Eletrônico</span><span>⚡ WebRTC</span><span>🧠 IA Generativa</span><span>📜 Resolução CFM 2.314/2022</span><span>🧬 LGPD</span><span>🔗 RNDS</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="features" id="recursos">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-label">Recursos</div>
+      <h2>Tudo que uma consulta moderna precisa, <span class="grad">em um só lugar</span>.</h2>
+      <p>Do agendamento à prescrição digital, pensado junto a quem vive o dia a dia da clínica.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card reveal">
+        <div class="feat-ico">📹</div>
+        <h3>Teleconsulta Integrada</h3>
+        <p>Vídeo em alta definição dentro do prontuário — sem links externos. Criptografia ponta a ponta e gravação conforme a norma.</p>
+        <span class="tag">WebRTC</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-ico">🤖</div>
+        <h3>Copiloto Clínico</h3>
+        <p>Ouvimos o diálogo da consulta e rascunhamos o SOAP automaticamente. Você revisa, aprova e assina em um clique.</p>
+        <span class="tag">Ambient Scribe</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-ico">💊</div>
+        <h3>Prescrição Digital</h3>
+        <p>Receitas com assinatura ICP-Brasil e QR Code de autenticação, enviadas direto ao paciente por WhatsApp ou SMS.</p>
+        <span class="tag">CFM 2.314/2022</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-ico">🛡️</div>
+        <h3>IA de Segurança</h3>
+        <p>Checagem automática de alergias, interações medicamentosas e contraindicações antes da prescrição ser liberada.</p>
+        <span class="tag">Farmacovigilância</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-ico">🗂️</div>
+        <h3>Prontuário Longitudinal</h3>
+        <p>Histórico completo do paciente com CIAP-2 e CID-10, evolução SOAP e codificação com autocomplete em tempo real.</p>
+        <span class="tag">PEC / SOAP</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-ico">📊</div>
+        <h3>Painel de Gestão</h3>
+        <p>Métricas de atendimento, tempo de espera, telemedicina e produtividade da equipe em dashboards dinâmicos.</p>
+        <span class="tag">Analytics</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Spotlight -->
+<section class="spotlight" id="plataforma">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="sec-label">Copiloto de IA</div>
+      <h2>Enquanto você conversa, <span class="grad">o prontuário se escreve sozinho</span>.</h2>
+      <p>Durante a teleconsulta, nosso copiloto de IA escuta o diálogo, identifica dados clínicos e estrutura o SOAP automaticamente. A médica apenas revisa, corrige e aprova.</p>
+      <ul class="check-list">
+        <li><span class="ck">✓</span> Transcrição de áudio em tempo real (áudio do paciente e do profissional)</li>
+        <li><span class="ck">✓</span> Sugestão inteligente de CIAP-2 e CID-10</li>
+        <li><span class="ck">✓</span> Rascunho de plano terapêutico com base em protocolos</li>
+        <li><span class="ck">✓</span> Bloqueio de segurança contra alergias e interações</li>
+      </ul>
+    </div>
+    <div class="reveal">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="ph-top">
+            <small>Teleconsulta · 12:40</small>
+            <h4>Maria Silva</h4>
+            <div class="ph-call">● Ao vivo · 00:08:32</div>
+          </div>
+          <div class="ph-body">
+            <div class="ph-bubble pac">Doutora, comecei a sentir uma dor de cabeça que não passa…</div>
+            <div class="ph-bubble doc">Entendi. Essa dor começou quando? E o que você costuma usar?</div>
+            <div class="ph-soap">
+              <b>✍ Copiloto IA · rascunhando SOAP</b>
+              <p>S: Cefaleia há 3 dias em região occipital, sem febre, associada a PA elevada…<br>O: PA 138×90 · FC 78 · Oroscopia sem alterações.<br>A: K86 · Hipertensão arterial (suspeita)</p>
+            </div>
+          </div>
+          <div class="ph-actions">
+            <div class="ph-btn">Aprovar SOAP</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Metrics -->
+<section class="metrics" id="impacto">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-label">Impacto</div>
+      <h2>Menos digitação. <span class="grad">Mais cuidado.</span></h2>
+      <p>O tempo economizado com burocracia volta para quem mais importa.</p>
+    </div>
+    <div class="metric-grid">
+      <div class="metric reveal"><div class="num" data-count="70">0</div><div class="lbl">% menos tempo em prontuário</div></div>
+      <div class="metric reveal"><div class="num" data-count="100">0<span style="font-size:.6em">%</span></div><div class="lbl">consultas com rascunho de SOAP</div></div>
+      <div class="metric reveal"><div class="num" data-count="24">0<span style="font-size:.6em">/7</span></div><div class="lbl">telemedicina disponível</div></div>
+      <div class="metric reveal"><div class="num" data-count="0">0<span style="font-size:.6em">ms</span></div><div class="lbl">latência de vídeo</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonial -->
+<section class="testimonial" id="seguranca">
+  <div class="wrap quote reveal">
+    <div class="sec-label">Segurança</div>
+    <div class="stars">★★★★★</div>
+    <p class="big">“O copiloto <b>entende o fluxo real da consulta</b>. Em vez de digitar, eu volto meu tempo para o paciente — e a receita sai assinada digitalmente, dentro da norma.”</p>
+    <div class="who">
+      <div class="avatar">LM</div>
+      <div>
+        <div class="name">Dra. Letícia Mendes</div>
+        <div class="role">Médica de Família e Comunidade · Cofundadora BRHealth</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="demo" style="padding-top:40px;">
+  <div class="wrap cta-wrap reveal">
+    <div class="cta-card">
+      <h2>Pronta para evoluir a sua prática?</h2>
+      <p>Agende uma demonstração personalizada e veja como o BRHealth pode transformar o seu consultório hoje.</p>
+      <a href="#" class="btn btn-white btn-lg">Agendar demonstração <span class="arrow">→</span></a>
+      <div class="cta-note">Sem compromisso · Sem cartão de crédito</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="foot-grid">
+    <div class="foot-brand">
+      <a class="logo" href="#top" style="color:#fff;"><span class="logo-mark">B</span> BRHealth</a>
+      <p>Telemedicina e inteligência artificial para profissionais que querem cuidar melhor — e digitar menos.</p>
+    </div>
+    <div class="foot-col">
+      <h5>Produto</h5>
+      <a href="#recursos">Teleconsulta</a>
+      <a href="#recursos">Copiloto de IA</a>
+      <a href="#recursos">Prescrição digital</a>
+      <a href="#recursos">Prontuário</a>
+    </div>
+    <div class="foot-col">
+      <h5>Empresa</h5>
+      <a href="#">Sobre nós</a>
+      <a href="#">Carreiras</a>
+      <a href="#">Parcerias</a>
+      <a href="#">Blog</a>
+    </div>
+    <div class="foot-col">
+      <h5>Legal</h5>
+      <a href="#">Privacidade (LGPD)</a>
+      <a href="#">Termos de uso</a>
+      <a href="#">Segurança</a>
+      <a href="#">Conformidade CFM</a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 BRHealth. Todos os direitos reservados.</span>
+    <span>Feito com cuidado para a saúde brasileira.</span>
+  </div>
+</footer>
+
+<script>
+  // Nav scroll state
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 30);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Mobile menu
+  const burger = document.getElementById('burger');
+  const menu = document.getElementById('mobileMenu');
+  burger.addEventListener('click', () => {
+    menu.classList.toggle('open');
+    document.body.classList.toggle('no-scroll');
+  });
+  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    menu.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }));
+
+  // Reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal, #strip').forEach(el => io.observe(el));
+
+  // Animated counters
+  const cio = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      const target = +el.dataset.count;
+      const dur = 1600; const start = performance.now();
+      const tick = (now) => {
+        const p = Math.min((now - start) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString('pt-BR');
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      cio.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.metric .num').forEach(el => cio.observe(el));
+
+  // Mock parallax tilt on mouse
+  const mock = document.querySelector('.mock');
+  const wrap = document.getElementById('mockWrap');
+  wrap.addEventListener('mousemove', (ev) => {
+    const r = wrap.getBoundingClientRect();
+    const x = (ev.clientX - r.left) / r.width - .5;
+    const y = (ev.clientY - r.top) / r.height - .5;
+    mock.style.transform = `rotateX(${-y * 5}deg) rotateY(${x * 7}deg)`;
+  });
+  wrap.addEventListener('mouseleave', () => { mock.style.transform = 'rotateX(2deg) rotateY(-3deg)'; });
+
+  // Smooth anchor offset
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href');
+      if (id.length > 1 && document.querySelector(id)) {
+        e.preventDefault();
+        document.querySelector(id).scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+</body>
+</html>

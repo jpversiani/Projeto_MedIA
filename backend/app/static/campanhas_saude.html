@@ -1,0 +1,388 @@
+media-project/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── api.py
+│   │   ├── static/
+│   │   │   └── campanhas_saude.html
+│   │   └── tests/
+│   │       ├── __init__.py
+│   │       ├── conftest.py
+│   │       ├── test_models.py
+│   │       ├── test_schemas.py
+│   │       └── test_api.py
+│   ├── requirements.txt
+│   └── pytest.ini
+
+# Arquivo: backend/app/models.py
+"""
+Modelos SQLAlchemy 2.0 para o Projeto MedIA - Sistema de Saúde Comunitária.
+
+Padrões SUS/APS:
+- Identificação por CNS/CPF
+- Classificação CIAP-2 (Classificação Internacional de Atividade e Padrão)
+- Código CID-10 (Código Internacional de Diagnoses)
+- Método SOAP para registro de visitas
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+)
+
+
+class Base(DeclarativeBase):
+    """Base declarativa para todos os modelos do sistema."""
+
+
+class VisitStatus(Enum):
+    """Estados da visita domiciliar."""
+    AGENDADA = "agendada"
+    EM_PROGRESSO = "em_progresso"
+    COMPLETA = "completa"
+    ANULADA = "anulada"
+    PENDING_CONFIRMATION = "pendente_confirmacao"
+
+
+class TeleconsultStatus(Enum):
+    """Estados da teleatendimento."""
+    AGENDADA = "agendada"
+    EM_PROGRESSO = "em_progresso"
+    COMPLETA = "completa"
+    ANULADA = "anulada"
+
+
+class VisitType(Enum):
+    """Tipos de visita domiciliar."""
+    VISITA_ROUTINARIA = "rutinaria"
+    VISITA_ACURADA = "acurada"
+    VISITA_DE_GEMINIA = "de_geminia"
+    VISITA_PREVENCAO = "prevencao"
+
+
+class PriorityLevel(Enum):
+    """Níveis de prioridade para visitas."""
+    CRITICA = "critica"
+    ALTA = "alta"
+    MEDIA = "media"
+    BAIXA = "baixa"
+
+
+class Patient(Base):
+    """
+    Modelo de Paciente/Clientes.
+
+    Identificação: CNS (Código Nacional de Saúde) ou CPF.
+    Conformidade: Padrão SUS/APS para identificação única.
+    """
+
+    __tablename__ = "pacientes"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    cns: Mapped[Optional[str]] = mapped_column(
+        String(13), unique=True, nullable=False, index=True
+    )
+    cpf: Mapped[Optional[str]] = mapped_column(
+        String(11), unique=True, nullable=True, index=True
+    )
+    nome: Mapped[str] = mapped_column(String(100), nullable=False)
+    data_nascimento: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    gender: Mapped[Optional[str]] = mapped_column(
+        String(1), nullable=True, comment="M/F"
+    )
+    municipio: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True
+    )
+    estado: Mapped[Optional[str]] = mapped_column(
+        String(2), nullable=True, comment="Código do estado"
+    )
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relações
+    visitas: Mapped[list["Visitation"]] = relationship(
+        "Visitation", back_populates="paciente"
+    )
+    teleconsultas: Mapped[list["Teleconsult"]] = relationship(
+        "Teleconsult", back_populates="paciente"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Paciente(id={self.id}, cns={self.cns}, nome={self.nome})>"
+
+
+class Teleconsult(Base):
+    """
+    Modelo de Teleatendimento.
+
+    Registro conforme método SOAP:
+    - S: Sinal/Complamento
+    - O: Observação
+    - A: Avaliação
+    - P: Plano
+    - E: Empate
+    """
+
+    __tablename__ = "teleconsultas"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    patient_id: Mapped[UUID] = mapped_column(
+        ForeignKey("pacientes.id"), nullable=False
+    )
+    agent_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, comment="CNS do ACS"
+    )
+    status: Mapped[TeleconsultStatus] = mapped_column(
+        SAEnum(TeleconsultStatus), default=TeleconsultStatus.AGENDADA
+    )
+    scheduled_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    actual_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    duration_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
+    ciap_2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CIAP-2"
+    )
+    cid_10_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CID-10"
+    )
+    soap_s: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="S - Sinal/Complamento"
+    )
+    soap_o: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="O - Observação"
+    )
+    soap_a: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="A - Avaliação"
+    )
+    soap_p: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="P - Plano"
+    )
+    soap_e: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="E - Empate"
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    priority: Mapped[PriorityLevel] = mapped_column(
+        SAEnum(PriorityLevel), default=PriorityLevel.MEDIA
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    patient: Mapped["Patient"] = relationship(
+        "Patient", back_populates="teleconsultas"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Teleconsult(id={self.id}, patient={self.patient_id}, "
+            f"status={self.status.value})>"
+        )
+
+
+class Visitation(Base):
+    """
+    Modelo de Visita Domiciliar.
+
+    Registro conforme método SOAP para visitas em casa.
+    """
+
+    __tablename__ = "visitas"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    patient_id: Mapped[UUID] = mapped_column(
+        ForeignKey("pacientes.id"), nullable=False
+    )
+    agent_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, comment="CNS do ACS"
+    )
+    visit_type: Mapped[VisitType] = mapped_column(
+        SAEnum(VisitType), default=VisitType.VISITA_ROUTINARIA
+    )
+    status: Mapped[VisitStatus] = mapped_column(
+        SAEnum(VisitStatus), default=VisitStatus.AGENDADA
+    )
+    scheduled_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    actual_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    duration_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
+    ciap_2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CIAP-2"
+    )
+    cid_10_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CID-10"
+    )
+    soap_s: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="S - Sinal/Complamento"
+    )
+    soap_o: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="O - Observação"
+    )
+    soap_a: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="A - Avaliação"
+    )
+    soap_p: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="P - Plano"
+    )
+    soap_e: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="E - Empate"
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    priority: Mapped[PriorityLevel] = mapped_column(
+        SAEnum(PriorityLevel), default=PriorityLevel.MEDIA
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    patient: Mapped["Patient"] = relationship(
+        "Patient", back_populates="visitas"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Visita(id={self.id}, patient={self.patient_id}, "
+            f"type={self.visit_type.value}, status={self.status.value})>"
+        )
+
+
+class Campaign(Base):
+    """
+    Modelo de Campanha de Busca Ativa.
+
+    Representa uma campanha de visitas domiciliares ou teleatendimentos
+    para agentes comunitários de saúde.
+    """
+
+    __tablename__ = "campanhas"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    start_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False
+    )
+    end_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    target_count: Mapped[int] = mapped_column(Integer, default=0)
+    completed_count: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(
+        String(20), default="ativa", comment="ativa, encerrada, cancelada"
+    )
+    agent_ids: Mapped[list[UUID]] = mapped_column(
+        Text, nullable=True, comment="CNS dos agentes alocados"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    visitas: Mapped[list["Visitation"]] = relationship(
+        "Visitation", back_populates="campanha"
+    )
+    teleconsultas: Mapped[list["Teleconsult"]] = relationship(
+        "Teleconsult", back_populates="campanha"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Campanha(id={self.id}, name={self.name}, "
+            f"status={self.status})>"
+        )
+
+
+class Agent(Base):
+    """
+    Modelo de Agente Comunitário de Saúde (ACS).
+
+    Identificação por CNS conforme padrão SUS.
+    """
+
+    __tablename__ = "agentes"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    cns: Mapped[str] = mapped_column(
+        String(13), unique=True, nullable=False, index=True
+    )
+    nome: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    telefone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    municipio: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True
+    )
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+
+    visitas: Mapped[list["Visitation"]] = relationship(
+        "Visitation", back_populates="agente"
+    )
+    teleconsultas: Mapped[list["Teleconsult"]] = relationship(
+        "Teleconsult", back_populates="agente"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Agente(id={self.id}, cns={self.cns}, nome={self.nome})>"
+
+
+# Import uuid
+import uuid

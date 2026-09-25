@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda Diária do Médico — Projeto MedIA (SUS/APS)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  /* Configuração do Tailwind: paleta institucional SUS */
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          sus: { 50: '#eef8f4', 100: '#d6ede4', 500: '#0f7b5f', 600: '#0c654f', 700: '#0a5240', 900: '#062e24' },
+          tele: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#4f46e5', 600: '#4338ca', 700: '#3730a3' }
+        },
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+      }
+    }
+  };
+</script>
+<style>
+  /* Slot de horário disponível: alvo de soltar (drop target) */
+  .slot-livre { transition: background-color .15s ease; }
+  .slot-destaque { background-color: #d6ede4 !important; outline: 2px dashed #0f7b5f; outline-offset: -2px; }
+  /* Card em arraste */
+  .card-arrastando { opacity: .45; transform: rotate(2deg); }
+  /* Barra de tempo atual */
+  .linha-agora { position: absolute; left: 0; right: 0; height: 2px; background: #dc2626; z-index: 10; }
+  .linha-agora::before { content: ''; position: absolute; left: -6px; top: -4px; width: 10px; height: 10px; border-radius: 9999px; background: #dc2626; }
+  /* Garante rolagem sincronizada da grade */
+  #grade-rolagem { max-height: 70vh; }
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen">
+
+<!-- ============================================================= -->
+<!-- CABEÇALHO                                                     -->
+<!-- ============================================================= -->
+<header class="bg-sus-700 text-white shadow-lg">
+  <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold tracking-tight">Agenda Diária do Médico</h1>
+      <p class="text-sus-100 text-sm mt-0.5">
+        Atenção Primária à Saúde (APS) · UBS <span class="font-semibold">Dr. João Paulo II</span> · Equipe
+        <span class="font-semibold" id="info-equipe">Família 03</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="text-right">
+        <p class="text-sm text-sus-100" id="data-hoje">--</p>
+        <p class="text-xs text-sus-100/80">Horário de funcionamento: 07h às 19h</p>
+      </div>
+      <div class="h-10 w-px bg-sus-500/50 hidden md:block"></div>
+      <img src="https://ui-avatars.com/api/?name=Dr+MedIA&background=0a5240&color=fff&bold=true"
+           alt="Avatar do profissional" class="h-10 w-10 rounded-full ring-2 ring-sus-500">
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================= -->
+<!-- PAINEL DE INDICADORES DO DIA                                  -->
+<!-- ============================================================= -->
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <section aria-label="Indicadores do dia" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <!-- Total de consultas -->
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-sus-500">
+      <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Consultas do dia</p>
+      <p class="text-2xl font-bold mt-1"><span id="kpi-total">0</span></p>
+    </div>
+    <!-- Telemedicina -->
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-tele-500">
+      <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Telemedicina</p>
+      <p class="text-2xl font-bold mt-1 text-tele-600"><span id="kpi-tele">0</span></p>
+    </div>
+    <!-- Atendidas -->
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-sky-500">
+      <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Atendidas</p>
+      <p class="text-2xl font-bold mt-1 text-sky-600"><span id="kpi-atendidas">0</span></p>
+    </div>
+    <!-- Absenteísmo -->
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+      <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Absenteísmo do dia</p>
+      <p class="text-2xl font-bold mt-1 text-amber-600"><span id="kpi-absentesmo">0%</span></p>
+      <p class="text-[11px] text-slate-400" id="kpi-absentesmo-detalhe">0 faltas em 0 consultas</p>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- BARRA DE AÇÕES                                                -->
+  <!-- ============================================================= -->
+  <section class="flex flex-wrap items-center gap-3">
+    <button id="btn-sala-virtual" type="button"
+            class="inline-flex items-center gap-2 bg-tele-600 hover:bg-tele-500 active:bg-tele-700 text-white font-semibold px-5 py-2.5 rounded-lg shadow transition focus:outline-none focus:ring-4 focus:ring-tele-100"
+            aria-label="Entrar na sala de telemedicina">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>
+      </svg>
+      Entrar na Sala Virtual
+    </button>
+    <p class="text-sm text-slate-500 hidden md:block">
+      Arraste os cards de consulta para reagendar · Clique em um card para detalhes
+    </p>
+    <span id="aviso-reagendamento" class="ml-auto hidden text-sm font-medium text-sus-700 bg-sus-50 border border-sus-100 px-3 py-1.5 rounded-lg" role="status"></span>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- LEGENDA                                                       -->
+  <!-- ============================================================= -->
+  <section class="flex flex-wrap gap-4 text-xs text-slate-600 bg-white rounded-lg shadow px-4 py-3" aria-label="Legenda">
+    <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-tele-100 border border-tele-500"></span> Telemedicina</span>
+    <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-emerald-100 border border-emerald-500"></span> Presencial</span>
+    <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-rose-100 border border-rose-400"></span> Confirmação urgente</span>
+    <span class="inline-flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-slate-200 border border-slate-400"></span> Slot livre</span>
+    <span class="inline-flex items-center gap-1.5"><svg class="h-3.5 w-3.5 text-tele-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg> Sala virtual disponível</span>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- GRADE DE HORÁRIOS (07h–19h, slots de 15 min)                  -->
+  <!-- ============================================================= -->
+  <section class="bg-white rounded-xl shadow overflow-hidden" aria-label="Grade de horários da APS">
+    <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+      <h2 class="font-semibold text-slate-700">Grade de Horários</h2>
+      <p class="text-xs text-slate-400">48 slots de 15 min · 07:00–19:00</p>
+    </div>
+    <div id="grade-rolagem" class="overflow-y-auto relative">
+      <table class="w-full text-sm border-collapse">
+        <caption class="sr-only">Grade de consultas da APS, das 07h às 19h, em intervalos de 15 minutos</caption>
+        <thead class="sticky top-0 bg-slate-50 z-20">
+          <tr>
+            <th scope="col" class="text-left font-semibold text-slate-500 uppercase text-xs px-3 py-2 w-24 border-b border-slate-200">Hora</th>
+            <th scope="col" class="text-left font-semibold text-slate-500 uppercase text-xs px-3 py-2 border-b border-slate-200">Consultas</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-grade"><!-- Gerado por JavaScript (ES Module) --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- MODAL DE DETALHES DA CONSULTA                                 -->
+  <!-- ============================================================= -->
+  <div id="modal-detalhes" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between px-5 py-4 border-b border-slate-100">
+        <div>
+          <h3 id="modal-titulo" class="text-lg font-bold text-slate-800">Detalhes da Consulta</h3>
+          <p id="modal-subtitulo" class="text-sm text-slate-500 mt-0.5"></p>
+        </div>
+        <button id="btn-fechar-modal" type="button" class="text-slate-400 hover:text-slate-600 focus:outline-none" aria-label="Fechar detalhes">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="modal-corpo" class="px-5 py-4 space-y-3 text-sm"><!-- Preenchido dinamicamente --></div>
+      <div class="px-5 py-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
+        <button id="btn-modal-sala" type="button" class="hidden inline-flex items-center gap-1.5 bg-tele-600 hover:bg-tele-500 text-white font-medium px-4 py-2 rounded-lg transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+          Abrir Sala Virtual
+        </button>
+        <button id="btn-modal-fechar-2" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="max-w-7xl mx-auto px-4 pb-8 text-center text-xs text-slate-400">
+  Projeto MedIA · SUS / Atenção Primária à Saúde · Identificação por CNS/CPF · Registro clínico pelo método SOAP
+</footer>
+
+<script type="module">
+'use strict';
+
+/* =============================================================
+ * Agenda Diária do Médico — Projeto MedIA (SUS/APS)
+ * Grade de 07h–19h com slots de 15 minutos e drag-and-drop
+ * para reagendamento de consultas (HTML5 Drag and Drop API).
+ * ============================================================= */
+
+/* ---------- Constantes da grade (padrão APS) ---------- */
+const HORA_INICIO = 7;   // 07h — abertura da unidade
+const HORA_FIM = 19;     // 19h — fechamento da unidade
+const MINUTOS_SLOT = 15; // duração padrão do slot da APS
+const SLOTS_POR_HORA = 60 / MINUTOS_SLOT;
+const TOTAL_SLOTS = (HORA_FIM - HORA_INICIO) * SLOTS_POR_HORA;
+const ALTURA_SLOT_PX = 64;
+
+/* ---------- Dados simulados das consultas do dia ---------- */
+/* Em produção, os dados viriam da API do backend (FastAPI/SQLAlchemy). */
+const consultas = [
+  { id: 'c1', hora: '07:30', duracao: 15, paciente: 'Maria Oliveira Santos', cns: '701 2345 6789 0123', tipo: 'presencial', status: 'agendada', motivo: 'Consulta de rotina — hipertensão arterial', cid: 'I10', queixa: 'Controle de PA' },
+  { id: 'c2', hora: '08:00', duracao: 30, paciente: 'João Pereira Lima', cns: '123 4567 8901 2345', tipo: 'telemedicina', status: 'agendada', motivo: 'Retorno — diabetes mellitus tipo 2', cid: 'E11', queixa: 'Reavaliação de glicemia' },
+  { id: 'c3', hora: '09:15', duracao: 15, paciente: 'Ana Souza Ferreira', cns: '234 5678 9012 3456', tipo: 'presencial', status: 'agendada', motivo: 'Pré-natal — 24 semanas', cid: 'Z34', queixa: 'Acompanhamento gestacional' },
+  { id: 'c4', hora: '10:00', duracao: 15, paciente: 'Carlos Andrade Melo', cns: '345 6789 0123 4567', tipo: 'telemedicina', status: 'agendada', motivo: 'Orientação sobre medicação contínua', cid: 'I10', queixa: 'Dúvidas sobre losartana' },
+  { id: 'c5', hora: '13:00', duracao: 15, paciente: 'Fernanda Costa Ribeiro', cns: '456 7890 1234 5678', tipo: 'presencial', status: 'agendada', motivo: 'Queixa de dor lombar há 3 dias', cid: 'M54.5', queixa: 'Lombalgia aguda' },
+  { id: 'c6', hora: '14:30', duracao: 15, paciente: 'Roberto Nogueira Alves', cns: '567 8901 2345 6789', tipo: 'presencial', status: 'agendada', motivo: 'Vacinação — influenza (idoso 72 anos)', cid: 'Z23', queixa: 'Atualização vacinal' },
+  { id: 'c7', hora: '16:00', duracao: 30, paciente: 'Juliana Martins Castro', cns: '678 9012 3456 7890', tipo: 'telemedicina', status: 'agendada', motivo: 'Acompanhamento psicológico — ansiedade', cid: 'F41.1', queixa: 'Crises de ansiedade' },
+  { id: 'c8', hora: '11:00', duracao: 15, paciente: 'Pedro Barbosa Silva', cns: '789 0123 4567 8901', tipo: 'presencial', status: 'faltou', motivo: 'Consulta agendada — não compareceu', cid: '', queixa: '' },
+];
+
+/* ---------- Estado ---------- */
+let consultaArrastada = null; // consulta sendo arrastada no momento
+
+/* ---------- Utilidades ---------- */
+const $ = (seletor) => document.querySelector(seletor);
+
+/** Converte índice de slot em rótulo "HH:MM". */
+function rotuloSlot(indice) {
+  const minutosTotais = HORA_INICIO * 60 + indice * MINUTOS_SLOT;
+  const h = String(Math.floor(minutosTotais / 60)).padStart(2, '0');
+  const m = String(minutosTotais % 60).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+/** Converte "HH:MM" em índice de slot; retorna -1 se inválido. */
+function horaParaIndice(hora) {
+  const [h, m] = hora.split(':').map(Number);
+  const minutos = h * 60 + m;
+  const inicio = HORA_INICIO * 60;
+  if (minutos < inicio || minutos >= HORA_FIM * 60) return -1;
+  return Math.round((minutos - inicio) / MINUTOS_SLOT);
+}
+
+/** Escapa texto para inserção segura em HTML. */
+function escapar(texto) {
+  const div = document.createElement('div');
+  div.textContent = String(texto);
+  return div.innerHTML;
+}
+
+/* ---------- Construção da grade ---------- */
+function construirGrade() {
+  const corpo = $('#corpo-grade');
+  const agora = new Date();
+  const agoraIndice = (agora.getHours() * 60 + agora.getMinutes() - HORA_INICIO * 60) / MINUTOS_SLOT;
+  const fragmento = document.createDocumentFragment();
+
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    const rotulo = rotuloSlot(i);
+    const ehHoraCheia = i % SLOTS_POR_HORA === 0;
+
+    const tr = document.createElement('tr');
+    tr.className = ehHoraCheia ? 'border-t-2 border-slate-200' : 'border-t border-slate-100';
+
+    // Célula do rótulo de hora (ocupa a coluna inteira via rowSpan)
+    if (ehHoraCheia) {
+      const tdHora = document.createElement('td');
+      tdHora.className = 'px-3 py-2 align-top text-xs w-24 font-bold text-sus-700 border-b border-slate-200';
+      tdHora.textContent = rotulo;
+      tdHora.rowSpan = SLOTS_POR_HORA;
+      tr.appendChild(tdHora);
+    }
+
+    // Célula do slot (alvo de soltar)
+    const tdSlot = document.createElement('td');
+    tdSlot.className = `slot-livre px-2 border-b border-slate-100 relative ${ehHoraCheia ? 'bg-white' : 'bg-slate-50/40'}`;
+    tdSlot.dataset.indice = String(i);
+    tdSlot.style.height = `${ALTURA_SLOT_PX}px`;
+    tdSlot.setAttribute('role', 'listitem');
+    tdSlot.setAttribute('aria-label', `Slot das ${rotulo}`);
+
+    // Linha do horário atual
+    if (agoraIndice >= i && agoraIndice < i + 1) {
+      const linha = document.createElement('div');
+      linha.className = 'linha-agora';
+      linha.style.top = `${(agoraIndice - i) * ALTURA_SLOT_PX}px`;
+      tdSlot.appendChild(linha);
+    }
+
+    tr.appendChild(tdSlot);
+    fragmento.appendChild(tr);
+  }
+  corpo.appendChild(fragmento);
+  renderizarConsultas();
+}
+
+/* ---------- Renderização dos cards de consulta ---------- */
+function renderizarConsultas() {
+  // Remove cards existentes (mantém a linha "agora")
+  document.querySelectorAll('.card-consulta').forEach((el) => el.remove());
+
+  for (const consulta of consultas) {
+    const indice = horaParaIndice(consulta.hora);
+    if (indice < 0) continue;
+    const slot = document.querySelector(`.slot-livre[data-indice="${indice}"]`);
+    if (!slot) continue;
+
+    const card = document.createElement('div');
+    card.className = montarClassesCard(consulta);
+    card.dataset.id = consulta.id;
+    card.draggable = true;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-grabbed', 'false');
+    card.setAttribute('aria-label', `Consulta de ${consulta.paciente} às ${consulta.hora}`);
+
+    // Card ocupa visualmente todos os slots da sua duração (15/30 min)
+    const qtdSlots = Math.max(1, Math.round(consulta.duracao / MINUTOS_SLOT));
+    card.style.height = `${qtdSlots * ALTURA_SLOT_PX - 8}px`;
+    card.style.zIndex = '5';
+
+    card.innerHTML = montarConteudoCard(consulta);
+
+    // ---- Eventos de drag (HTML5 Drag and Drop) ----
+    card.addEventListener('dragstart', (ev) => aoIniciarArraste(ev, consulta, card));
+    card.addEventListener('dragend', (ev) => aoFinalizarArraste(ev, card));
+    card.addEventListener('click', () => abrirDetalhes(consulta));
+    card.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirDetalhes(consulta); }
+    });
+
+    slot.appendChild(card);
+  }
+
+  atualizarIndicadores();
+}
+
+/** Define as classes Tailwind conforme o tipo e status da consulta. */
+function montarClassesCard(consulta) {
+  const base = 'card-consulta absolute inset-x-1 top-1 rounded-lg shadow-sm border p-2 cursor-grab active:cursor-grabbing select-none text-xs hover:shadow-md transition';
+  if (consulta.status === 'faltou') {
+    return `${base} bg-slate-100 border-slate-300 opacity-70`;
+  }
+  if (consulta.tipo === 'telemedicina') {
+    return `${base} bg-tele-50 border-tele-500 hover:bg-tele-100`;
+  }
+  return `${base} bg-emerald-50 border-emerald-400 hover:bg-emerald-100`;
+}
+
+/** Monta o conteúdo interno do card (ícone de vídeo para telemedicina). */
+function montarConteudoCard(consulta) {
+  const iconeVideo = consulta.tipo === 'telemedicina'
+    ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-tele-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Telemedicina"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Presencial"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>`;
+
+  const rotuloDuracao = consulta.duracao > MINUTOS_SLOT
+    ? `<span class="text-[10px] text-slate-500">${consulta.duracao} min</span>` : '';
+
+  const statusFalta = consulta.status === 'faltou'
+    ? '<span class="ml-auto text-[10px] font-bold text-rose-600 uppercase">Falta</span>' : '';
+
+  return `
+    <div class="flex items-start gap-1.5">
+      ${iconeVideo}
+      <div class="min-w-0 flex-1">
+        <p class="font-semibold truncate ${consulta.status === 'faltou' ? 'text-slate-500 line-through' : 'text-slate-800'}">${escapar(consulta.paciente)}</p>
+        <p class="text-[10px] text-slate-500 truncate">${escapar(consulta.motivo)}${consulta.cid ? ` · CID ${escapar(consulta.cid)}` : ''}</p>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span class="text-[10px] font-mono text-slate-400">${consulta.hora}</span>
+          ${rotuloDuracao}
+          ${statusFalta}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---------- Drag and Drop (HTML5) ---------- */
+function aoIniciarArraste(ev, consulta, card) {
+  consultaArrastada = consulta;
+  ev.dataTransfer.setData('text/plain', consulta.id);
+  ev.dataTransfer.effectAllowed = 'move';
+  card.classList.add('card-arrastando');
+  card.setAttribute('aria-grabbed', 'true');
+}
+
+function aoFinalizarArraste(ev, card) {
+  card.classList.remove('card-arrastando');
+  card.setAttribute('aria-grabbed', 'false');
+  consultaArrastada = null;
+}
+
+/** Configura os alvos de soltar (slots) após a construção da grade. */
+function configurarDropTargets() {
+  document.querySelectorAll('.slot-livre').forEach((slot) => {
+    slot.addEventListener('dragover', (ev) => {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      slot.classList.add('slot-destaque');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('slot-destaque'));
+    slot.addEventListener('drop', (ev) => {
+      ev.preventDefault();
+      slot.classList.remove('slot-destaque');
+      const id = ev.dataTransfer.getData('text/plain');
+      const consulta = consultas.find((c) => c.id === id);
+      const novoIndice = Number(slot.dataset.indice);
+      if (consulta && novoIndice >= 0) reagendarConsulta(consulta, novoIndice);
+    });
+  });
+}
+
+/** Reagenda a consulta para o novo slot, validando sobreposições. */
+function reagendarConsulta(consulta, novoIndice) {
+  const indiceAtual = horaParaIndice(consulta.hora);
+  if (indiceAtual === novoIndice) return;
+
+  // Valida sobreposição com outras consultas (durando vários slots)
+  const slotsOcupados = new Set();
+  for (const c of consultas) {
+    if (c.id === consulta.id) continue;
+    const ini = horaParaIndice(c.hora);
+    if (ini < 0) continue;
+    const qtd = Math.max(1, Math.round(c.duracao / MINUTOS_SLOT));
+    for (let k = 0; k < qtd; k++) slotsOcupados.add(ini + k);
+  }
+  const qtdNova = Math.max(1, Math.round(consulta.duracao / MINUTOS_SLOT));
+  for (let k = 0; k < qtdNova; k++) {
+    if (slotsOcupados.has(novoIndice + k) || novoIndice + k >= TOTAL_SLOTS) {
+      mostrarAviso('Conflito de horário: já existe consulta neste intervalo.', true);
+      return;
+    }
+  }
+
+  const horaAntiga = consulta.hora;
+  consulta.hora = rotuloSlot(novoIndice);
+  renderizarConsultas();
+  mostrarAviso(`Consulta de ${consulta.paciente} reagendada de ${horaAntiga} para ${consulta.hora}.`);
+}
+
+/** Exibe aviso temporário de reagendamento (status acessível). */
+let temporizadorAviso = null;
+function mostrarAviso(texto, erro = false) {
+  const aviso = $('#aviso-reagendamento');
+  aviso.textContent = texto;
+  aviso.classList.remove('hidden');
+  aviso.className = `ml-auto text-sm font-medium px-3 py-1.5 rounded-lg border ${erro
+    ? 'text-rose-700 bg-rose-50 border-rose-200'
+    : 'text-sus-700 bg-sus-50 border-sus-100'}`;
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = setTimeout(() => aviso.classList.add('hidden'), 6000);
+}
+
+/* ---------- Indicadores (KPIs) ---------- */
+function atualizarIndicadores() {
+  const total = consultas.length;
+  const tele = consultas.filter((c) => c.tipo === 'telemedicina').length;
+  const faltas = consultas.filter((c) => c.status === 'faltou').length;
+  const atendidas = total - faltas;
+
+  $('#kpi-total').textContent = total;
+  $('#kpi-tele').textContent = tele;
+  $('#kpi-atendidas').textContent = atendidas;
+  $('#kpi-absentesmo').textContent = total > 0 ? `${Math.round((faltas / total) * 100)}%` : '0%';
+  $('#kpi-absentesmo-detalhe').textContent = `${faltas} ${faltas === 1 ? 'falta' : 'faltas'} em ${total} consultas`;
+}
+
+/* ---------- Modal de detalhes ---------- */
+function abrirDetalhes(consulta) {
+  $('#modal-titulo').textContent = consulta.paciente;
+  $('#modal-subtitulo').textContent = `${consulta.hora} · ${consulta.duracao} min · ${consulta.tipo === 'telemedicina' ? 'Telemedicina' : 'Presencial'}`;
+
+  const linhas = [
+    [' CNS', consulta.cns || '—'],
+    ['Motivo', consulta.motivo],
+    ['CID-10', consulta.cid || '—'],
+    ['Queixa (CIAP-2 sugerido)', consulta.queixa || '—'],
+    ['Registro', 'Método SOAP (S: subjetivo · O: objetivo · A: avaliação · P: plano)'],
+  ];
+  $('#modal-corpo').innerHTML = linhas
+    .map(([rotulo, valor]) => `
+      <div class="flex gap-2">
+        <span class="font-semibold text-slate-500 w-40 shrink-0">${rotulo}</span>
+        <span class="text-slate-800">${escapar(valor)}</span>
+      </div>`)
+    .join('');
+
+  const btnSala = $('#btn-modal-sala');
+  btnSala.classList.toggle('hidden', consulta.tipo !== 'telemedicina');
+  btnSala.onclick = () => {
+    fecharModal();
+    window.open('https://telemedicina.medisus.br/sala/' + consulta.id, '_blank', 'noopener');
+  };
+
+  $('#modal-detalhes').classList.remove('hidden');
+  $('#modal-detalhes').classList.add('flex');
+}
+
+function fecharModal() {
+  $('#modal-detalhes').classList.add('hidden');
+  $('#modal-detalhes').classList.remove('flex');
+}
+
+/* ---------- Chamada direta para a sala virtual ---------- */
+function configurarSalaVirtual() {
+  $('#btn-sala-virtual').addEventListener('click', () => {
+    // Em produção, o link da sala viria do backend com autenticação do profissional.
+    window.open('https://telemedicina.medisus.br/sala-virtual', '_blank', 'noopener');
+    mostrarAviso('Sala virtual aberta em nova aba. Aguardando pacientes de telemedicina…');
+  });
+}
+
+/* ---------- Data do dia no cabeçalho ---------- */
+function exibirDataHoje() {
+  const hoje = new Date();
+  const formatador = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+  });
+  $('#data-hoje').textContent = formatador.format(hoje).replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/* ---------- Inicialização ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  exibirDataHoje();
+  construirGrade();
+  configurarDropTargets();
+  configurarSalaVirtual();
+
+  $('#btn-fechar-modal').addEventListener('click', fecharModal);
+  $('#btn-modal-sala').addEventListener('click', fecharModal);
+  $('#modal-detalhes').addEventListener('click', (ev) => {
+    if (ev.target === $('#modal-detalhes')) fecharModal();
+  });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fecharModal(); });
+});
+</script>
+</body>
+</html>

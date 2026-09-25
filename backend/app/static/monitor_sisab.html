@@ -1,0 +1,33 @@
+# Arquivo: backend/app/models.py
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SAEnum, Boolean
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+class RemessaStatus(str, Enum):
+    CRIADO = "CRIADO"
+    EM_ENVIO = "EM_ENVIO"
+    ERRO = "ERRO"
+    RETRANMITIDO = "RETRANMITIDO"
+    FINALIZADO = "FINALIZADO"
+
+class Remessa(Base):
+    __tablename__ = "remessas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    cns: Mapped[str] = mapped_column(String(15), unique=True, nullable=False, index=True)
+    cpf: Mapped[str] = mapped_column(String(11), nullable=False)
+    cid10: Mapped[str] = mapped_column(String(10), nullable=False)
+    ciap2: Mapped[str] = mapped_column(String(20), nullable=True)
+    valor: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[RemessaStatus] = mapped_column(SAEnum(RemessaStatus), default=RemessaStatus.CRIADO)
+    data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_geracao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    metodo_soap: Mapped[bool] = mapped_column(Boolean, default=True)
+    nota_soap: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
