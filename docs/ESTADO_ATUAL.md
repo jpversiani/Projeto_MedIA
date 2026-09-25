@@ -1,4 +1,4 @@
-# 📋 Estado Atual do OpenSUS / PEC
+# 📋 Estado Atual do Projeto MedIA
 
 > **Gerado em:** 25 de setembro de 2026  
 > **Produzido por:** HierAgent — Framework de Orquestração Multi-Agente  
@@ -9,7 +9,7 @@
 
 ## 1. Resumo Executivo
 
-O projeto OpenSUS/PEC foi desenvolvido com auxílio de um **cluster de 6 modelos de IA operando simultaneamente**:
+O Projeto MedIA foi desenvolvido com auxílio de um **cluster de 6 modelos de IA operando simultaneamente**:
 
 - **GLM 5.3 Flash** (OpenRouter Cloud + OpenCode PC + OpenCode Notebook)
 - **DeepSeek V4 Flash 0731** (OpenRouter Cloud)

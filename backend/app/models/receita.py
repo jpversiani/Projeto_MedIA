@@ -1,6 +1,6 @@
 """Modelos de domínio da Receita Digital (padrões SUS/APS).
 
-Define a prescrição eletrônica assinável do PEC OpenSUS: identificação do
+Define a prescrição eletrônica assinável do Projeto MedIA (PEC): identificação do
 cidadão por CNS/CPF, codificação do episódio por CID-10 e CIAP-2, lista de
 medicamentos prescritos e metadados criptográficos (hash do documento e
 assinatura digital) preenchidos pelo serviço de validação criptográfica

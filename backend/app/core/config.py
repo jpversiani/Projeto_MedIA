@@ -1,4 +1,4 @@
-"""Configuração central do OpenSUS/PEC (componentes C29 e C30)."""
+"""Configuração central do Projeto MedIA/PEC (componentes C29 e C30)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ class Settings(BaseModel):
 
     model_config = {"frozen": True}
 
-    PROJECT_NAME: str = "OpenSUS - Prontuário Eletrônico do Cidadão (PEC)"
+    PROJECT_NAME: str = "MedIA - Prontuário Eletrônico do Cidadão (PEC)"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 

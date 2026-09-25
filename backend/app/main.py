@@ -1,4 +1,4 @@
-"""Aplicação FastAPI do OpenSUS/PEC — sandbox dos componentes C29 e C30.
+"""Aplicação FastAPI do Projeto MedIA (PEC) — sandbox dos componentes C29 e C30.
 
 * C29 — indicador e armazenamento local de sincronização offline do PEC.
 * C30 — Painel Lateral do Copiloto na tela do médico (Home Office), cujo

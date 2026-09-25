@@ -1,11 +1,13 @@
-# 🏥 OpenSUS (Prontuário Eletrônico do Cidadão — PEC)
+# 🏥 Projeto MedIA — Saúde Digital SUS/APS
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-O **OpenSUS** é uma iniciativa aberta que reimagina o **e-SUS APS (PEC — Prontuário Eletrônico do Cidadão)**, desenvolvida para atender com agilidade e simplicidade aos padrões clínicos, estruturais e de interoperabilidade da **Atenção Primária à Saúde (APS)** do **SUS**.
+O **Projeto MedIA** é uma plataforma de saúde digital para a **Atenção Primária à Saúde (APS)** do **SUS**, desenvolvida para atender com agilidade e simplicidade aos padrões clínicos, estruturais e de interoperabilidade do **e-SUS APS (PEC — Prontuário Eletrônico do Cidadão)**.
+
+> **🗂️ Separação de repositórios:** o núcleo público deste código foi extraído para o repositório **[OpenSUS](https://github.com/jpversiani/OpenSUS)** (backend, docs de produto e Docker). Este repositório (`Projeto_MedIA`) mantém o projeto completo: código, `docs/gerados_por_ia/` (auditoria das maratonas de IA), `brhealth_landing/`, sandboxes e experimentos.
 
 > **Nota:** Este repositório foi construído com auxílio de orquestração multi-agente (HierAgent). Veja [`docs/ESTADO_ATUAL.md`](docs/ESTADO_ATUAL.md) para o estado atual do projeto.
 
@@ -80,11 +82,6 @@ Projeto_MedIA/
 cd backend
 pip install -r requirements.txt
 ```
-
-> ⚠️ **Dependência adicional necessária:** O arquivo `requirements.txt` não inclui `pyjwt`. Instale manualmente:
-> ```bash
-> pip install pyjwt[crypto]
-> ```
 
 2. Execute:
 ```bash
