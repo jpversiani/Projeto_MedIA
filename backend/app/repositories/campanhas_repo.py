@@ -1,180 +1,134 @@
-from pydantic import BaseModel, Field, ConfigDict, field_validator
-   from typing import Optional, List
-   from datetime import datetime
-   import re
-
-   class CampanhaCreate(BaseModel):
-       nome: str = Field(..., min_length=1, max_length=255)
-       descricao: str = Field(..., min_length=1)
-       objetivo: str = Field(..., min_length=1)
-       data_inicio: datetime
-       data_fim: datetime
-       status: str = Field(default="ativa")
-
-       model_config = ConfigDict(from_attributes=True)
-
-   class CampanhaRead(CampanhaCreate):
-       id: int
-       criado_em: datetime
-       atualizado_em: Optional[datetime] = None
-
-       model_config = ConfigDict(from_attributes=True)
-
-@field_validator('cpf')
-   @classmethod
-   def validar_cpf(cls, v: str) -> str:
-       v = str(v).replace('.', '').replace('-', '')
-       if len(v) != 11 or not v.isdigit():
-           raise ValueError('CPF inválido')
-       # Basic CPF validation logic (optional but good)
-       return v
-
-   @field_validator('cns')
-   @classmethod
-   def validar_cns(cls, v: str) -> str:
-       v = str(v).replace('-', '')
-       if len(v) != 15 or not v.isdigit():
-           raise ValueError('CNS inválido')
-       return v
-
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Enum as SAEnum
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-   from datetime import datetime
+from sqlalchemy import String, Text, DateTime, Boolean, Enum, JSON, ForeignKey
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
+   from sqlalchemy.sql import func
    import enum
 
    class Base(DeclarativeBase):
        pass
 
-   class StatusCampanha(str, enum.Enum):
-       RASCUNHO = "rascunho"
-       ATIVA = "ativa"
-       PAUSADA = "pausada"
-       CONCLUIDA = "concluida"
-
    class StatusDisparo(str, enum.Enum):
        PENDENTE = "pendente"
        ENVIADO = "enviado"
-       FALHA = "falha"
-       LIDO = "lido"
-
-   class StatusConfirmacao(str, enum.Enum):
-       AGUARDANDO = "aguardando"
+       ENTREGUE = "entregue"
        CONFIRMADO = "confirmado"
-       RECUSADO = "recusado"
-       NAO_RESPONDIDO = "nao_respondido"
-
-   class AcaoAuditoria(str, enum.Enum):
-       CRIACAO = "criacao"
-       ATUALIZACAO = "atualizacao"
-       ACESSO = "acesso"
-       EXCLUSAO = "exclusao"
-       EXPORTACAO = "exportacao"
+       FALHA = "falha"
 
    class Campanha(Base):
        __tablename__ = "campanhas"
        id: Mapped[int] = mapped_column(primary_key=True)
-       nome: Mapped[str] = mapped_column(String(255))
+       nome: Mapped[str] = mapped_column(String(100))
        descricao: Mapped[str] = mapped_column(Text)
-       objetivo: Mapped[str] = mapped_column(String(500))
-       status: Mapped[StatusCampanha] = mapped_column(SAEnum(StatusCampanha), default=StatusCampanha.RASCUNHO)
-       data_inicio: Mapped[datetime] = mapped_column(DateTime)
-       data_fim: Mapped[datetime] = mapped_column(DateTime)
-       criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       atualizado_em: Mapped[Optional[datetime]] = mapped_column(DateTime, onupdate=datetime.utcnow)
+       codigos_ciap2: Mapped[list[str]] = mapped_column(JSON)
+       codigos_cid10: Mapped[list[str]] = mapped_column(JSON)
+       status: Mapped[str] = mapped_column(String(20), default="ativa")
+       data_inicio: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+       data_fim: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+       criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+       atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
-       pacientes: Mapped[List["PacienteCampanha"]] = relationship(back_populates="campanha", lazy="selectin")
-       disparos: Mapped[List["HistoricoDisparo"]] = relationship(back_populates="campanha", lazy="selectin")
-
-   class PacienteCampanha(Base):
-       __tablename__ = "pacientes_campanhas"
+   class Disparo(Base):
+       __tablename__ = "disparos"
        id: Mapped[int] = mapped_column(primary_key=True)
        campanha_id: Mapped[int] = mapped_column(ForeignKey("campanhas.id"))
-       cns: Mapped[str] = mapped_column(String(15))
-       cpf: Mapped[str] = mapped_column(String(14))
-       cid10: Mapped[str] = mapped_column(String(10))
-       ciap2: Mapped[str] = mapped_column(String(10))
-       metodo_soap: Mapped[str] = mapped_column(String(50))
-       status: Mapped[StatusConfirmacao] = mapped_column(SAEnum(StatusConfirmacao), default=StatusConfirmacao.AGUARDANDO)
-       confirmacao_paciente: Mapped[Optional[str]] = mapped_column(String(20))
-       ultima_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       cns_paciente: Mapped[str] = mapped_column(String(15))
+       cpf_paciente: Mapped[str] = mapped_column(String(14))
+       conteudo_mensagem: Mapped[str] = mapped_column(Text)
+       status_envio: Mapped[StatusDisparo] = mapped_column(Enum(StatusDisparo), default=StatusDisparo.PENDENTE)
+       data_envio: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+       data_confirmacao: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+       notas_soap: Mapped[dict] = mapped_column(JSON, nullable=True)
+       criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-       campanha: Mapped["Campanha"] = relationship(back_populates="pacientes")
-
-   class HistoricoDisparo(Base):
-       __tablename__ = "historico_disparos"
-       id: Mapped[int] = mapped_column(primary_key=True)
-       campanha_id: Mapped[int] = mapped_column(ForeignKey("campanhas.id"))
-       participante_id: Mapped[int] = mapped_column(ForeignKey("pacientes_campanhas.id"))
-       canal: Mapped[str] = mapped_column(String(20))
-       conteudo: Mapped[str] = mapped_column(Text)
-       status_envio: Mapped[StatusDisparo] = mapped_column(SAEnum(StatusDisparo), default=StatusDisparo.PENDENTE)
-       data_envio: Mapped[datetime] = mapped_column(DateTime)
-       resposta_paciente: Mapped[Optional[str]] = mapped_column(Text)
-       tentativas: Mapped[int] = mapped_column(Integer, default=0)
-
-       campanha: Mapped["Campanha"] = relationship(back_populates="disparos")
-
-   class LogAuditoriaProtecaoDados(Base):
+   class LogAuditoriaLGPD(Base):
        __tablename__ = "logs_auditoria_lgpd"
        id: Mapped[int] = mapped_column(primary_key=True)
        entidade_tipo: Mapped[str] = mapped_column(String(50))
        entidade_id: Mapped[int] = mapped_column(Integer)
-       acao: Mapped[AcaoAuditoria] = mapped_column(SAEnum(AcaoAuditoria))
-       usuario_id: Mapped[Optional[int]] = mapped_column(Integer)
-       data_hora: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       ip_origem: Mapped[Optional[str]] = mapped_column(String(45))
-       justificativa: Mapped[Optional[str]] = mapped_column(Text)
-       conformidade_lgpd: Mapped[bool] = mapped_column(Boolean, default=True)
-       dados_acessados: Mapped[Optional[str]] = mapped_column(Text)
+       acao: Mapped[str] = mapped_column(String(50))
+       usuario_id: Mapped[int] = mapped_column(Integer, nullable=True)
+       ip_origem: Mapped[str] = mapped_column(String(45), nullable=True)
+       justificativa_lgpd: Mapped[str] = mapped_column(Text)
+       data_hora: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-from sqlalchemy.ext.asyncio import AsyncSession # Wait, the prompt says SQLAlchemy 2.0, doesn't specify sync/async. I'll use sync Session for simplicity, but note it's compatible. Actually, I'll use `sqlalchemy.orm.Session` as standard.
-   from sqlalchemy import select, insert, update, delete
+# Arquivo: backend/app/repositories/campanhas_repo.py
+   import enum
+   from datetime import datetime, timezone
    from typing import Optional, List, Dict, Any
-   from datetime import datetime
-   import logging
+   from uuid import uuid4
 
-   logger = logging.getLogger(__name__)
+   from pydantic import BaseModel, Field, field_validator, ConfigDict
+   from pydantic.v2 import EmailStr # Not needed
+   from sqlalchemy import String, Text, DateTime, Boolean, Enum, JSON, ForeignKey, Integer
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy import select, update, delete
+   from sqlalchemy.sql import func
+   import re
 
-   class CampanhasRepository:
-       def __init__(self, session: Session):
+   # Base
+   class Base(DeclarativeBase):
+       pass
+
+   # Enums
+   class StatusDisparo(str, enum.Enum):
+       PENDENTE = "pendente"
+       ENVIADO = "enviado"
+       ENTREGUE = "entregue"
+       CONFIRMADO = "confirmado"
+       FALHA = "falha"
+
+   # Models
+   class Campanha(Base):
+       __tablename__ = "campanhas"
+       id: Mapped[int] = mapped_column(primary_key=True)
+       nome: Mapped[str] = mapped_column(String(100))
+       descricao: Mapped[str] = mapped_column(Text)
+       codigos_ciap2: Mapped[list[str]] = mapped_column(JSON)
+       codigos_cid10: Mapped[list[str]] = mapped_column(JSON)
+       status: Mapped[str] = mapped_column(String(20), default="ativa")
+       data_inicio: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+       data_fim: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+       criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+       atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+
+   class Disparo(Base):
+       __tablename__ = "disparos"
+       id: Mapped[int] = mapped_column(primary_key=True)
+       campanha_id: Mapped[int] = mapped_column(ForeignKey("campanhas.id"))
+       cns_paciente: Mapped[str] = mapped_column(String(15))
+       cpf_paciente: Mapped[str] = mapped_column(String(14))
+       conteudo_mensagem: Mapped[str] = mapped_column(Text)
+       status_envio: Mapped[StatusDisparo] = mapped_column(Enum(StatusDisparo), default=StatusDisparo.PENDENTE)
+       data_envio: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+       data_confirmacao: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+       notas_soap: Mapped[dict] = mapped_column(JSON, nullable=True)
+       criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+   class LogAuditoriaLGPD(Base):
+       __tablename__ = "logs_auditoria_lgpd"
+       id: Mapped[int] = mapped_column(primary_key=True)
+       entidade_tipo: Mapped[str] = mapped_column(String(50))
+       entidade_id: Mapped[int] = mapped_column(Integer)
+       acao: Mapped[str] = mapped_column(String(50))
+       usuario_id: Mapped[int] = mapped_column(Integer, nullable=True)
+       ip_origem: Mapped[str] = mapped_column(String(45), nullable=True)
+       justificativa_lgpd: Mapped[str] = mapped_column(Text)
+       data_hora: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class CampanhasRepository:
+       def __init__(self, session: AsyncSession):
            self.session = session
 
-       async def criar_campanha(self, data: CampanhaCreate) -> Campanha:
-           # ...
+       async def criar_campanha(self, schema: CampanhaCreate) -> Campanha:
+           # audit log
+           await self._registrar_auditoria("CAMPAIGN", None, "CREATE", schema.criado_por, schema.ip_origem, "Criação de campanha de saúde pública")
+           campanha = Campanha(**schema.model_dump())
+           self.session.add(campanha)
+           await self.session.flush()
+           return campanha
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator, EmailStr
-    from typing import Optional, List
-    from datetime import datetime
-    import re
-
-    class CampanhaCreate(BaseModel):
-        nome: str = Field(..., min_length=1, max_length=255)
-        descricao: str = Field(..., min_length=1)
-        objetivo: str = Field(..., min_length=1)
-        data_inicio: datetime
-        data_fim: datetime
-        status: str = Field(default="ativa")
-
-        model_config = ConfigDict(from_attributes=True)
-
-    class CampanhaRead(CampanhaCreate):
-        id: int
-        criado_em: datetime
-        atualizado_em: Optional[datetime] = None
-        model_config = ConfigDict(from_attributes=True)
-
-@field_validator('cpf')
-    @classmethod
-    def validar_cpf(cls, v: str) -> str:
-        v = str(v).strip()
-        if len(v) != 11 or not v.isdigit():
-            raise ValueError('CPF deve ter 11 dígitos numéricos')
-        return v
-
-    @field_validator('cns')
-    @classmethod
-    def validar_cns(cls, v: str) -> str:
-        v = str(v).strip()
-        if len(v) != 15 or not v.isdigit():
-            raise ValueError('CNS deve ter 15 dígitos numéricos')
-        return v
+       async def registrar_disparo(self, campanha_id: int, schema: DisparoCreate) -> Disparo:
+           # check campaign exists
+           # insert
+           # audit
+           ...

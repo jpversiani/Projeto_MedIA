@@ -5,314 +5,290 @@ Here's a thinking process:
    - **Task:** Create `backend/app/repositories/remessas_sisab_repo.py` for the MedIA project.
    - **Purpose:** Persist transmission batches, send status (GERADO, ENVIADO, PROCESSADO, REJEITADO), and SISAB return logs.
    - **Architecture Guidelines:**
-     - Python 3.12
-     - Strict typing with Pydantic v2 and SQLAlchemy 2.0
-     - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification)
-     - Full compliance and coverage with automated pytest tests
+     - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
+     - SUS/APS standards (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
+     - Full compliance and automated test coverage with pytest.
    - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
-   - **Repository Pattern:** Needs to handle CRUD operations for batches and logs.
-   - **Data Models:**
-     - `RemessaSISAB` (Batch): ID, status (enum), created_at, updated_at, maybe metadata like file path, total records, etc.
-     - `SISABReturnLog` (Log): ID, batch_id (FK), status, message, raw_response, created_at, etc.
-   - **Status Enum:** GERADO, ENVIADO, PROCESSADO, REJEITADO
-   - **SUS/APS Standards:** Need to incorporate fields/validations for CIAP-2, CID-10, SOAP method, CNS/CPF. This might mean the repository should handle or validate these identifiers, or at least have fields to store them. Since it's a repository, it's more about data persistence, but Pydantic models can enforce validation.
-   - **Pydantic v2:** Use `BaseModel`, `Field`, `ConfigDict`, `field_validator`, etc.
-   - **SQLAlchemy 2.0:** Use declarative base, mapped classes, async/sync session handling (I'll assume sync for simplicity unless specified, but I'll make it compatible with modern SQLAlchemy 2.0 style using `Session` and `select`). I'll provide both Pydantic models and SQLAlchemy ORM models.
-   - **Testing:** Need to provide pytest tests covering CRUD, status transitions, validation, and SUS/APS fields.
+   - **File:** `backend/app/repositories/remessas_sisab_repo.py`
+   - **Domain:** SISAB (Sistema de Informação em Saúde para a Atenção Básica) - Brazilian public health system.
+   - **Entities/Models:**
+     - Batch/Lote (LoteRemessaSISAB)
+     - Status (GERADO, ENVIADO, PROCESSADO, REJEITADO)
+     - Return Logs (LogRetornoSISAB)
+   - **Standards:** CIAP-2, CID-10, SOAP, CNS/CPF. These will likely be fields in the models or referenced in the data structure.
+   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0 (async or sync? Usually async is preferred in modern FastAPI backends, but I'll stick to sync or provide async with `sqlalchemy.ext.asyncio` if needed. I'll use sync for simplicity unless specified, but I'll make it compatible with both or explicitly use `sqlalchemy.orm` with `Session`. Actually, I'll use `sqlalchemy.orm` with `Session` as it's standard, but I'll add type hints and Pydantic models.)
+   - **Testing:** Pytest coverage. I need to provide the repository code AND the test file. The prompt says "crie backend/app/repositories/remessas_sisab_repo.py", but also mentions "cobertura de testes automatizados com pytest". I should provide both the repo and the tests.
 
-3.  **Design Decisions:**
-   - **Directory Structure:** `backend/app/repositories/remessas_sisab_repo.py`
-   - **Models:**
-     - Pydantic schemas for request/response validation.
-     - SQLAlchemy ORM models for database mapping.
-   - **Repository Class:** `RemessaSISABRepository` with methods like `create_batch`, `update_status`, `get_batch`, `save_return_log`, `get_logs_by_batch`, etc.
-   - **SUS/APS Integration:** Add fields like `ciap_code`, `cid10_code`, `soap_method`, `cns`, `cpf` to relevant models/schemas. Validate CNS/CPF format.
-   - **Status Enum:** Python `Enum` or `str` with Pydantic validation.
-   - **Testing:** Use `pytest`, `pytest-asyncio` (if async), `sqlalchemy.ext.asyncio` or `sqlalchemy.orm`. I'll stick to synchronous SQLAlchemy for broader compatibility, but note that it can be adapted. I'll use `pytest` with an in-memory SQLite database for testing.
+3.  **Design the Repository & Models:**
+   - **Pydantic Models (DTOs/Request/Response):**
+     - `LoteRemessaSISABCreate`
+     - `LoteRemessaSISABRead`
+     - `LogRetornoSISABCreate`
+     - `LogRetornoSISABRead`
+     - Enums: `StatusEnvio` (GERADO, ENVIADO, PROCESSADO, REJEITADO)
+   - **SQLAlchemy Models:**
+     - `LoteRemessaSISAB` (id, lote_id, status, data_criacao, data_envio, xml_content, cns_cpf, ciap2_codes, cid10_codes, soap_method, etc.)
+     - `LogRetornoSISAB` (id, lote_id, status, mensagem, xml_retorno, data_log)
+   - **Repository Class:**
+     - `RemessaSISABRepository`
+     - Methods: `create_lote`, `update_lote_status`, `get_lote_by_id`, `get_lotes_by_status`, `create_log`, `get_logs_by_lote`, `bulk_create_logs`
+   - **Standards Integration:**
+     - CIAP-2: `ciap2_codes` (list of strings)
+     - CID-10: `cid10_codes` (list of strings)
+     - SOAP: `soap_method` (string, e.g., "SOAP 1.1", "SOAP 1.2")
+     - CNS/CPF: `identificador_paciente` (string)
+   - **Type Hints:** Strict typing with `typing` module, Pydantic v2 `BaseModel`, SQLAlchemy 2.0 `Mapped`, `mapped_column`, `Session`.
 
-4.  **Draft - Code Structure:**
+4.  **Draft the Code (Mental Refinement):**
+   I'll structure it carefully.
+   - Imports: `datetime`, `enum`, `list`, `optional`, `sqlalchemy`, `pydantic`, `sqlalchemy.orm`, `sqlalchemy.ext.declarative` (or `orm.DeclarativeBase`), `typing`.
+   - Define `StatusEnvio` enum.
+   - Define Pydantic models.
+   - Define SQLAlchemy models using `orm.DeclarativeBase`.
+   - Define Repository class with methods using `Session`.
+   - Add docstrings and type hints.
+   - Ensure compliance with SUS/APS standards in field names/comments.
+
+   Let's write it out step-by-step.
+
+   *Pydantic Models:*
    ```python
-   # Arquivo: backend/app/repositories/remessas_sisab_repo.py
-   from __future__ import annotations
+   from pydantic import BaseModel, Field, ConfigDict
    from enum import Enum
-   from typing import Optional, List
    from datetime import datetime
-   from pydantic import BaseModel, Field, field_validator, ConfigDict
-   from sqlalchemy import (
-       Column, Integer, String, DateTime, Enum as SAEnum, ForeignKey, Text
-   )
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
-   import re
+   from typing import Optional, List
 
-   # --- Enums & Constants ---
-   class RemessaStatus(str, Enum):
+   class StatusEnvio(str, Enum):
        GERADO = "GERADO"
        ENVIADO = "ENVIADO"
        PROCESSADO = "PROCESSADO"
        REJEITADO = "REJEITADO"
 
-   # --- SQLAlchemy Base ---
+   class LoteRemessaSISABBase(BaseModel):
+       lote_id: str = Field(..., min_length=1, max_length=50)
+       identificador_paciente: str = Field(..., description="CNS ou CPF do paciente")
+       ciap2_codes: List[str] = Field(default_factory=list, description="Códigos CIAP-2")
+       cid10_codes: List[str] = Field(default_factory=list, description="Códigos CID-10")
+       soap_method: str = Field(default="SOAP 1.2", description="Método SOAP utilizado")
+       xml_content: Optional[str] = None
+       status: StatusEnvio = StatusEnvio.GERADO
+       data_criacao: datetime = Field(default_factory=datetime.utcnow)
+       data_envio: Optional[datetime] = None
+
+   class LoteRemessaSISABCreate(LoteRemessaSISABBase):
+       pass
+
+   class LoteRemessaSISABRead(LoteRemessaSISABBase):
+       id: int
+       model_config = ConfigDict(from_attributes=True)
+   ```
+
+   *SQLAlchemy Models:*
+   ```python
+   from sqlalchemy import String, Text, DateTime, Enum as SAEnum, ForeignKey, Integer
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+   import enum
+
    class Base(DeclarativeBase):
        pass
 
-   # --- ORM Models ---
-   class RemessaSISABORM(Base):
-       __tablename__ = "remessas_sisab"
-       id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-       status: Mapped[RemessaStatus] = mapped_column(SAEnum(RemessaStatus), default=RemessaStatus.GERADO)
-       ciap_code: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
-       cid10_code: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
-       soap_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-       cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
-       cpf: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
-       created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+   class LoteRemessaSISAB(Base):
+       __tablename__ = "lotes_remessa_sisab"
 
-       logs: Mapped[List["SISABReturnLogORM"]] = relationship(back_populates="remessa", cascade="all, delete-orphan")
+       id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+       lote_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+       identificador_paciente: Mapped[str] = mapped_column(String(20), nullable=False)
+       ciap2_codes: Mapped[str] = mapped_column(Text, nullable=False) # JSON string or comma-separated
+       cid10_codes: Mapped[str] = mapped_column(Text, nullable=False)
+       soap_method: Mapped[str] = mapped_column(String(20), default="SOAP 1.2")
+       xml_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       status: Mapped[StatusEnvio] = mapped_column(SAEnum(StatusEnvio), default=StatusEnvio.GERADO)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-   class SISABReturnLogORM(Base):
-       __tablename__ = "sisab_return_logs"
-       id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-       remessa_id: Mapped[int] = mapped_column(ForeignKey("remessas_sisab.id"))
-       status: Mapped[RemessaStatus] = mapped_column(SAEnum(RemessaStatus), nullable=False)
-       message: Mapped[str] = mapped_column(Text, nullable=False)
-       raw_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-       created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       logs: Mapped[list["LogRetornoSISAB"]] = relationship(back_populates="lote", cascade="all, delete-orphan")
 
-       remessa: Mapped["RemessaSISABORM"] = relationship(back_populates="logs")
+   class LogRetornoSISAB(Base):
+       __tablename__ = "logs_retorno_sisab"
 
-   # --- Pydantic Schemas ---
-   class RemessaSISABSchema(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: int
-       status: RemessaStatus
-       ciap_code: Optional[str] = None
-       cid10_code: Optional[str] = None
-       soap_method: Optional[str] = None
-       cns: Optional[str] = None
-       cpf: Optional[str] = None
-       created_at: datetime
-       updated_at: datetime
+       id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+       lote_id_fk: Mapped[int] = mapped_column(ForeignKey("lotes_remessa_sisab.id"), nullable=False)
+       status: Mapped[StatusEnvio] = mapped_column(SAEnum(StatusEnvio), nullable=False)
+       mensagem: Mapped[str] = mapped_column(Text, nullable=False)
+       xml_retorno: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       data_log: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-       @field_validator("cns")
-       @classmethod
-       def validate_cns(cls, v: Optional[str]) -> Optional[str]:
-           if v is None:
-               return v
-           # CNS format: 15 digits, starts with 7, 8, or 9
-           if not re.match(r"^[789]\d{14}$", v):
-               raise ValueError("CNS inválido. Deve conter 15 dígitos e iniciar com 7, 8 ou 9.")
-           return v
+       lote: Mapped["LoteRemessaSISAB"] = relationship(back_populates="logs")
+   ```
 
-       @field_validator("cpf")
-       @classmethod
-       def validate_cpf(cls, v: Optional[str]) -> Optional[str]:
-           if v is None:
-               return v
-           # CPF format: 11 digits
-           if not re.match(r"^\d{11}$", v):
-               raise ValueError("CPF inválido. Deve conter 11 dígitos.")
-           return v
+   *Repository:*
+   ```python
+   from sqlalchemy.orm import Session
+   from sqlalchemy import select, update, func
+   from typing import List, Optional
+   import json
 
-   class SISABReturnLogSchema(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: int
-       remessa_id: int
-       status: RemessaStatus
-       message: str
-       raw_response: Optional[str] = None
-       created_at: datetime
-
-   # --- Repository ---
    class RemessaSISABRepository:
        def __init__(self, session: Session):
            self.session = session
 
-       def create_batch(self, status: RemessaStatus = RemessaStatus.GERADO, **kwargs) -> RemessaSISABORM:
-           batch = RemessaSISABORM(status=status, **kwargs)
-           self.session.add(batch)
-           self.session.flush()
-           return batch
-
-       def update_status(self, batch_id: int, new_status: RemessaStatus) -> Optional[RemessaSISABORM]:
-           batch = self.session.get(RemessaSISABORM, batch_id)
-           if not batch:
-               return None
-           batch.status = new_status
-           self.session.flush()
-           return batch
-
-       def get_batch(self, batch_id: int) -> Optional[RemessaSISABORM]:
-           return self.session.get(RemessaSISABORM, batch_id)
-
-       def save_return_log(self, remessa_id: int, status: RemessaStatus, message: str, raw_response: Optional[str] = None) -> SISABReturnLogORM:
-           log = SISABReturnLogORM(remessa_id=remessa_id, status=status, message=message, raw_response=raw_response)
-           self.session.add(log)
-           self.session.flush()
-           return log
-
-       def get_logs_by_batch(self, batch_id: int) -> List[SISABReturnLogORM]:
-           return self.session.scalars(
-               select(SISABReturnLogORM).where(SISABReturnLogORM.remessa_id == batch_id).order_by(SISABReturnLogORM.created_at)
-           ).all()
-   ```
-
-   Wait, I need to import `select` from sqlalchemy. Also, I should make sure the code is complete and follows modern practices. I'll add the import for `select`.
-
-   Let's refine the repository to be more robust and include proper type hints and error handling. I'll also add a method to convert ORM to Pydantic schema if needed, but for simplicity, I'll stick to ORM operations and let the caller handle conversion, or add a helper. Actually, it's better to keep the repository focused on ORM operations and provide Pydantic schemas separately.
-
-   I need to ensure SUS/APS standards are reflected. The fields `ciap_code`, `cid10_code`, `soap_method`, `cns`, `cpf` are there. I'll add validation for CIAP-2 (usually 4 chars, alphanumeric) and CID-10 (7 chars, alphanumeric). I'll update the Pydantic validators.
-
-   Also, the task says "persistir lotes de transmissão, status de envio... e logs de retorno". So the repository should handle both.
-
-   Let's structure the file properly:
-   - Imports
-   - Enums
-   - SQLAlchemy Models
-   - Pydantic Schemas
-   - Repository Class
-   - (Optional) Helper functions for DB setup if needed, but the task just asks for the repo file.
-
-   I'll also add a `__init__.py` or note about it, but the task specifically asks for `backend/app/repositories/remessas_sisab_repo.py`.
-
-   Now, for testing: I need to provide pytest tests. I'll create a separate test file or include it in the response. The prompt says "Para cada arquivo criado ou modificado, especifique no início do bloco de código o caminho do arquivo". So I'll provide both the repo file and the test file.
-
-   Test file: `backend/app/tests/test_remessas_sisab_repo.py`
-
-   Test requirements:
-   - CRUD operations
-   - Status transitions
-   - CNS/CPF validation
-   - CIAP-2/CID-10 validation
-   - Log persistence
-   - Use in-memory SQLite
-   - Strict typing coverage
-
-   Let's draft the test file mentally:
-   ```python
-   import pytest
-   from sqlalchemy import create_engine
-   from sqlalchemy.orm import sessionmaker
-   from backend.app.repositories.remessas_sisab_repo import (
-       Base, RemessaSISABRepository, RemessaSISABORM, SISABReturnLogORM,
-       RemessaStatus, RemessaSISABSchema, SISABReturnLogSchema
-   )
-
-   @pytest.fixture
-   def engine():
-       return create_engine("sqlite:///:memory:")
-
-   @pytest.fixture
-   def session_factory(engine):
-       return sessionmaker(bind=engine)
-
-   @pytest.fixture
-   def db_session(session_factory):
-       Base.metadata.create_all(engine)
-       session = session_factory()
-       yield session
-       session.close()
-
-   def test_create_batch(db_session):
-       repo = RemessaSISABRepository(db_session)
-       batch = repo.create_batch()
-       assert batch.status == RemessaStatus.GERADO
-       assert batch.id is not None
-
-   def test_update_status(db_session):
-       repo = RemessaSISABRepository(db_session)
-       batch = repo.create_batch()
-       updated = repo.update_status(batch.id, RemessaStatus.ENVIADO)
-       assert updated.status == RemessaStatus.ENVIADO
-
-   def test_save_and_get_logs(db_session):
-       repo = RemessaSISABRepository(db_session)
-       batch = repo.create_batch()
-       log = repo.save_return_log(batch.id, RemessaStatus.PROCESSADO, "Sucesso", "<xml>...</xml>")
-       logs = repo.get_logs_by_batch(batch.id)
-       assert len(logs) == 1
-       assert logs[0].message == "Sucesso"
-
-   def test_validate_cns():
-       schema = RemessaSISABSchema(
-           id=1, status=RemessaStatus.GERADO, cns="700000000000000",
-           created_at=datetime.utcnow(), updated_at=datetime.utcnow()
-       )
-       assert schema.cns == "700000000000000"
-
-   def test_validate_invalid_cns():
-       with pytest.raises(ValueError):
-           RemessaSISABSchema(
-               id=1, status=RemessaStatus.GERADO, cns="123456789012345",
-               created_at=datetime.utcnow(), updated_at=datetime.utcnow()
+       def create_lote(self, data: LoteRemessaSISABCreate) -> LoteRemessaSISAB:
+           ciap2_json = json.dumps(data.ciap2_codes)
+           cid10_json = json.dumps(data.cid10_codes)
+           db_lote = LoteRemessaSISAB(
+               lote_id=data.lote_id,
+               identificador_paciente=data.identificador_paciente,
+               ciap2_codes=ciap2_json,
+               cid10_codes=cid10_json,
+               soap_method=data.soap_method,
+               xml_content=data.xml_content,
+               status=data.status,
+               data_criacao=data.data_criacao,
+               data_envio=data.data_envio
            )
+           self.session.add(db_lote)
+           self.session.flush()
+           return db_lote
 
-   # ... more tests
+       def get_lote_by_id(self, lote_id: str) -> Optional[LoteRemessaSISAB]:
+           stmt = select(LoteRemessaSISAB).where(LoteRemessaSISAB.lote_id == lote_id)
+           return self.session.execute(stmt).scalar_one_or_none()
+
+       def update_lote_status(self, lote_id: str, new_status: StatusEnvio, xml_content: Optional[str] = None) -> Optional[LoteRemessaSISAB]:
+           stmt = (
+               update(LoteRemessaSISAB)
+               .where(LoteRemessaSISAB.lote_id == lote_id)
+               .values(status=new_status, xml_content=xml_content, data_envio=datetime.utcnow())
+           )
+           self.session.execute(stmt)
+           return self.get_lote_by_id(lote_id)
+
+       def create_log(self, lote_id: str, status: StatusEnvio, mensagem: str, xml_retorno: Optional[str] = None) -> LogRetornoSISAB:
+           db_log = LogRetornoSISAB(
+               lote_id_fk=self.get_lote_by_id(lote_id).id,
+               status=status,
+               mensagem=mensagem,
+               xml_retorno=xml_retorno
+           )
+           self.session.add(db_log)
+           self.session.flush()
+           return db_log
+
+       def get_logs_by_lote(self, lote_id: str) -> List[LogRetornoSISAB]:
+           stmt = select(LogRetornoSISAB).where(LogRetornoSISAB.lote_id_fk == self.get_lote_by_id(lote_id).id).order_by(LogRetornoSISAB.data_log)
+           return self.session.execute(stmt).scalars().all()
    ```
 
-   I need to import `datetime` in the test file. Also, I should make sure the Pydantic models work correctly with `from_attributes=True`.
+   Wait, I need to handle JSON serialization/deserialization properly in SQLAlchemy or use `JSON` type. Since it's Python 3.12 + SQLAlchemy 2.0, I can use `JSON` type or keep it as `Text` with `json.dumps`. I'll stick to `Text` for simplicity but add a note or use `JSON` if available. Actually, SQLAlchemy 2.0 supports `JSON` natively. I'll use `JSON` type for `ciap2_codes` and `cid10_codes` to be more robust.
 
-   Let's refine the repository code to be production-ready:
-   - Add proper docstrings
-   - Use `datetime.now(timezone.utc)` for modern Python
-   - Ensure SQLAlchemy 2.0 syntax (`select`, `mapped_column`, etc.)
-   - Add type hints throughout
-   - Handle potential errors gracefully
+   Let's refine the SQLAlchemy models to use `JSON` type properly, or just keep `Text` but handle it in the repo. I'll use `Text` with `json.dumps` for compatibility, but I'll add a helper to parse it back when reading. Actually, Pydantic v2 can handle JSON strings if we use `Field(json_schema_extra=...)` or just keep it simple. I'll stick to `Text` but add a property or just handle it in the repo. To keep it clean, I'll use `JSON` type from `sqlalchemy.dialects.postgresql` or `sqlalchemy.JSON`. I'll use `sqlalchemy.JSON`.
 
-   I'll also add CIAP-2 and CID-10 validators to the Pydantic schema.
-   CIAP-2: Usually up to 4 characters, alphanumeric. I'll allow 1-4 chars.
-   CID-10: 7 characters, alphanumeric. I'll allow 1-7 chars.
+   Actually, for SUS/APS standards, it's better to store them as arrays in JSON. I'll use `sqlalchemy.JSON`.
 
-   Let's write out the full code carefully.
-
-   **File 1: `backend/app/repositories/remessas_sisab_repo.py`**
-   - Imports
-   - Enum
-   - ORM Models
-   - Pydantic Schemas
-   - Repository Class
-   - All with strict typing and modern syntax.
-
-   **File 2: `backend/app/tests/test_remessas_sisab_repo.py`**
-   - Pytest fixtures
-   - Tests for CRUD, status, validation, logs
-   - Coverage of SUS/APS fields
-   - Proper assertions
-
-   I'll make sure the code is complete and executable. I'll also add comments explaining the SUS/APS compliance.
-
-   One thing: The prompt says "Manter conformidade total e cobertura de testes automatizados com pytest." This implies I should provide the tests. I'll include them.
-
-   Let's draft carefully.
-   *Self-Correction/Refinement during thought:*
-   - Pydantic v2 uses `model_config = ConfigDict(from_attributes=True)`
-   - SQLAlchemy 2.0 uses `mapped_column` and `select`
-   - I should use `datetime.now(timezone.utc)` instead of `datetime.utcnow()` (deprecated in 3.12)
-   - I'll add a `Base` class and ensure it's properly defined.
-   - For the repository, I'll add methods that return Pydantic schemas if needed, but keeping it ORM-focused is standard. I'll add a `to_schema` helper or just rely on `from_attributes=True`.
-   - I'll make sure the test file uses `pytest` correctly and covers all requirements.
-   - I'll add type hints to all methods.
-   - I'll ensure the code is self-contained and can be run with `pytest`.
-
-   Structure:
+   Let's rewrite the SQLAlchemy models properly:
    ```python
-   # Arquivo: backend/app/repositories/remessas_sisab_repo.py
-   from __future__ import annotations
-   import re
-   from datetime import datetime, timezone
-   from enum import Enum
+   from sqlalchemy import String, Text, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+   from datetime import datetime
    from typing import Optional, List
-   from pydantic import BaseModel, ConfigDict, Field, field_validator
-   from sqlalchemy import (
-       Column, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, select
-   )
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
+   import enum
 
-   # ... (rest of the code)
+   class Base(DeclarativeBase):
+       pass
+
+   class LoteRemessaSISAB(Base):
+       __tablename__ = "lotes_remessa_sisab"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+       lote_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+       identificador_paciente: Mapped[str] = mapped_column(String(20), nullable=False)
+       ciap2_codes: Mapped[List[str]] = mapped_column(JSON, nullable=False)
+       cid10_codes: Mapped[List[str]] = mapped_column(JSON, nullable=False)
+       soap_method: Mapped[str] = mapped_column(String(20), default="SOAP 1.2")
+       xml_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       status: Mapped[StatusEnvio] = mapped_column(SAEnum(StatusEnvio), default=StatusEnvio.GERADO)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+       logs: Mapped[List["LogRetornoSISAB"]] = relationship(back_populates="lote", cascade="all, delete-orphan")
+
+   class LogRetornoSISAB(Base):
+       __tablename__ = "logs_retorno_sisab"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+       lote_id_fk: Mapped[int] = mapped_column(ForeignKey("lotes_remessa_sisab.id"), nullable=False)
+       status: Mapped[StatusEnvio] = mapped_column(SAEnum(StatusEnvio), nullable=False)
+       mensagem: Mapped[str] = mapped_column(Text, nullable=False)
+       xml_retorno: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       data_log: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+       lote: Mapped["LoteRemessaSISAB"] = relationship(back_populates="logs")
    ```
 
-   Wait, `Enum` in SQLAlchemy needs to be handled carefully. I'll use `SAEnum(RemessaStatus, native_enum=False)` for SQLite compatibility in tests, or just rely on string storage. I'll use `String` with check constraint or just `SAEnum` with `native_enum=False` for broader compatibility. Actually, SQLAlchemy 2.0 recommends `Enum` from `sqlalchemy` but for SQLite it's better to use `String` with a check constraint or just `SAEnum(..., native_enum=False)`. I'll stick to `SAEnum` but note it. For simplicity and test compatibility, I'll use `String` with a check constraint or just `SAEnum` and let SQLAlchemy handle it. Actually, `SAEnum` works fine in modern SQLAlchemy with SQLite if `native_enum=False` is set, or I can just use `String` and validate via Pydantic. I'll use `String` for status to avoid dialect issues, but the prompt says status enum. I'll keep `SAEnum` but add `native_enum=False` for safety, or just use `String` with a check. I'll stick to `SAEnum` as it's standard.
+   Now the repository needs to handle the Session properly. I'll make it type-safe and add docstrings. I'll also add a method to get logs by lote_id without needing the FK directly.
 
-   Actually, SQLAlchemy 2.0 `Column` is
+   Let's refine the repository:
+   ```python
+   from sqlalchemy.orm import Session
+   from sqlalchemy import select, update
+   from typing import List, Optional
+   from datetime import datetime
+
+   class RemessaSISABRepository:
+       def __init__(self, session: Session) -> None:
+           self.session = session
+
+       def create_lote(self, data: LoteRemessaSISABCreate) -> LoteRemessaSISAB:
+           db_lote = LoteRemessaSISAB(
+               lote_id=data.lote_id,
+               identificador_paciente=data.identificador_paciente,
+               ciap2_codes=data.ciap2_codes,
+               cid10_codes=data.cid10_codes,
+               soap_method=data.soap_method,
+               xml_content=data.xml_content,
+               status=data.status,
+               data_criacao=data.data_criacao,
+               data_envio=data.data_envio
+           )
+           self.session.add(db_lote)
+           self.session.flush()
+           return db_lote
+
+       def get_lote_by_id(self, lote_id: str) -> Optional[LoteRemessaSISAB]:
+           stmt = select(LoteRemessaSISAB).where(LoteRemessaSISAB.lote_id == lote_id)
+           return self.session.execute(stmt).scalar_one_or_none()
+
+       def update_lote_status(self, lote_id: str, new_status: StatusEnvio, xml_content: Optional[str] = None) -> Optional[LoteRemessaSISAB]:
+           stmt = (
+               update(LoteRemessaSISAB)
+               .where(LoteRemessaSISAB.lote_id == lote_id)
+               .values(status=new_status, xml_content=xml_content, data_envio=datetime.utcnow())
+           )
+           self.session.execute(stmt)
+           return self.get_lote_by_id(lote_id)
+
+       def create_log(self, lote_id: str, status: StatusEnvio, mensagem: str, xml_retorno: Optional[str] = None) -> LogRetornoSISAB:
+           lote = self.get_lote_by_id(lote_id)
+           if not lote:
+               raise ValueError(f"Lote {lote_id} não encontrado.")
+           db_log = LogRetornoSISAB(
+               lote_id_fk=lote.id,
+               status=status,
+               mensagem=mensagem,
+               xml_retorno=xml_retorno
+           )
+           self.session.add(db_log)
+           self.session.flush()
+           return db_log
+
+       def get_logs_by_lote(self, lote_id: str) -> List[LogRetornoSISAB]:
+           lote = self.get_lote_by_id(lote_id)
+           if not lote:
+               return []
+           stmt = select(LogRetornoSISAB).where(LogRetornoSISAB.lote_id_fk == lote.id).order_by(LogRetornoSISAB.data_log)
+           return self.session.execute(stmt).scalars().all()
+   ```
+
+   Now,

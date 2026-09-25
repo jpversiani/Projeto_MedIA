@@ -8,6 +8,8 @@ import pytest
 import asyncio
 import time
 
+from pydantic import ValidationError
+
 from app.services.sisab_client import (
     FichaSISAB,
     LoteInvalidoError,
@@ -49,6 +51,11 @@ def _lote_valido(**overrides) -> LoteSISAB:
     )
     defaults.update(overrides)
     return LoteSISAB(**defaults)
+
+
+@pytest.fixture
+def sisab_client() -> SISABClient:
+    return SISABClient(base_url="https://apisus.gov.br")
 
 
 class TestFichaSISAB:
@@ -102,7 +109,7 @@ class TestLoteSISAB:
         assert lote.total_fichas == 1
 
     def test_lote_com_multiplas_fichas(self):
-        fichas = [_ficha_valida(), _ficha_valida(cns="223456789012348")]
+        fichas = [_ficha_valida(), _ficha_valida(cns="223456789012344")]
         lote = _lote_valido(fichas=fichas)
         assert lote.total_fichas == 2
 
@@ -117,6 +124,10 @@ class TestLoteSISAB:
 
 class TestReciboSISAB:
     """Testes do modelo ReciboSISAB."""
+
+    @pytest.fixture
+    def sisab_client(self) -> SISABClient:
+        return SISABClient(base_url="https://apisus.gov.br")
 
     def test_recibo_sucesso(self):
         recibo = ReciboSISAB(
@@ -140,7 +151,7 @@ class TestReciboSISAB:
         )
         assert recibo.sucesso_total is False
 
-    def test_recibo_parsing_json(self, client: SISABClient):
+    def test_recibo_parsing_json(self, sisab_client: SISABClient):
         data = {
             "lote_id": "LOTE-001",
             "status": "success",
@@ -152,14 +163,14 @@ class TestReciboSISAB:
                 {"sequencial": 1, "status": "success", "codigoRetorno": "0"},
             ],
         }
-        recibo = client._parse_recibo(data)
+        recibo = sisab_client._parse_recibo(data)
         assert recibo.lote_id == "LOTE-001"
         assert recibo.total_registros == 2
         assert recibo.registros_sucesso == 2
         assert recibo.registros_erro == 0
         assert len(recibo.itens) == 2
 
-    def test_recibo_parsing_xml_legacy(self, client: SISABClient):
+    def test_recibo_parsing_xml_legacy(self, sisab_client: SISABClient):
         data = {
             "numeroLote": "LOTE-002",
             "statusGeral": "error",
@@ -170,7 +181,7 @@ class TestReciboSISAB:
                 {"sequencial": 0, "status": "error", "codigo_retorno": "E001", "msg": "CNS invalido"},
             ],
         }
-        recibo = client._parse_recibo(data)
+        recibo = sisab_client._parse_recibo(data)
         assert recibo.lote_id == "LOTE-002"
         assert recibo.status_geral == StatusRecibo.ERROR
         assert recibo.itens[0].codigo_retorno == "E001"
@@ -202,14 +213,14 @@ class TestSISABClient:
     """Testes do SISABClient."""
 
     @pytest.fixture
-    def client(self) -> SISABClient:
+    def sisab_client(self) -> SISABClient:
         return SISABClient(base_url="https://apisus.gov.br", timeout_seg=10.0, max_retries=2)
 
     @pytest.fixture
     def lote(self) -> LoteSISAB:
         return _lote_valido()
 
-    async def test_enviar_lote_sucesso(self, client: SISABClient, lote: LoteSISAB):
+    async def test_enviar_lote_sucesso(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -224,44 +235,44 @@ class TestSISABClient:
 
         mock_post = AsyncMock(return_value=mock_response)
 
-        with patch.object(client, "_get_client") as mock_get_client:
+        with patch.object(sisab_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.post = mock_post
             mock_client.is_closed = False
             mock_get_client.return_value = mock_client
 
-            recibo = await client.enviar_lote(lote)
+            recibo = await sisab_client.enviar_lote(lote)
 
         assert recibo.lote_id == "LOTE-001"
         assert recibo.sucesso_total is True
 
-    async def test_enviar_lote_timeout_retry_exausto(self, client: SISABClient, lote: LoteSISAB):
+    async def test_enviar_lote_timeout_retry_exausto(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
-        with patch.object(client, "_get_client") as mock_get_client:
+        with patch.object(sisab_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.post = mock_post
             mock_client.is_closed = False
             mock_get_client.return_value = mock_client
 
             with pytest.raises(TimeoutSISABError):
-                await client.enviar_lote(lote)
+                await sisab_client.enviar_lote(lote)
 
-        assert mock_post.call_count == client.max_retries
+        assert mock_post.call_count == sisab_client.max_retries
 
-    async def test_enviar_lote_conerror_retry_exausto(self, client: SISABClient, lote: LoteSISAB):
+    async def test_enviar_lote_conerror_retry_exausto(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
 
-        with patch.object(client, "_get_client") as mock_get_client:
+        with patch.object(sisab_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.post = mock_post
             mock_client.is_closed = False
             mock_get_client.return_value = mock_client
 
             with pytest.raises(TimeoutSISABError):
-                await client.enviar_lote(lote)
+                await sisab_client.enviar_lote(lote)
 
-    async def test_enviar_lote_http_500_retry(self, client: SISABClient, lote: LoteSISAB):
+    async def test_enviar_lote_http_500_retry(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -269,18 +280,18 @@ class TestSISABClient:
         )
         mock_post = AsyncMock(return_value=mock_response)
 
-        with patch.object(client, "_get_client") as mock_get_client:
+        with patch.object(sisab_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.post = mock_post
             mock_client.is_closed = False
             mock_get_client.return_value = mock_client
 
             with pytest.raises(TimeoutSISABError):
-                await client.enviar_lote(lote)
+                await sisab_client.enviar_lote(lote)
 
-        assert mock_post.call_count == client.max_retries
+        assert mock_post.call_count == sisab_client.max_retries
 
-    async def test_enviar_lote_http_422_sem_retry(self, client: SISABClient, lote: LoteSISAB):
+    async def test_enviar_lote_http_422_sem_retry(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 422
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -288,30 +299,27 @@ class TestSISABClient:
         )
         mock_post = AsyncMock(return_value=mock_response)
 
-        with patch.object(client, "_get_client") as mock_get_client:
+        with patch.object(sisab_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.post = mock_post
             mock_client.is_closed = False
             mock_get_client.return_value = mock_client
 
             with pytest.raises(Exception):
-                await client.enviar_lote(lote)
+                await sisab_client.enviar_lote(lote)
 
         assert mock_post.call_count == 1
 
-    def test_validar_lote_valido(self, client: SISABClient, lote: LoteSISAB):
-        client._validar_lote(lote)
+    def test_validar_lote_valido(self, sisab_client: SISABClient, lote: LoteSISAB):
+        sisab_client._validar_lote(lote)
 
-    def test_validar_lote_vazio_raise(self, client: SISABClient):
-        lote_vazio = _lote_valido(fichas=[])
-        with pytest.raises(LoteInvalidoError):
-            client._validar_lote(lote_vazio)
+    def test_validar_lote_vazio_raise(self, sisab_client: SISABClient):
+        with pytest.raises(ValidationError):
+            LoteSISAB(lote_id="LOTE-001", cnes_origem=CNES_VALIDO, fichas=[])
 
-    def test_validar_lote_sem_ciap_e_cid_raise(self, client: SISABClient):
-        ficha = _ficha_valida(ciap2=None, cid10=None)
-        lote = _lote_valido(fichas=[ficha])
-        with pytest.raises(LoteInvalidoError):
-            client._validar_lote(lote)
+    def test_validar_lote_sem_ciap_e_cid_raise(self, sisab_client: SISABClient):
+        with pytest.raises(ValidationError):
+            _ficha_valida(ciap2=None, cid10=None)
 
     def test_backoff_nao_excede_maximo(self):
         async def _test():
@@ -321,13 +329,13 @@ class TestSISABClient:
             assert elapsed < 10.0
         asyncio.run(_test())
 
-    async def test_close_client(self, client: SISABClient):
+    async def test_close_client(self, sisab_client: SISABClient):
         mock_client = MagicMock()
         mock_client.is_closed = False
         mock_client.aclose = AsyncMock()
-        client._client = mock_client
+        sisab_client._client = mock_client
 
-        await client.close()
+        await sisab_client.close()
         mock_client.aclose.assert_awaited_once()
 
     async def test_context_manager(self):
@@ -346,20 +354,18 @@ class TestSISABClient:
 class TestValidadores:
     """Testes dos validadores utilizados pelo SISABClient."""
 
-    def test_validar_ficha_com_ciap(self, client: SISABClient):
+    def test_validar_ficha_com_ciap(self, sisab_client: SISABClient):
         ficha = _ficha_valida()
         lote = _lote_valido(fichas=[ficha])
-        client._validar_lote(lote)
+        sisab_client._validar_lote(lote)
 
-    def test_validar_ficha_com_cid10(self, client: SISABClient):
+    def test_validar_ficha_com_cid10(self, sisab_client: SISABClient):
         ficha = _ficha_valida(ciap2=None, cid10="I10")
         lote = _lote_valido(fichas=[ficha])
-        client._validar_lote(lote)
+        sisab_client._validar_lote(lote)
 
-    def test_validar_ficha_sem_ciap_cid_raise(self, client: SISABClient):
-        ficha = _ficha_valida(ciap2=None, cid10=None)
-        lote = _lote_valido(fichas=[ficha])
-        with pytest.raises(LoteInvalidoError):
-            client._validar_lote(lote)
+    def test_validar_ficha_sem_ciap_cid_raise(self):
+        with pytest.raises(ValidationError):
+            _ficha_valida(ciap2=None, cid10=None)
 
 

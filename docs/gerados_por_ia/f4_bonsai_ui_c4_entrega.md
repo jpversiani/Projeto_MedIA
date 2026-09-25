@@ -1,430 +1,307 @@
-# Dashboard de Monitoramento de Remessas do SISAB (C4)
+```html:backend/app/static/monitor_sisab.html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento SISAB (C4) - Remessas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --secondary: #003366;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card h3 {
+            color: var(--primary);
+            margin: 0;
+            font-size: 18px;
+        }
+        .stat-card p {
+            margin: 5px 0 0 0;
+            color: #666;
+        }
+        .graph-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .graph-container h2 {
+            color: var(--secondary);
+            margin-top: 0;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .invoice-table th, .invoice-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .invoice-table th {
+            background-color: var(--primary);
+            color: white;
+        }
+        .invoice-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .badge-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button.retransmit {
+            background-color: var(--danger);
+            color: white;
+        }
+        button.retransmit:hover {
+            background-color: #c82333;
+        }
+        button.refresh {
+            background-color: var(--primary);
+            color: white;
+        }
+        button.refresh:hover {
+            background-color: #004494;
+        }
+        .status-bar {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 14px;
+        }
+        .status-bar .live {
+            color: var(--success);
+        }
+        .status-bar .error {
+            color: var(--danger);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        select, input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+        .notification.success {
+            background-color: var(--success);
+        }
+        .notification.error {
+            background-color: var(--danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Monitoramento SISAB (C4) - Remessas</h1>
+            <p>Visualização em tempo real de fichas geradas e controle de retransmissão</p>
+        </header>
 
-## Estrutura do Projeto
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Remessas</h3>
+                <p id="totalRemessas">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Em Processo</h3>
+                <p id="emProcesso">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Com Erro</h3>
+                <p id="comErro">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Último Atualizado</h3>
+                <p id="lastUpdated">-</p>
+            </div>
+        </div>
 
-```
-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── config.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── services.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── sisab.py
-│   ├── static/
-│   │   └── monitor_sisab.html
-│   └── tests/
-│       ├── __init__.py
-│       ├── conftest.py
-│       ├── test_models.py
-│       ├── test_schemas.py
-│       ├── test_services.py
-│       └── test_api.py
-├── requirements.txt
-└── pytest.ini
-```
+        <div class="filter-controls">
+            <select id="statusFilter">
+                <option value="all">Todos os Estados</option>
+                <option value="pending">Em Processo</option>
+                <option value="completed">Concluídos</option>
+                <option value="failed">Com Erro</option>
+            </select>
+            <select id="monthFilter">
+                <option value="all">Todos os Mês</option>
+                <option value="2024-01">Jan 2024</option>
+                <option value="2024-02">Feb 2024</option>
+                <option value="2024-03">Mar 2024</option>
+                <option value="2024-04">Apr 2024</option>
+                <option value="2024-05">May 2024</option>
+                <option value="2024-06">Jun 2024</option>
+                <option value="2024-07">Jul 2024</option>
+                <option value="2024-08">Aug 2024</option>
+                <option value="2024-09">Sep 2024</option>
+                <option value="2024-10">Oct 2024</option>
+                <option value="2024-11">Nov 2024</option>
+                <option value="2024-12">Dec 2024</option>
+            </select>
+            <button class="refresh" onclick="refreshData()">🔄 Atualizar</button>
+        </div>
 
----
+        <div class="graph-container">
+            <h2>Gráficos de Envios Mensais</h2>
+            <canvas id="monthlyGraph"></canvas>
+        </div>
 
-## Arquivo: `backend/requirements.txt`
+        <div class="invoice-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID da Fatura</th>
+                        <th>CNPJ/CNPJ</th>
+                        <th>Valor</th>
+                        <th>Estado</th>
+                        <th>Data de Geração</th>
+                        <th>Erro</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="invoiceTableBody">
+                    <!-- Dados serão carregados aqui -->
+                </tbody>
+            </table>
+        </div>
 
-```text
-fastapi==0.109.0
-uvicorn==0.27.1
-sqlalchemy==2.0.23
-pydantic==2.6.1
-pydantic-settings==2.1.0
-alembic==1.13.1
-pytest==7.4.3
-pytest-asyncio==0.23.5
-httpx==0.27.0
-python-dotenv==1.0.0
-```
+        <div class="error-message" id="errorMessage"></div>
 
----
+        <div class="status-bar">
+            <span class="live">● Sistema em tempo real - Atualização automática a cada 5 segundos</span>
+        </div>
+    </div>
 
-## Arquivo: `backend/pytest.ini`
+    <div class="notification" id="notification"></div>
 
-```ini
-[pytest]
-asyncio_mode = auto
-testpaths = backend/app/tests
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-addopts = -v --tb=short --strict-markers
-markers =
-    asyncio: marks tests as async (deselect with '-m "not asyncio"')
-    integration: marks tests as integration tests
-```
-
----
-
-## Arquivo: `backend/app/config.py`
-
-```python
-# Arquivo: backend/app/config.py
-from pydantic_settings import BaseSettings
-from typing import Optional
-
-
-class Settings(BaseSettings):
-    """Configuração do sistema SISAB - C4."""
-
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./sisab_c4.db"
-    DATABASE_POOL_SIZE: int = 10
-    DATABASE_MAX_OVERFLOW: int = 20
-
-    # API
-    API_TITLE: str = "SISAB C4 - Dashboard de Remessas"
-    API_VERSION: str = "v1"
-    API_DESCRIPTION: str = (
-        "API para monitoramento de remessas de remessas do SUS/C4. "
-        "Suporte a CIAP-2, CID-10, SOAP e identificação por CNS/CPF."
-    )
-    API_VERSION_PREFIX: str = "/api/v1"
-
-    # SISAB C4
-    SISAB_C4_API_URL: str = "https://sisab.c4.gov.br/api"
-    SISAB_C4_API_KEY: Optional[str] = None
-    SISAB_C4_TIMEOUT: int = 30
-
-    # Dashboard
-    REFRESH_INTERVAL_MS: int = 5000
-    MAX_BATCH_SIZE: int = 1000
-
-    # Sus/APS Patterns
-    SUS_CNPJ_PATTERN: str = r"^\d{8}\.\d{9}[-\s]?\d{2}$"
-    SUS_CPF_PATTERN: str = r"^\d{3}[-\s]?\d{2}[-\s]?\d{2}[-\s]?\d{2}$"
-    SUS_CNS_PATTERN: str = r"^\d{11}$"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
-
-settings = Settings()
-```
-
----
-
-## Arquivo: `backend/app/models.py`
-
-```python
-# Arquivo: backend/app/models.py
-"""
-Modelos SQLAlchemy 2.0 para o sistema SISAB C4.
-Padrões SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF.
-"""
-from __future__ import annotations
-
-import enum
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional
-
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    Float,
-    Boolean,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Index,
-    UniqueConstraint,
-    check,
-)
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    mapped_column,
-    relationship,
-    validates,
-)
-from sqlalchemy.sql import func
-
-
-class Base(DeclarativeBase):
-    """Base declarativa para todos os modelos."""
-
-
-class RemessaStatus(str, enum.Enum):
-    """Status da remessa no sistema SISAB C4."""
-    GERADA = "gerada"
-    ENVIADA = "enviada"
-    ENVIADA_COM_ERRO = "enviada_com erro"
-    RETRANSMITA = "retransmitida"
-    REJADA = "rejada"
-    PENDING = "pendente"
-
-
-class RemessaType(str, enum.Enum):
-    """Tipo de remessa no SUS/C4."""
-    CIAP_2 = "CIAP-2"
-    CID_10 = "CID-10"
-    SOAP = "SOAP"
-    CUSTOM = "custom"
-
-
-class Remessa(Base):
-    """
-    Modelo de Remessa no SISAB C4.
-    Suporte a CIAP-2, CID-10, SOAP e identificação por CNS/CPF.
-    """
-    __tablename__ = "remessas"
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True, comment="ID da remessa"
-    )
-    cnpj_sus: Mapped[Optional[str]] = mapped_column(
-        String(14), nullable=True, comment="CNPJ do SUS"
-    )
-    cpf_sus: Mapped[Optional[str]] = mapped_column(
-        String(11), nullable=True, comment="CPF do SUS"
-    )
-    cns_sus: Mapped[Optional[str]] = mapped_column(
-        String(11), nullable=True, comment="CNS do SUS"
-    )
-    tipo_remessa: Mapped[RemessaType] = mapped_column(
-        Enum(RemessaType), nullable=False, default=RemessaType.CIAP_2,
-        comment="Tipo de remessa (CIAP-2, CID-10, SOAP)"
-    )
-    status: Mapped[RemessaStatus] = mapped_column(
-        Enum(RemessaStatus), nullable=False, default=RemessaStatus.PENDING,
-        comment="Status da remessa"
-    )
-    valor: Mapped[Decimal] = mapped_column(
-        Float, nullable=False, comment="Valor da remessa",
-        check=check(Decimal >= 0)
-    )
-    data_emissao: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), comment="Data de emissão"
-    )
-    data_envio: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True, comment="Data de envio"
-    )
-    data_retransmissao: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True, comment="Data de retransmissão"
-    )
-    erro: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Descrição do erro"
-    )
-    mensagem: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Mensagem da remessa"
-    )
-    payload: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Payload da remessa"
-    )
-    lotes: Mapped[list["RemessaLote"]] = mapped_column(
-        relationship("RemessaLote", back_populates="remessa", cascade="all, delete-orphan")
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), comment="Criação"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), onupdate=func.now(),
-        comment="Atualização"
-    )
-
-    __table_args__ = (
-        Index("ix_remessas_status", status),
-        Index("ix_remessas_data_emissao", data_emissao),
-        Index("ix_remessas_cnpj", cnpj_sus),
-        Index("ix_remessas_cpf", cpf_sus),
-        Index("ix_remessas_cns", cns_sus),
-        Index("ix_remessas_tipo", tipo_remessa),
-        UniqueConstraint("cnpj_sus", "cpf_sus", "cns_sus", name="uq_remessa_sus"),
-    )
-
-    def __repr__(self) -> str:
-        return (
-            f"<Remessa(id={self.id}, status={self.status.value}, "
-            f"valor={self.valor}, tipo={self.tipo_remessa.value})>"
-        )
-
-
-class RemessaLote(Base):
-    """
-    Lote de remessa para retransmissão.
-    Agrupa remessas com erro para retransmissão em lote.
-    """
-    __tablename__ = "remessas_lotes"
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True, comment="ID do lote"
-    )
-    remessa_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("remessas.id"), nullable=False, comment="ID da remessa"
-    )
-    remessa: Mapped["Remessa"] = mapped_column(
-        relationship("Remessa", back_populates="lotes")
-    )
-    status: Mapped[RemessaStatus] = mapped_column(
-        Enum(RemessaStatus), nullable=False, default=RemessaStatus.PENDING,
-        comment="Status do lote"
-    )
-    erro: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Erro do lote"
-    )
-    mensagem: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Mensagem do lote"
-    )
-    payload: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Payload do lote"
-    )
-    data_retransmissao: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True, comment="Data de retransmissão"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), comment="Criação"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), onupdate=func.now(),
-        comment="Atualização"
-    )
-
-    __table_args__ = (
-        Index("ix_remessas_lotes_remessa", remessa_id),
-        Index("ix_remessas_lotes_status", status),
-    )
-
-    def __repr__(self) -> str:
-        return (
-            f"<RemessaLote(id={self.id}, remessa_id={self.remessa_id}, "
-            f"status={self.status.value})>"
-        )
-
-
-class RemessaHistorico(Base):
-    """
-    Histórico de remessas para rastreamento.
-    Mantém registro de todas as operações.
-    """
-    __tablename__ = "remessas_historico"
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True, comment="ID histórico"
-    )
-    remessa_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("remessas.id"), nullable=False, comment="ID da remessa"
-    )
-    remessa: Mapped["Remessa"] = mapped_column(
-        relationship("Remessa", back_populates="lotes")
-    )
-    action: Mapped[str] = mapped_column(
-        String(50), nullable=False, comment="Ação realizada"
-    )
-    mensagem: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Mensagem da ação"
-    )
-    payload: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="Payload da ação"
-    )
-    data_acao: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=func.now(), comment="Data da ação"
-    )
-
-    __table_args__ = (
-        Index("ix_remessas_historico_remessa", remessa_id),
-        Index("ix_remessas_historico_data", data_acao),
-    )
-
-    def __repr__(self) -> str:
-        return (
-            f"<RemessaHistorico(id={self.id}, remessa_id={self.remessa_id}, "
-            f"action={self.action})>"
-        )
-```
-
----
-
-## Arquivo: `backend/app/schemas.py`
-
-```python
-# Arquivo: backend/app/schemas.py
-"""
-Esquemas Pydantic v2 para validação de dados.
-Padrões SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF.
-"""
-from __future__ import annotations
-
-import re
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional, List
-
-from pydantic import (
-    BaseModel,
-    Field,
-    field_validator,
-    model_validator,
-    ConfigDict,
-)
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Float, DateTime, Text, Enum, Integer
-
-from app.models import Remessa, RemessaLote, RemessaStatus, RemessaType
-
-
-# --- Padrões de validação SUS/APS ---
-SUS_CNPJ_PATTERN = re.compile(r"^\d{8}\.\d{9}[-\s]?\d{2}$")
-SUS_CPF_PATTERN = re.compile(r"^\d{3}[-\s]?\d{2}[-\s]?\d{2}[-\s]?\d{2}$")
-SUS_CNS_PATTERN = re.compile(r"^\d{11}$")
-
-
-class RemessaCreate(BaseModel):
-    """Esquema para criação de remessa."""
-    model_config = ConfigDict(from_attributes=True)
-
-    cnpj_sus: Optional[str] = Field(
-        None,
-        max_length=14,
-        description="CNPJ do SUS"
-    )
-    cpf_sus: Optional[str] = Field(
-        None,
-        max_length=11,
-        description="CPF do SUS"
-    )
-    cns_sus: Optional[str] = Field(
-        None,
-        max_length=11,
-        description="CNS do SUS"
-    )
-    tipo_remessa: RemessaType = Field(
-        RemessaType.CIAP_2,
-        description="Tipo de remessa (CIAP-2, CID-10, SOAP)"
-    )
-    valor: Decimal = Field(
-        gt=0,
-        description="Valor da remessa"
-    )
-    mensagem: Optional[str] = Field(
-        None,
-        max_length=4096,
-        description="Mensagem da remessa"
-    )
-    payload: Optional[str] = Field(
-        None,
-        max_length=8192,
-        description="Payload da remessa"
-    )
-
-    @field_validator("cnpj_sus")
-    @classmethod
-    def validate_cnpj(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not SUS_CNPJ_PATTERN.match(v):
-            raise ValueError("CNPJ inválido. Formato: XXX.XXXX.XXXX-XX")
-        return v
-
-    @field_validator("cpf_sus")
-    @classmethod
-    def validate_cpf(cls, v: Optional[str]) -> Optional
+    <script>
+        // Simulação de dados para demonstração
+        const mockData = [
+            { id: 'FAT-001', cnpj: '123456789000', value: 1500.00, status: 'completed', date: '2024-01-15', error: null, month: '2024-01' },
+            { id: 'FAT-002', cnpj: '098765432100', value: 2300.50, status: 'pending', date: '2024-01-16', error: null, month: '2024-01' },
+            { id: 'FAT-003', cnpj: '112233445566', value: 800.00, status: 'failed', date: '2024-01-17', error: 'Timeout na API', month: '2024-01' },
+            { id: 'FAT-004', cnpj: '998877665544', value: 3200.00, status: 'completed', date: '2024-02-01', error: null, month:

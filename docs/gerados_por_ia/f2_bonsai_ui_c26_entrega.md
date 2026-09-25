@@ -1,386 +1,412 @@
-```html:backend/app/static/farmacia_dispensacao.html
-<!DOCTYPE html>
-<html lang="pt-BR" class="min-h-screen">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmácia UBS — Consulta e Baixa de Prescrição</title>
+# Projeto MedIA - Interface Web de Consulta e Baixa de Prescrição (C26)
 
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        sus: {
-                            blue: '#003366',
-                            light: '#e0f0ff',
-                            accent: '#007acc',
-                            warning: '#f59e0b',
-                            danger: '#dc2626',
-                            success: '#16a34a',
-                            gray: '#6b7280'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'Segoe UI', 'Arial', 'sans-serif'],
-                        mono: ['Courier New', 'monospace'],
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'slide-in': 'slideIn 0.3s ease-out forwards',
-                        'fade-in': 'fadeIn 0.3s ease-out forwards',
-                    },
-                    keyframes: {
-                        slideIn: {
-                            '0%': { transform: 'translateY(20px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
-                        },
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+## Estrutura do Projeto
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+```
+media/
+├── backend/
+│   ├── __init__.py
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── database.py
+│   │   ├── static/
+│   │   │   ├── farmacia_dispensacao.html
+│   │   │   └── style.css
+│   │   ├── tests/
+│   │   │   ├── __init__.py
+│   │   │   └── test_api.py
+│   │   └── services/
+│   │       ├── __init__.py
+│   │       └── dispensacao.py
+│   ├── requirements.txt
+│   └── config.py
+└── README.md
+```
 
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+---
 
-    <style>
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #007acc; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #005588; }
+## Arquivo: `backend/app/__init__.py`
 
-        /* Barcode scanner overlay */
-        #barcode-scan-area {
-            position: relative;
-            overflow: hidden;
-        }
+```python
+# Arquivo: backend/app/__init__.py
+"""
+Pacote app do projeto MedIA.
+Interface Web de Consulta e Baixa de Prescrição (C26) para atendentes de farmácia da UBS.
+Padrões: SUS/APS (CIAP-2, CID-10, SOAP, CNS/CPF).
+"""
+```
 
-        /* Scan line animation */
-        .scan-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, transparent, #007acc, transparent);
-            animation: scanLine 2s linear infinite;
-            pointer-events: none;
-        }
+---
 
-        @keyframes scanLine {
-            0% { top: -100%; }
-            100% { top: 100%; }
-        }
+## Arquivo: `backend/app/database.py`
 
-        /* Barcode grid overlay */
-        .barcode-grid {
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(0, 122, 204, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 122, 204, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
-            pointer-events: none;
-        }
+```python
+# Arquivo: backend/app/database.py
+"""
+Configuração da base de dados com SQLAlchemy 2.0.
+Suporte a PostgreSQL e SQLite para desenvolvimento.
+"""
 
-        /* Prescription card */
-        .prescription-card {
-            transition: all 0.3s ease;
-        }
-        .prescription-card:hover {
-            box-shadow: 0 10px 40px rgba(0, 122, 204, 0.15);
-        }
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from typing import Optional
+import os
 
-        /* Status badges */
-        .badge-sus {
-            background: linear-gradient(135deg, #003366, #007acc);
-            color: white;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite+aiosqlite:///./media_db.sqlite"
+)
 
-        .badge-cip {
-            background: linear-gradient(135deg, #16a34a, #059669);
-            color: white;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+engine = create_engine(
+    DATABASE_URL,
+    echo=os.getenv("DB_ECHO", "false").lower() == "true",
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
 
-        .badge-cip-expiry {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=Session,
+)
 
-        .badge-cip-expired {
-            background: linear-gradient(135deg, #dc2626, #b91c1c);
-            color: white;
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
+Base = declarative_base()
 
-        /* Prescription status */
-        .status-prescription {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-        }
 
-        .status-prescription-ativa {
-            background: #dcfce7;
-            color: #166534;
-        }
-        .status-prescription-expira {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .status-prescription-expirada {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .status-prescription-rejeitada {
-            background: #fef2f2;
-            color: #991b1b;
-        }
+def get_db() -> Session:
+    """Yield a database session."""
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-        /* Prescription form */
-        .prescription-form {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+def init_db() -> None:
+    """Inicializa todas as tabelas na base de dados."""
+    Base.metadata.create_all(bind=engine)
+```
+
+---
+
+## Arquivo: `backend/app/models.py`
+
+```python
+# Arquivo: backend/app/models.py
+"""
+Modelos SQLAlchemy 2.0 para o sistema MedIA.
+Conformidade com padrões SUS/APS:
+- CIAP-2: Código de Identificação de Attribuição de Profissão
+- CID-10: Código Internacional de Diagnóstico
+- SOAP: Método de comunicação
+- Identificação por CNS/CPF
+"""
+
+from datetime import datetime
+from typing import Optional, List
+from sqlalchemy import (
+    Column, Integer, String, Text, DateTime, Boolean, ForeignKey,
+    Enum, Numeric, Float, Index, UniqueConstraint,
+)
+from sqlalchemy.orm import relationship
+from .database import Base
+
+
+class CNS(Enum):
+    """Identificador do Sistema Nacional de Cadastro."""
+    CPF = "CPF"
+    CNPJ = "CNPJ"
+    CPF_MF = "CPF_MF"
+    CPF_JUR = "CPF_JUR"
+    CPF_MF_JUR = "CPF_MF_JUR"
+
+
+class CID10(Enum):
+    """Código Internacional de Diagnóstico 10."""
+    # Exemplos comuns
+    CARDIOVASCULAR = "I21.9"
+    DIABETES = "E11.9"
+    HIPERTENSIA = "I10.0"
+    ASTMA = "J41.9"
+    HIPOTENSIA = "I50.0"
+    DEPRESSAO = "F41.3"
+    ANXIOSIDADE = "F41.1"
+    DIALSEIS = "I20.9"
+    OBEZESIA = "E50.9"
+    DEMENTO = "F02.0"
+    OTR = "F99.9"
+
+
+class Patient(Base):
+    """
+    Modelo de Paciente/Patente.
+    Identificação por CNS (CPF/CNPJ).
+    """
+    __tablename__ = "patient"
+
+    id = Column(Integer, primary_key=True, index=True)
+    CNS = Column(String(14), unique=True, nullable=False, index=True)
+    CNS_TYPE = Column(Enum(CNS), nullable=False, default=CNS.CPF)
+    full_name = Column(String(120), nullable=False)
+    date_of_birth = Column(DateTime, nullable=True)
+    gender = Column(String(1), nullable=True)  # M/F
+    address = Column(Text, nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(120), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    prescriptions = relationship("Prescription", back_populates="patient")
+    appointments = relationship("Appointment", back_populates="patient")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "CNS": self.CNS,
+            "CNS_TYPE": self.CNS_TYPE.value,
+            "full_name": self.full_name,
+            "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
+            "gender": self.gender,
+            "address": self.address,
+            "phone": self.phone,
+            "email": self.email,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
-        /* Prescription item */
-        .prescription-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.2s;
-        }
-        .prescription-item:last-child { border-bottom: none; }
-        .prescription-item:hover { background: #f8fafc; }
 
-        /* Quantity input */
-        .qty-input {
-            width: 60px;
-            text-align: center;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-align: center;
-            background: white;
-        }
+class Prescription(Base):
+    """
+    Modelo de Prescrição Digital.
+    Suporte a leitura via código de barras / hash.
+    """
+    __tablename__ = "prescription"
 
-        /* Prescription summary */
-        .prescription-summary {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
-        }
+    id = Column(Integer, primary_key=True, index=True)
+    hash_code = Column(String(64), unique=True, nullable=False, index=True)
+    barcode_code = Column(String(50), nullable=True, index=True)
+    patient_cns = Column(String(14), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patient.id"), nullable=True)
+    doctor_cns = Column(String(14), nullable=True, index=True)
+    doctor_name = Column(String(120), nullable=True)
+    prescription_date = Column(DateTime, nullable=False)
+    expiry_date = Column(DateTime, nullable=False)
+    status = Column(String(20), nullable=False, default="ativo")
+    # Status: ativo, consumido, expirado, cancelado, rejeitado
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-        /* Alert messages */
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
-        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde047; }
-        .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    # Relação com itens da receita
+    items = relationship("PrescriptionItem", back_populates="prescription")
 
-        /* Prescription hash input */
-        .hash-input-wrapper {
-            position: relative;
-        }
-        .hash-input-wrapper i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #9ca3af;
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "hash_code": self.hash_code,
+            "barcode_code": self.barcode_code,
+            "patient_cns": self.patient_cns,
+            "patient_id": self.patient_id,
+            "doctor_cns": self.doctor_cns,
+            "doctor_name": self.doctor_name,
+            "prescription_date": self.prescription_date.isoformat() if self.prescription_date else None,
+            "expiry_date": self.expiry_date.isoformat() if self.expiry_date else None,
+            "status": self.status,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
-        /* Prescription detail modal */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
+
+class PrescriptionItem(Base):
+    """
+    Modelo de item da receita.
+    Conformidade com CID-10 e CIAP-2.
+    """
+    __tablename__ = "prescription_item"
+
+    id = Column(Integer, primary_key=True, index=True)
+    prescription_id = Column(Integer, ForeignKey("prescription.id"), nullable=False)
+    drug_name = Column(String(120), nullable=False)
+    drug_code = Column(String(50), nullable=True)  # CID-10 / Nomenclatura
+    dosage = Column(Numeric(10, 2), nullable=True)
+    frequency = Column(String(50), nullable=True)  # q.d., 3x/d., etc.
+    duration = Column(String(50), nullable=True)  # 7 dias, 30 dias, etc.
+    instructions = Column(Text, nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    prescription = relationship("Prescription", back_populates="items")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "prescription_id": self.prescription_id,
+            "drug_name": self.drug_name,
+            "drug_code": self.drug_code,
+            "dosage": self.dosage,
+            "frequency": self.frequency,
+            "duration": self.duration,
+            "instructions": self.instructions,
+            "quantity": self.quantity,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
-        /* Prescription table */
-        .prescription-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .prescription-table th {
-            background: #f8fafc;
-            font-weight: 600;
-            color: #374151;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 2px solid #e5e7eb;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .prescription-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.875rem;
-        }
-        .prescription-table tr:hover td {
-            background: #f8fafc;
+
+class DispensingRecord(Base):
+    """
+    Registro de dispensação (C26).
+    Audit trail completo.
+    """
+    __tablename__ = "dispensing_record"
+
+    id = Column(Integer, primary_key=True, index=True)
+    prescription_id = Column(Integer, ForeignKey("prescription.id"), nullable=False)
+    patient_cns = Column(String(14), nullable=False)
+    patient_name = Column(String(120), nullable=False)
+    dispenser_cns = Column(String(14), nullable=False)  # Atenente da farmácia
+    dispenser_name = Column(String(120), nullable=False)
+    dispensing_date = Column(DateTime, nullable=False)
+    quantity_dispensed = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="completa")
+    # Status: completa, parcial, rejeitada, cancelada
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    prescription = relationship("Prescription", back_populates="dispensing_records")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "prescription_id": self.prescription_id,
+            "patient_cns": self.patient_cns,
+            "patient_name": self.patient_name,
+            "dispenser_cns": self.dispenser_cns,
+            "dispenser_name": self.dispenser_name,
+            "dispensing_date": self.dispensing_date.isoformat() if self.dispensing_date else None,
+            "quantity_dispensed": self.quantity_dispensed,
+            "status": self.status,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
-        /* Prescription history */
-        .history-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            transition: background 0.2s;
-        }
-        .history-item:hover { background: #f8fafc; }
-        .history-item.completed { opacity: 0.7; }
-        .history-item.completed .status-icon { color: #9ca3af; }
 
-        /* Prescription status indicator */
-        .status-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            flex-shrink: 0;
-        }
-        .status-icon-ativa { background: #dcfce7; color: #166534; }
-        .status-icon-expira { background: #fef3c7; color: #92400e; }
-        .status-icon-expirada { background: #fee2e2; color: #991b1b; }
-        .status-icon-rejeitada { background: #fef2f2; color: #991b1b; }
-        .status-icon-baixa { background: #dbeafe; color: #1e40af; }
+class PrescriptionStatus(Base):
+    """
+    Status da receita conforme SUS/APS.
+    """
+    __tablename__ = "prescription_status"
 
-        /* Prescription details */
-        .detail-section {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        .detail-section h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .detail-section h3 i { color: #007acc; }
+    id = Column(Integer, primary_key=True)
+    code = Column(String(10), unique=True, nullable=False)
+    description = Column(String(100), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
 
-        /* Prescription table */
-        .prescription-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .prescription-table th {
-            background: #f8fafc;
-            font-weight: 600;
-            color: #374151;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 2px solid #e5e7eb;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .prescription-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.875rem;
-        }
-        .prescription-table tr:hover td {
-            background: #f8fafc;
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "code": self.code,
+            "description": self.description,
+            "is_active": self.is_active,
         }
 
-        /* Prescription summary */
-        .prescription-summary {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border: 1px solid #e5e7eb;
-            border-radius: 1
+
+class DispensingStatus(Base):
+    """
+    Status de dispensação conforme C26.
+    """
+    __tablename__ = "dispensing_status"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(10), unique=True, nullable=False)
+    description = Column(String(100), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "code": self.code,
+            "description": self.description,
+            "is_active": self.is_active,
+        }
+```
+
+---
+
+## Arquivo: `backend/app/schemas.py`
+
+```python
+# Arquivo: backend/app/schemas.py
+"""
+Esquemas Pydantic v2 para validação de dados.
+Conformidade com tipos do SUS/APS.
+"""
+
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field, field_validator, model_validator
+from enum import Enum
+
+from .models import CNS, CID10
+
+
+# --- Enums ---
+
+class PrescriptionStatusEnum(str, Enum):
+    """Status da receita."""
+    ATIVO = "ativo"
+    CONSUMIDO = "consumido"
+    EXPIRADO = "expirado"
+    CANCELADO = "cancelado"
+    REJETADO = "rejeitado"
+
+
+class DispensingStatusEnum(str, Enum):
+    """Status de dispensação."""
+    COMPLETA = "completa"
+    PARCIAL = "parcial"
+    REJETADA = "rejeitada"
+    CANCELADA = "cancelada"
+
+
+class PatientCreate(BaseModel):
+    """Esquema para criação de paciente."""
+    CNS: str = Field(..., min_length=11, max_length=14, description="CPF ou CNPJ")
+    CNS_TYPE: CNS = Field(default=CNS.CPF)
+    full_name: str = Field(..., min_length=2, max_length=120)
+    date_of_birth: Optional[datetime] = None
+    gender: Optional[str] = Field(None, pattern="^[MF]$")
+    address: Optional[str] = None
+    phone: Optional[str] = Field(None, pattern="^\+?[0-9\s\-()]{10,20}$")
+    email: Optional[str] = Field(None, max_length=120)
+
+    @field_validator("CNS")
+    @classmethod
+    def validate_cns(cls, v: str) -> str:
+        if CNS.CPF.value in v.upper():
+            if len(v) != 11:
+                raise ValueError("CPF deve ter exatamente 11 dígitos")
+        elif CNS.CNPJ.value in v.upper():
+            if len(v) != 14:
+                raise ValueError("CNPJ deve ter exatamente 14 dígitos")
+        return v.upper()
+
+
+class PrescriptionCreate(BaseModel):
+    """Esquema para criação de receita."""
+    patient_cns: str = Field(..., min_length=11, max_length=14)
+    doctor_cns: Optional[str] = Field(None, min_length=11, max_length=14)
+    doctor_name: Optional[str] = Field(None, max_length=120)
+    prescription_date: datetime = Field(..., description="Data da receita")
+    expiry_date: datetime = Field(..., description="Data de vencimento")
+    notes: Optional[str] = None
+    items: List["PrescriptionItemCreate"] = Field(..., min_items=1)
+
+    @field_validator("prescription_date")
+    @classmethod

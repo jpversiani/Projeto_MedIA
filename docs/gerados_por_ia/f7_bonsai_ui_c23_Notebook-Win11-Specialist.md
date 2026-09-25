@@ -1,474 +1,403 @@
-```python:backend/app/static/dashboard_analytics.html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Executivo - MedIA</title>
-    <style>
-        :root {
-            --primary: #0056b3;
-            --primary-dark: #003d80;
-            --secondary: #28a745;
-            --danger: #dc3545;
-            --warning: #ffc107;
-            --info: #17a2b8;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --card-bg: #ffffff;
-            --border: #dee2e6;
-            --text: #343a40;
-            --text-light: #6c757d;
-            --gradient-primary: linear-gradient(135deg, #0056b3 0%, #003d80 100%);
-            --gradient-success: linear-gradient(135deg, #28a745 0%, #1f8734 100%);
-            --gradient-danger: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            --gradient-info: linear-gradient(135deg, #17a2b8 0%, #0d6efd 100%);
-            --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            --shadow-xl: 0 1rem 2rem rgba(0, 0, 0, 0.2);
-            --radius-sm: 0.25rem;
-            --radius-md: 0.5rem;
-            --radius-lg: 1rem;
-            --radius-xl: 1.5rem;
-        }
+# Dashboard Executivo Interativo - Projeto MedIA
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+## Estrutura do Projeto
 
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--light);
-            color: var(--text);
-            line-height: 1.6;
-            min-height: 100vh;
-        }
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       └── telemedicina.py
+│   └── static/
+│       ├── dashboard_analytics.html
+│       └── style.css
+├── tests/
+│   ├── __init__.py
+│   └── test_dashboard.py
+├── requirements.txt
+└── pytest.ini
+```
 
-        /* Header */
-        .app-header {
-            background: var(--gradient-primary);
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--shadow-md);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+---
 
-        .app-header h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+## Arquivo: `backend/app/database.py`
 
-        .app-header h1 .logo {
-            font-size: 1.8rem;
-        }
+```python
+# Arquivo: backend/app/database.py
+"""
+Configuração de banco de dados com SQLAlchemy 2.0.
+Suporte para PostgreSQL e SQLite (modo desenvolvimento).
+"""
 
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session, scoped_session
+from typing import Optional
+import os
 
-        .header-actions .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite+aiosqlite:///./media.db"
+)
 
-        .btn-primary {
-            background: white;
-            color: var(--primary);
-        }
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,
+    pool_pre_ping=True,
+)
 
-        .btn-primary:hover {
-            background: var(--light);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
+ScopedSession = scoped_session(SessionLocal)
+Base = declarative_base()
 
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+def get_db() -> Session:
+    """Dependência FastAPI para session do banco de dados."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.875rem;
-            color: var(--primary);
-        }
 
-        .user-info span {
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
+def init_db() -> None:
+    """Inicializa todas as tabelas no banco de dados."""
+    Base.metadata.create_all(bind=engine)
+```
 
-        /* Main Layout */
-        .main-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+---
 
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 260px;
-            background: white;
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 1rem;
-            z-index: 90;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+## Arquivo: `backend/app/models.py`
 
-        .sidebar-nav {
-            flex: 1;
-        }
+```python
+# Arquivo: backend/app/models.py
+"""
+Modelos SQLAlchemy 2.0 com tipagem estrita.
+Padrões SUS/APS: CIAP-2, CID-10, método SOAP, identificação por CNS/CPF.
+"""
 
-        .sidebar-nav .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-light);
-        }
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional, List
+from sqlalchemy import (
+    Column, Integer, String, Float, DateTime, Boolean, Text,
+    ForeignKey, Enum, Index, UniqueConstraint,
+    func, event
+)
+from sqlalchemy.orm import relationship, mapped_column
+from sqlalchemy.dialects.postgresql import UUID
+from app.database import Base
 
-        .sidebar-nav .nav-item:hover {
-            background: var(--light);
-            color: var(--text);
-        }
 
-        .sidebar-nav .nav-item.active {
-            background: var(--primary);
-            color: white;
-        }
+class ProviderType(str, Enum):
+    """Tipos de profissionais da SUS/APS."""
+    DOCTOR = "D"
+    NURSE = "N"
+    TECHNICIAN = "T"
+    PHARMACIST = "P"
+    OTHER = "O"
 
-        .nav-icon {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.125rem;
-        }
 
-        .sidebar-footer {
-            padding: 1rem;
-            border-top: 1px solid var(--border);
-        }
+class Provider(Base):
+    """
+    Modelo de Profissional (CNS/CPF).
+    Identificação por CNS (SUS) ou CPF (APs).
+    """
+    __tablename__ = "providers"
 
-        .sidebar-footer .user-card {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    cns = Column(String(11), unique=True, nullable=False, index=True)
+    cpf = Column(String(14), unique=True, nullable=True, index=True)
+    full_name = Column(String(255), nullable=False)
+    profession = Column(Enum(ProviderType), nullable=False)
+    provider_type = Column(String(50), nullable=True)
+    contact_phone = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-        .sidebar-footer .user-card:hover {
-            background: var(--light);
-        }
+    appointments = relationship("Appointment", back_populates="provider")
+    consultations = relationship("Consultation", back_populates="provider")
 
-        /* Dashboard Grid */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 280px;
-            gap: 2rem;
-            margin-top: 2rem;
-        }
+    def __repr__(self) -> str:
+        return f"<Provider(id={self.id}, cns={self.cns}, name={self.full_name})>"
 
-        /* KPI Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-        }
 
-        .kpi-card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border);
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
+class Consultation(Base):
+    """
+    Consulta médica com método SOAP.
+    CID-10 para diagnóstico, CIAP-2 para classificação.
+    """
+    __tablename__ = "consultations"
 
-        .kpi-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    patient_cpf = Column(String(14), nullable=False, index=True)
+    patient_name = Column(String(255), nullable=False)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False)
+    provider = relationship("Provider", back_populates="consultations")
 
-        .kpi-card .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-        }
+    # Método SOAP
+    subject = Column(String(500), nullable=True)
+    objective = Column(Text, nullable=True)
+    assessment = Column(Text, nullable=True)
+    plan = Column(Text, nullable=True)
 
-        .kpi-card .card-title {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-light);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+    # CID-10 e CIAP-2
+    cid10_code = Column(String(10), nullable=True, index=True)
+    ciap2_code = Column(String(10), nullable=True, index=True)
+    diagnosis = Column(String(500), nullable=True)
+    treatment = Column(Text, nullable=True)
 
-        .kpi-card .card-status {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
+    # Horário da consulta
+    consultation_time = Column(DateTime, nullable=False, index=True)
+    duration_minutes = Column(Integer, nullable=True)
 
-        .card-status.up {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-        }
+    # Status
+    status = Column(String(20), default="AGENDADA")
+    is_completed = Column(Boolean, default=False)
 
-        .card-status.down {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-        }
+    # Notas adicionais
+    notes = Column(Text, nullable=True)
 
-        .card-status.stable {
-            background: rgba(255, 193, 7, 0.1);
-            color: #ffc107;
-        }
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-        .card-status .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-        }
+    def __repr__(self) -> str:
+        return f"<Consultation(id={self.id}, patient={self.patient_cpf}, time={self.consultation_time})>"
 
-        .kpi-card .card-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
 
-        .kpi-card .card-change {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
+class Appointment(Base):
+    """
+    Agendamento de consulta.
+    Suporte para consulta em tempo real e histórico.
+    """
+    __tablename__ = "appointments"
 
-        .kpi-card .card-change.up {
-            color: #28a745;
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    patient_cpf = Column(String(14), nullable=False, index=True)
+    patient_name = Column(String(255), nullable=False)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False)
+    provider = relationship("Provider", back_populates="appointments")
 
-        .kpi-card .card-change.down {
-            color: #dc3545;
-        }
+    appointment_time = Column(DateTime, nullable=False, index=True)
+    status = Column(String(20), default="AGENDADA")
+    notes = Column(Text, nullable=True)
 
-        .kpi-card .card-change.stable {
-            color: #6c757d;
-        }
+    consultation = relationship("Consultation", back_populates="appointment", uselist=False)
 
-        .kpi-card .card-chart {
-            height: 60px;
-            position: relative;
-        }
+    created_at = Column(DateTime, default=func.now())
 
-        .kpi-card .card-chart canvas {
-            width: 100%;
-            height: 100%;
-        }
+    def __repr__(self) -> str:
+        return f"<Appointment(id={self.id}, patient={self.patient_cpf}, time={self.appointment_time})>"
 
-        .kpi-card .card-label {
-            font-size: 0.75rem;
-            color: var(--text-light);
-            margin-top: 0.5rem;
-        }
 
-        /* Heatmap Section */
-        .heatmap-section {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border);
-        }
+class Patient(Base):
+    """
+    Modelo de paciente com identificação por CPF.
+    """
+    __tablename__ = "patients"
 
-        .heatmap-section h2 {
-            font-size: 1.125rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    cpf = Column(String(14), unique=True, nullable=False, index=True)
+    full_name = Column(String(255), nullable=False)
+    date_of_birth = Column(DateTime, nullable=True)
+    gender = Column(String(1), nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
 
-        .heatmap-section h2 .heatmap-icon {
-            font-size: 1.25rem;
-        }
+    consultations = relationship("Consultation", back_populates="patient")
+    appointments = relationship("Appointment", back_populates="patient")
 
-        .heatmap-controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
+    def __repr__(self) -> str:
+        return f"<Patient(id={self.id}, cpf={self.cpf}, name={self.full_name})>"
 
-        .heatmap-controls .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
 
-        .heatmap-controls .filter-group label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text);
-        }
+class HealthRecord(Base):
+    """
+    Registro de saúde com histórico de consultas.
+    Suporte para análise de KPIs e heatmap.
+    """
+    __tablename__ = "health_records"
 
-        .heatmap-controls .filter-group select {
-            padding: 0.375rem 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.875rem;
-            background: white;
-            cursor: pointer;
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    patient_cpf = Column(String(14), unique=True, nullable=False, index=True)
+    patient_name = Column(String(255), nullable=False)
+    date_of_birth = Column(DateTime, nullable=True)
+    gender = Column(String(1), nullable=True)
+    region = Column(String(50), nullable=True)
+    insurance_type = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
 
-        .heatmap-controls .btn-small {
-            padding: 0.375rem 0.75rem;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
+    consultations = relationship("Consultation", back_populates="patient")
+    appointments = relationship("Appointment", back_populates="patient")
 
-        .heatmap-controls .btn-small.primary {
-            background: var(--primary);
-            color: white;
-        }
+    def __repr__(self -> str):
+        return f"<HealthRecord(id={self.id}, patient={self.patient_cpf})>"
 
-        .heatmap-controls .btn-small.primary:hover {
-            background: var(--primary-dark);
-        }
 
-        .heatmap-controls .btn-small.secondary {
-            background: var(--light);
-            color: var(--text);
-        }
+class ServiceType(Base):
+    """
+    Tipo de serviço com CID-10 e CIAP-2.
+    """
+    __tablename__ = "service_types"
 
-        .heatmap-controls .btn-small.secondary:hover {
-            background: var(--border);
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    cid10_code = Column(String(10), nullable=False, unique=True)
+    ciap2_code = Column(String(10), nullable=False, unique=True)
+    service_name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
 
-        .heatmap-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
-            margin-bottom: 1rem;
-        }
+    consultations = relationship("Consultation", back_populates="service")
 
-        .heatmap-cell {
-            aspect-ratio: 1;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.625rem;
-            font-weight: 700;
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
+    def __repr__(self) -> str:
+        return f"<ServiceType(id={self.id}, cid10={self.cid10_code}, name={self.service_name})>"
 
-        .heatmap-cell:hover {
-            transform: scale(1.1);
-            z-index: 10;
-        }
 
-        .heatmap-cell .tooltip {
-            position: absolute;
-            bottom: 120%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--dark);
-            color: white;
-            padding: 0.5rem 0.75rem;
-            border-radius: var(--radius-sm);
-            font-size: 0.75rem;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
+class AppointmentRecord(Base):
+    """
+    Registro de agendamento para análise de heatmap.
+    """
+    __tablename__ = "appointment_records"
 
-        .heatmap-cell:hover .tooltip {
-            opacity: 1;
-        }
+    id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
+    patient_cpf = Column(String(14), nullable=False, index=True)
+    provider_id = Column(UUID(as_uuid=True), ForeignKey("providers.id"), nullable=False)
+    appointment_time = Column(DateTime, nullable=False, index=True)
+    status = Column(String(20), default="AGENDADA")
+    consultation_time = Column(DateTime, nullable=True)
+    duration_minutes = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=func.now())
 
-        .heatmap-legend {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
+    def __repr__(self) -> str:
+        return f"<AppointmentRecord(id={self.id}, time={self.appointment_time})>"
+```
 
-        .heatmap-legend .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.375rem;
-            font-size: 0.875rem
+---
+
+## Arquivo: `backend/app/schemas.py`
+
+```python
+# Arquivo: backend/app/schemas.py
+"""
+Esquemas Pydantic v2 com tipagem estrita.
+Validação de dados para API REST.
+"""
+
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional, List, Dict
+from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+
+# ==========================================
+# Esquemas de Consultação (SOAP)
+# ==========================================
+
+class ConsultationCreate(BaseModel):
+    """Esquema para criação de consulta."""
+    patient_cpf: str = Field(..., min_length=11, max_length=14)
+    patient_name: str = Field(..., min_length=1, max_length=255)
+    provider_id: UUID
+    subject: Optional[str] = Field(None, max_length=500)
+    objective: Optional[str] = Field(None, max_length=2000)
+    assessment: Optional[str] = Field(None, max_length=2000)
+    plan: Optional[str] = Field(None, max_length=2000)
+    cid10_code: Optional[str] = Field(None, max_length=10)
+    ciap2_code: Optional[str] = Field(None, max_length=10)
+    diagnosis: Optional[str] = Field(None, max_length=500)
+    treatment: Optional[str] = Field(None, max_length=2000)
+    consultation_time: datetime
+    duration_minutes: Optional[int] = Field(None, ge=0, le=1440)
+    status: str = Field("AGENDADA", max_length=20)
+    notes: Optional[str] = Field(None, max_length=2000)
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True,
+    )
+
+    @field_validator("patient_cpf")
+    @classmethod
+    def validate_cpf(cls, v: str) -> str:
+        """Validação básica de CPF."""
+        if len(v) != 14:
+            raise ValueError("CPF deve ter exatamente 14 dígitos")
+        return v.upper()
+
+
+class ConsultationUpdate(BaseModel):
+    """Esquema para atualização de consulta."""
+    subject: Optional[str] = Field(None, max_length=500)
+    objective: Optional[str] = Field(None, max_length=2000)
+    assessment: Optional[str] = Field(None, max_length=2000)
+    plan: Optional[str] = Field(None, max_length=2000)
+    cid10_code: Optional[str] = Field(None, max_length=10)
+    ciap2_code: Optional[str] = Field(None, max_length=10)
+    diagnosis: Optional[str] = Field(None, max_length=500)
+    treatment: Optional[str] = Field(None, max_length=2000)
+    status: Optional[str] = Field(None, max_length=20)
+    notes: Optional[str] = Field(None, max_length=2000)
+
+
+class ConsultationResponse(BaseModel):
+    """Esquema de resposta de consulta."""
+    id: UUID
+    patient_cpf: str
+    patient_name: str
+    provider_id: UUID
+    subject: Optional[str]
+    objective: Optional[str]
+    assessment: Optional[str]
+    plan: Optional[str]
+    cid10_code: Optional[str]
+    ciap2_code: Optional[str]
+    diagnosis: Optional[str]
+    treatment: Optional[str]
+    consultation_time: datetime
+    duration_minutes: Optional[int]
+    status: str
+    notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# Esquemas de Agendamento
+# ==========================================
+
+class AppointmentCreate(BaseModel):
+    """Esquema para criação de agendamento."""
+    patient_cpf: str = Field(..., min_length=11, max_length=14)
+    patient_name: str = Field(..., min_length=1, max_length=255)
+    provider_id: UUID
+    appointment_time: datetime
+    status: str = Field("AGENDADA", max_length=20)
+    notes: Optional[str] = Field(None, max_length=2000)
+
+
+class AppointmentResponse(BaseModel):
+    """Esquema de resposta de ag

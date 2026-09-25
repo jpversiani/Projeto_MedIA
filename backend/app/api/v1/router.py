@@ -7,7 +7,9 @@ from app.api.v1.estabelecimentos import router as estabelecimentos_router
 from app.api.v1.telemedicina import router as telemedicina_router
 from app.api.v1.prontuario import router as prontuario_router
 from app.api.v1.copiloto import router as copiloto_router
+from app.api.v1.farmacia import router as farmacia_router
 from app.api.v1.telemedicina_ws import router as telemedicina_ws_router
+from app.api.v1.convenios import router as convenios_router
 
 api_router = APIRouter()
 
@@ -20,3 +22,5 @@ api_router.include_router(telemedicina_router)
 api_router.include_router(prontuario_router)
 api_router.include_router(copiloto_router)
 api_router.include_router(telemedicina_ws_router)
+api_router.include_router(farmacia_router)
+api_router.include_router(convenios_router)

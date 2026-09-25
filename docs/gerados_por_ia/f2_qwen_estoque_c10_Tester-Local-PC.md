@@ -1,264 +1,348 @@
 Here's a thinking process:
 
 1.  **Understand User Request:**
-   - **Project:** MedIA
-   - **Task:** Create `backend/app/repositories/medicamentos_repo.py`
-   - **Functionality:** Methods to search standardized drugs from RENAME/SUS (Relação Nacional de Medicamentos Essenciais), filtering by active ingredient, concentration, and pharmaceutical form.
+   - **Role:** Software Engineer (Tester)
+   - **Task:** Create `backend/app/repositories/medicamentos_repo.py` for the MedIA project.
+   - **Functionality:** Repository for standardized drugs from RENAME/SUS (Relação Nacional de Medicamentos Essenciais). Methods for searching drugs, filtering by active ingredient, concentration, and pharmaceutical form.
    - **Architecture Guidelines:**
      - Python 3.12
      - Strict typing with Pydantic v2 and SQLAlchemy 2.0
-     - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification)
-     - Full compliance and coverage with automated pytest tests
-   - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
+     - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification) - *Note: These are context for the broader project, but the repo itself focuses on RENAME/SUS drugs. I should ensure the models/DTOs align with SUS standards where applicable.*
+     - Full compliance and coverage with automated pytest tests.
+   - **Output Requirement:** Provide complete, executable code. Specify file paths for each file.
 
-2.  **Deconstruct Requirements & Identify Key Components:**
-   - **Repository Pattern:** Need a class/module that handles database interactions for medications.
-   - **Database Models:** Need SQLAlchemy 2.0 models for `Medicamento`, `PrincipioAtivo`, `FormaFarmaceutica`, etc. (or at least a model for the medication table).
-   - **Pydantic Schemas:** Need request/response schemas for filtering and results.
-   - **Filtering Logic:** Search by active ingredient (principio ativo), concentration, and pharmaceutical form.
-   - **SUS/APS Standards:** Mention CIAP-2, CID-10, SOAP, CNS/CPF. I need to incorporate these concepts into the schemas/models or at least ensure the repository supports them if relevant. Since the task is specifically about RENAME/SUS medications, I'll focus on the medication search but ensure the architecture aligns with SUS standards (e.g., using CNS/CPF for patient context, CID-10 for disease mapping, etc., even if just as fields or comments).
-   - **Testing:** Provide pytest tests covering the repository functionality.
-   - **Python 3.12 & Typing:** Use modern typing syntax (`list[str]`, `dict[str, Any]`, `Optional`, `Annotated`, etc.), Pydantic v2 (`BaseModel`, `Field`, `ConfigDict`), SQLAlchemy 2.0 (`DeclarativeBase`, `Mapped`, `mapped_column`, `sessionmaker`, `select`, `exec`).
+2.  **Deconstruct Requirements:**
+   - **File to create:** `backend/app/repositories/medicamentos_repo.py`
+   - **Related files needed for completeness:** 
+     - Database models (SQLAlchemy 2.0) for RENAME/SUS drugs
+     - Pydantic schemas (v2) for request/response
+     - Repository implementation
+     - Pytest tests
+     - Configuration/DB setup (minimal for context)
+   - **Key Features:**
+     - Search/filter by active ingredient (`principio_ativo`)
+     - Filter by concentration (`concentracao`)
+     - Filter by pharmaceutical form (`forma_farmaceutica`)
+     - SUS standards: CIAP-2, CID-10, SOAP, CNS/CPF (I'll include these in the broader context/models if relevant, but focus on the drug repo)
+   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0, pytest
 
-3.  **Design Database Models (SQLAlchemy 2.0):**
-   I'll create a minimal but complete set of models to support the repository.
-   - `Medicamento`: id, nome_comercial, nome_generico, principio_ativo_id, concentracao, forma_farmaceutica_id, codigo_sus, descricao, ativo
-   - `PrincipioAtivo`: id, nome, codigo_ciap2 (optional but aligns with guidelines)
-   - `FormaFarmaceutica`: id, nome, descricao
-   - I'll use a single file for models or keep it focused on the repository. Since the task asks specifically for `medicamentos_repo.py`, I'll include the necessary models and schemas in the same file or assume they exist. To make it self-contained and executable, I'll define them in the same file or provide them as part of the solution. I'll put models and schemas in the same file for simplicity, but clearly structure it.
+3.  **Design Architecture:**
+   - **Database Model (`backend/app/models/medicamento.py`):**
+     - `id`: UUID
+     - `principio_ativo`: str (active ingredient)
+     - `concentracao`: str (e.g., "500mg")
+     - `forma_farmaceutica`: str (e.g., "Comprimido")
+     - `codigo_rename`: str (RENAME code)
+     - `cid10`: str (optional, for disease association)
+     - `ciap2`: str (optional, for APS coding)
+     - `cns_paciente`: str (optional, for patient association)
+     - `created_at`, `updated_at`
+   - **Pydantic Schemas (`backend/app/schemas/medicamento.py`):**
+     - `MedicamentoCreate`, `MedicamentoUpdate`, `MedicamentoResponse`
+     - `MedicamentoFilter` for query parameters
+   - **Repository (`backend/app/repositories/medicamentos_repo.py`):**
+     - `class MedicamentosRepository`:
+       - `__init__(self, db: AsyncSession)`
+       - `get_by_id(self, id: UUID) -> Optional[Medicamento]`
+       - `search(self, filter: MedicamentoFilter) -> List[Medicamento]`
+       - `create(self, data: MedicamentoCreate) -> Medicamento`
+       - `update(self, id: UUID, data: MedicamentoUpdate) -> Optional[Medicamento]`
+       - `delete(self, id: UUID) -> bool`
+     - Use SQLAlchemy 2.0 async syntax (`select`, `execute`, `scalars`)
+   - **Tests (`tests/test_medicamentos_repo.py`):**
+     - Mock DB session or use in-memory SQLite
+     - Test CRUD operations
+     - Test filtering logic
+     - Ensure type hints and Pydantic validation work
+     - Use `pytest-asyncio`
 
-   Actually, it's better to keep the repository focused and define models/schemas inline or as imports. I'll define them in the same file to ensure it's complete and executable.
+4.  **Draft Code (Mental Refinement):**
 
-4.  **Design Pydantic Schemas (Pydantic v2):**
-   - `MedicamentoFilter`: principio_ativo: Optional[str] = None, concentracao: Optional[str] = None, forma_farmaceutica: Optional[str] = None
-   - `MedicamentoResponse`: id: int, nome_comercial: str, nome_generico: str, principio_ativo: str, concentracao: str, forma_farmaceutica: str, codigo_sus: str
-   - `MedicamentoCreate` (optional, but good for completeness)
-
-5.  **Design Repository Class:**
-   - `MedicamentoRepository`
-   - `__init__(self, session: AsyncSession)` (or sync, but async is modern. I'll use sync for simplicity unless specified, but SQLAlchemy 2.0 supports both. I'll stick to sync for straightforward testing, or async with `pytest-asyncio`. Let's use sync `Session` for simplicity, but I'll make it compatible with SQLAlchemy 2.0 style.)
-   - Actually, I'll use `Session` (sync) for easier testing without async boilerplate, but I'll note it's SQLAlchemy 2.0 style.
-   - Methods:
-     - `search_by_criteria(filter: MedicamentoFilter) -> list[MedicamentoResponse]`
-     - `get_by_code_sus(codigo_sus: str) -> Optional[MedicamentoResponse]`
-     - `get_by_principio_ativo(principio_ativo: str) -> list[MedicamentoResponse]`
-   - I'll implement the filtering logic using SQLAlchemy 2.0 `select`, `where`, `like`, `ilike` for case-insensitive search.
-
-6.  **Incorporate SUS/APS Standards:**
-   - Add fields/parameters related to CIAP-2, CID-10, SOAP, CNS/CPF where relevant.
-   - For example, the filter could include `cid10: Optional[str] = None` for disease-based lookup, and the response could include `cid10` mapping.
-   - I'll add a `cid10` field to the model/response to align with SUS standards.
-   - I'll add comments/docstrings explaining how it fits the SUS/APS architecture.
-
-7.  **Draft Code (Mental Refinement):**
+   *Model (`backend/app/models/medicamento.py`):*
    ```python
-   # Arquivo: backend/app/repositories/medicamentos_repo.py
-   from __future__ import annotations
-   from typing import Optional, List
-   from pydantic import BaseModel, Field, ConfigDict
-   from sqlalchemy import select, Column, Integer, String, Boolean, create_engine
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+   from sqlalchemy import String, DateTime, func
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+   import uuid
 
-   # --- Models ---
    class Base(DeclarativeBase):
        pass
 
-   class MedicamentoModel(Base):
+   class Medicamento(Base):
        __tablename__ = "medicamentos"
-       id: Mapped[int] = mapped_column(primary_key=True)
-       nome_comercial: Mapped[str] = mapped_column(String(255), nullable=False)
-       nome_generico: Mapped[str] = mapped_column(String(255), nullable=False)
-       principio_ativo: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-       concentracao: Mapped[str] = mapped_column(String(50), nullable=True)
-       forma_farmaceutica: Mapped[str] = mapped_column(String(100), nullable=False)
-       codigo_sus: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-       cid10: Mapped[Optional[str]] = mapped_column(String(10), nullable=True) # SUS/APS alignment
-       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
-   # --- Schemas ---
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       principio_ativo: Mapped[str] = mapped_column(String(100), nullable=False)
+       concentracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       forma_farmaceutica: Mapped[str] = mapped_column(String(50), nullable=False)
+       codigo_rename: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+       cid10: Mapped[str | None] = mapped_column(String(10), nullable=True)
+       ciap2: Mapped[str | None] = mapped_column(String(10), nullable=True)
+       cns_paciente: Mapped[str | None] = mapped_column(String(15), nullable=True)
+       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   ```
+   *Wait, need to import datetime.* I'll add it.
+
+   *Schema (`backend/app/schemas/medicamento.py`):*
+   ```python
+   from pydantic import BaseModel, Field
+   from uuid import UUID
+   from datetime import datetime
+
    class MedicamentoFilter(BaseModel):
-       principio_ativo: Optional[str] = Field(default=None, description="Princípio ativo (busca parcial)")
-       concentracao: Optional[str] = Field(default=None, description="Concentração (ex: 500mg)")
-       forma_farmaceutica: Optional[str] = Field(default=None, description="Forma farmacêutica (ex: Comprimido)")
-       cid10: Optional[str] = Field(default=None, description="CID-10 para correlação clínica (APS/SUS)")
+       principio_ativo: str | None = None
+       concentracao: str | None = None
+       forma_farmaceutica: str | None = None
+       codigo_rename: str | None = None
+
+   class MedicamentoCreate(BaseModel):
+       principio_ativo: str = Field(..., min_length=1, max_length=100)
+       concentracao: str = Field(..., min_length=1, max_length=50)
+       forma_farmaceutica: str = Field(..., min_length=1, max_length=50)
+       codigo_rename: str = Field(..., min_length=1, max_length=20)
+       cid10: str | None = None
+       ciap2: str | None = None
+       cns_paciente: str | None = None
+
+   class MedicamentoUpdate(BaseModel):
+       principio_ativo: str | None = None
+       concentracao: str | None = None
+       forma_farmaceutica: str | None = None
+       codigo_rename: str | None = None
+       cid10: str | None = None
+       ciap2: str | None = None
+       cns_paciente: str | None = None
 
    class MedicamentoResponse(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: int
-       nome_comercial: str
-       nome_generico: str
+       id: UUID
        principio_ativo: str
-       concentracao: Optional[str]
+       concentracao: str
        forma_farmaceutica: str
-       codigo_sus: str
-       cid10: Optional[str]
+       codigo_rename: str
+       cid10: str | None
+       ciap2: str | None
+       cns_paciente: str | None
+       created_at: datetime
+       updated_at: datetime
 
-   # --- Repository ---
-   class MedicamentoRepository:
-       def __init__(self, session: Session):
-           self.session = session
-
-       def search(self, filter: MedicamentoFilter) -> List[MedicamentoResponse]:
-           stmt = select(MedicamentoModel).where(MedicamentoModel.ativo.is_(True))
-
-           if filter.principio_ativo:
-               stmt = stmt.where(MedicamentoModel.principio_ativo.ilike(f"%{filter.principio_ativo}%"))
-           if filter.concentracao:
-               stmt = stmt.where(MedicamentoModel.concentracao.ilike(f"%{filter.concentracao}%"))
-           if filter.forma_farmaceutica:
-               stmt = stmt.where(MedicamentoModel.forma_farmaceutica.ilike(f"%{filter.forma_farmaceutica}%"))
-           if filter.cid10:
-               stmt = stmt.where(MedicamentoModel.cid10 == filter.cid10)
-
-           results = self.session.scalars(stmt).all()
-           return [MedicamentoResponse.model_validate(r) for r in results]
-
-       def get_by_code_sus(self, codigo_sus: str) -> Optional[MedicamentoResponse]:
-           stmt = select(MedicamentoModel).where(
-               MedicamentoModel.codigo_sus == codigo_sus,
-               MedicamentoModel.ativo.is_(True)
-           )
-           result = self.session.scalar(stmt)
-           return MedicamentoResponse.model_validate(result) if result else None
+       model_config = {"from_attributes": True}
    ```
 
-8.  **Add Testing (pytest):**
-   Need a complete test file. I'll create `tests/test_medicamentos_repo.py`.
-   - Use `pytest` and `sqlalchemy` in-memory SQLite.
-   - Setup/teardown for database.
-   - Test cases:
-     - Empty filter (returns all active)
-     - Filter by principio_ativo
-     - Filter by concentracao
-     - Filter by forma_farmaceutica
-     - Filter by cid10
-     - Combined filters
-     - get_by_code_sus
-     - Case-insensitive search
-     - Inactive drugs excluded
-   - I'll write the test file carefully.
-
+   *Repository (`backend/app/repositories/medicamentos_repo.py`):*
+   Need to use SQLAlchemy 2.0 async. I'll define the class with proper type hints.
    ```python
-   # Arquivo: tests/test_medicamentos_repo.py
-   import pytest
-   from sqlalchemy import create_engine
-   from sqlalchemy.orm import sessionmaker, Session
-   from backend.app.repositories.medicamentos_repo import (
-       Base, MedicamentoModel, MedicamentoRepository, MedicamentoFilter, MedicamentoResponse
-   )
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy import select, update, delete
+   from sqlalchemy.orm import selectinload
+   from uuid import UUID
+   from typing import Optional, List
+   from app.models.medicamento import Medicamento
+   from app.schemas.medicamento import MedicamentoCreate, MedicamentoUpdate, MedicamentoFilter, MedicamentoResponse
+   from app.core.exceptions import NotFoundError, ConflictError # Assume these exist or define them minimally
+   from datetime import datetime
 
-   @pytest.fixture(scope="module")
-   def engine():
-       return create_engine("sqlite:///:memory:", echo=False)
+   class MedicamentosRepository:
+       def __init__(self, db: AsyncSession):
+           self.db = db
 
-   @pytest.fixture(scope="module", autouse=True)
-   def setup_db(engine):
-       Base.metadata.create_all(engine)
-       yield
-       Base.metadata.drop_all(engine)
+       async def get_by_id(self, id: UUID) -> Optional[MedicamentoResponse]:
+           stmt = select(Medicamento).where(Medicamento.id == id)
+           result = await self.db.execute(stmt)
+           obj = result.scalar_one_or_none()
+           if not obj:
+               return None
+           return MedicamentoResponse.model_validate(obj)
 
-   @pytest.fixture
-   def session(engine):
-       SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-       session = SessionLocal()
-       yield session
-       session.close()
+       async def search(self, filter: MedicamentoFilter) -> List[MedicamentoResponse]:
+           stmt = select(Medicamento)
+           conditions = []
+           if filter.principio_ativo:
+               conditions.append(Medicamento.principio_ativo.ilike(f"%{filter.principio_ativo}%"))
+           if filter.concentracao:
+               conditions.append(Medicamento.concentracao.ilike(f"%{filter.concentracao}%"))
+           if filter.forma_farmaceutica:
+               conditions.append(Medicamento.forma_farmaceutica.ilike(f"%{filter.forma_farmaceutica}%"))
+           if filter.codigo_rename:
+               conditions.append(Medicamento.codigo_rename == filter.codigo_rename)
 
-   @pytest.fixture
-   def repo(session: Session):
-       return MedicamentoRepository(session)
+           if conditions:
+               stmt = stmt.where(*conditions)
+           stmt = stmt.order_by(Medicamento.principio_ativo)
 
-   @pytest.fixture
-   def sample_data(session: Session):
-       drugs = [
-           MedicamentoModel(nome_comercial="Dipirona 500mg", nome_generico="Dipirona Sódica", principio_ativo="Dipirona Sódica", concentracao="500mg", forma_farmaceutica="Comprimido", codigo_sus="0101010001", cid10="R50"),
-           MedicamentoModel(nome_comercial="Paracetamol 750mg", nome_generico="Paracetamol", principio_ativo="Paracetamol", concentracao="750mg", forma_farmaceutica="Comprimido", codigo_sus="0101010002", cid10="R50"),
-           MedicamentoModel(nome_comercial="Ibuprofeno 600mg", nome_generico="Ibuprofeno", principio_ativo="Ibuprofeno", concentracao="600mg", forma_farmaceutica="Cápsula", codigo_sus="0101010003", cid10="M81"),
-           MedicamentoModel(nome_comercial="Desativado", nome_generico="Antigo", principio_ativo="Antigo", concentracao="100mg", forma_farmaceutica="Comprimido", codigo_sus="0101010004", cid10="Z99", ativo=False),
-       ]
-       session.add_all(drugs)
-       session.commit()
-       return drugs
+           result = await self.db.execute(stmt)
+           objs = result.scalars().all()
+           return [MedicamentoResponse.model_validate(obj) for obj in objs]
 
-   def test_search_all_active(repo, sample_data):
-       filter = MedicamentoFilter()
-       results = repo.search(filter)
-       assert len(results) == 3
-       assert all(r.ativo is True for r in results) # Wait, MedicamentoResponse doesn't have 'ativo'. I'll fix that or remove the check.
+       async def create(self, data: MedicamentoCreate) -> MedicamentoResponse:
+           # Check duplicate codigo_rename
+           existing = await self.get_by_rename_code(data.codigo_rename)
+           if existing:
+               raise ConflictError("Código RENAME já cadastrado.")
+           obj = Medicamento(**data.model_dump())
+           self.db.add(obj)
+           await self.db.commit()
+           await self.db.refresh(obj)
+           return MedicamentoResponse.model_validate(obj)
 
-   # Let's adjust MedicamentoResponse to include 'ativo' or just check length.
-   # Actually, I'll add 'ativo' to response or just check length. I'll keep it simple.
+       async def get_by_rename_code(self, codigo: str) -> Optional[MedicamentoResponse]:
+           stmt = select(Medicamento).where(Medicamento.codigo_rename == codigo)
+           result = await self.db.execute(stmt)
+           obj = result.scalar_one_or_none()
+           return MedicamentoResponse.model_validate(obj) if obj else None
+
+       async def update(self, id: UUID, data: MedicamentoUpdate) -> Optional[MedicamentoResponse]:
+           stmt = select(Medicamento).where(Medicamento.id == id)
+           result = await self.db.execute(stmt)
+           obj = result.scalar_one_or_none()
+           if not obj:
+               return None
+           update_data = data.model_dump(exclude_unset=True)
+           if update_data:
+               for key, value in update_data.items():
+                   setattr(obj, key, value)
+           await self.db.commit()
+           await self.db.refresh(obj)
+           return MedicamentoResponse.model_validate(obj)
+
+       async def delete(self, id: UUID) -> bool:
+           stmt = delete(Medicamento).where(Medicamento.id == id)
+           result = await self.db.execute(stmt)
+           await self.db.commit()
+           return result.rowcount > 0
    ```
+   *Wait*, I need to handle the `ConflictError` and `NotFoundError` or just raise standard exceptions. I'll define them in the repo or use built-in ones for simplicity, but the prompt says "complete and executable". I'll define minimal exceptions in the repo file or assume they exist. To be safe, I'll define them locally or use `ValueError`/`KeyError`. I'll stick to standard exceptions for simplicity, or define a small `exceptions.py` if needed. Actually, I'll just raise `Exception` or `ValueError` to keep it self-contained, or define them in the repo file.
 
-   I need to refine the test to be robust and complete. I'll also add type hints and ensure it matches the prompt's requirements.
+   Let's refine the repository to be fully self-contained and type-safe. I'll add type hints properly.
 
-   Let's structure the complete solution properly.
+   *Tests (`tests/test_medicamentos_repo.py`):*
+   Need to use `pytest-asyncio`, `pytest`, `aiosqlite` or `sqlalchemy.ext.asyncio.sessionmaker`. I'll use an in-memory SQLite async engine for testing.
+   Structure:
+   - Setup DB
+   - Create repo instance
+   - Test create, search, update, delete
+   - Test filtering
+   - Ensure coverage
 
-   **Structure:**
+   I'll write the test file carefully.
+
+5.  **Structure the Output:**
+   I need to provide:
+   - `backend/app/models/medicamento.py`
+   - `backend/app/schemas/medicamento.py`
    - `backend/app/repositories/medicamentos_repo.py`
    - `tests/test_medicamentos_repo.py`
-   - I'll make sure imports are correct.
-   - I'll add docstrings explaining SUS/APS alignment.
-   - I'll ensure Pydantic v2 and SQLAlchemy 2.0 syntax is strictly followed.
-   - I'll use `from __future__ import annotations` for modern typing.
-   - I'll add a `get_by_cns_cpf` method? The prompt says "identificação por CNS/CPF", but that's usually for patients. I'll add a method to search medications by patient context (CNS/CPF) if needed, or just note it in the architecture. Actually, RENAME/SUS is drug-centric. I'll add a method `search_by_cid10` or `get_by_principio_ativo` as requested. I'll stick to the requested filters.
+   - `tests/conftest.py` (for DB setup)
+   - `pyproject.toml` or `requirements.txt` (optional but good for completeness)
+   I'll focus on the core files as requested, but ensure they are complete and runnable.
 
-   Let's draft carefully.
+   Let's draft each file carefully.
 
-   **Key Considerations:**
-   - SQLAlchemy 2.0 uses `mapped_column` and `Mapped` types.
-   - Pydantic v2 uses `model_config = ConfigDict(from_attributes=True)`.
-   - I'll use `Session` (sync) for simplicity, but note it's compatible with async via `AsyncSession` if needed. I'll stick to sync for the repo to keep tests straightforward, but I'll make it type-hinted properly.
-   - I'll add `cid10` and `ciap2` fields to align with SUS/APS standards.
-   - I'll ensure the code is production-ready.
+   **File 1: `backend/app/models/medicamento.py`**
+   - SQLAlchemy 2.0 declarative model
+   - SUS fields: `cid10`, `ciap2`, `cns_paciente`
+   - RENAME fields: `codigo_rename`, `principio_ativo`, `concentracao`, `forma_farmaceutica`
 
-   Let's write it out. 
-   I'll structure the response with two files: the repository and the test.
-   I'll make sure the repository handles the filtering exactly as requested: "filtragem por princípio ativo, concentração e forma farmacêutica".
-   I'll add comments explaining SUS/APS alignment.
-   I'll ensure strict typing.
+   **File 2: `backend/app/schemas/medicamento.py`**
+   - Pydantic v2 models
+   - Filter schema
+   - CRUD schemas
 
-   **Self-Correction/Refinement during thought:**
-   - The prompt says "identificação por CNS/CPF". In SUS, CNS is the patient identifier. I should add a method or parameter that allows filtering/searching medications prescribed to a patient via CNS/CPF, or at least include it in the schema/response for context. I'll add `cns` and `cpf` fields to the response/context, or a method `get_prescribed_by_patient`. But the core task is RENAME/SUS search. I'll add a `context` parameter to the filter for patient identification (CNS/CPF) to align with the guideline, even if it's just for audit/context.
-   - I'll make sure the repository class is fully typed.
-   - I'll use `typing.Optional` and `typing.List`.
-   - I'll ensure the test covers all edge cases and uses `pytest`.
-   - I'll add `__init__.py` if needed, but not required for the snippet.
-   - I'll make sure the code is executable as-is (with proper setup).
+   **File 3: `backend/app/repositories/medicamentos_repo.py`**
+   - Async repository class
+   - Methods: `get_by_id`, `search`, `create`, `update`, `delete`, `get_by_rename_code`
+   - Strict typing, SQLAlchemy 2.0 syntax
+   - SUS/APS compliance notes in docstrings
 
-   Let's draft the code carefully. 
-   I'll structure it as:
-   1. `backend/app/repositories/medicamentos_repo.py`
-   2. `tests/test_medicamentos_repo.py`
-   Both with full code.
+   **File 4: `tests/conftest.py`**
+   - Async DB session fixture
+   - In-memory SQLite
 
-   **Repository Code Structure:**
+   **File 5: `tests/test_medicamentos_repo.py`**
+   - Pytest tests with coverage
+   - Test all repo methods
+   - Test filtering logic
+   - Type checking validation
+
+   I'll make sure all imports are correct and the code is Python 3.12 compatible (using `|` for union types, `from __future__ import annotations` if needed, but 3.12 supports it natively).
+
+   Let's write them out carefully.
+
+   *Self-Correction/Refinement during thought:*
+   - SQLAlchemy 2.0 uses `Mapped` and `mapped_column`. I need to import them correctly.
+   - Pydantic v2 uses `model_config = ConfigDict(from_attributes=True)` or `model_config = {"from_attributes": True}`.
+   - For async testing, I'll use `pytest-asyncio` and `sqlalchemy.ext.asyncio`.
+   - I should ensure the repository handles SUS standards explicitly in docstrings/comments as requested.
+   - I'll add `__future__.annotations` for forward compatibility, though 3.12 handles it.
+   - I'll make sure the code is strictly typed.
+
+   Let's draft the code blocks.
+
+   **`backend/app/models/medicamento.py`**
    ```python
-   # Arquivo: backend/app/repositories/medicamentos_repo.py
    from __future__ import annotations
-   from typing import Optional, List
-   from pydantic import BaseModel, Field, ConfigDict
-   from sqlalchemy import select, Column, Integer, String, Boolean
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+   from datetime import datetime
+   from uuid import uuid4, UUID
+   from sqlalchemy import String, DateTime, func
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
    class Base(DeclarativeBase):
        pass
 
-   class MedicamentoModel(Base):
-       __tablename__ = "medicamentos_rename_sus"
-       id: Mapped[int] = mapped_column(primary_key=True)
-       nome_comercial: Mapped[str] = mapped_column(String(255), nullable=False)
-       nome_generico: Mapped[str] = mapped_column(String(255), nullable=False)
-       principio_ativo: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-       concentracao: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-       forma_farmaceutica: Mapped[str] = mapped_column(String(100), nullable=False)
-       codigo_sus: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-       cid10: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       ciap2: Mapped[Optional[str]] = mapped_column(String(10), nullable=True) # APS alignment
-       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+   class Medicamento(Base):
+       __tablename__ = "medicamentos"
+
+       id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+       principio_ativo: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+       concentracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       forma_farmaceutica: Mapped[str] = mapped_column(String(50), nullable=False)
+       codigo_rename: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+
+       # Campos de conformidade SUS/APS
+       cid10: Mapped[str | None] = mapped_column(String(10), nullable=True)
+       ciap2: Mapped[str | None] = mapped_column(String(10), nullable=True)
+       cns_paciente: Mapped[str | None] = mapped_column(String(15), nullable=True)
+
+       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   ```
+
+   **`backend/app/schemas/medicamento.py`**
+   ```python
+   from __future__ import annotations
+   from uuid import UUID
+   from datetime import datetime
+   from pydantic import BaseModel, Field, ConfigDict
 
    class MedicamentoFilter(BaseModel):
-       principio_ativo: Optional[str] = Field(default=None, description="Princípio ativo (busca parcial)")
-       concentracao: Optional[str] = Field(default=None, description="Concentração")
-       forma_farmaceutica: Optional[str] = Field(default=None, description="Forma farmacêutica")
-       cid10: Optional[str] = Field
+       principio_ativo: str | None = None
+       concentracao: str | None = None
+       forma_farmaceutica: str | None = None
+       codigo_rename: str | None = None
+
+   class MedicamentoCreate(BaseModel):
+       principio_ativo: str = Field(..., min_length=1, max_length=100)
+       concentracao: str = Field(..., min_length=1, max_length=50)
+       forma_farmaceutica: str = Field(..., min_length=1, max_length=50)
+       codigo_rename: str = Field(..., min_length=1, max_length=20)
+       cid10: str | None = None
+       ciap2: str | None = None
+       cns_paciente: str | None = None
+
+   class MedicamentoUpdate(BaseModel):
+       principio_ativo: str | None = None
+       concentracao: str | None = None
+       forma_farmaceutica: str | None = None
+       codigo_rename: str | None = None
+       cid10: str | None = None
+       ciap2: str | None = None
+       cns_paciente: str | None = None
+
+   class MedicamentoResponse(BaseModel):
+       id: UUID
+       principio_ativo: str
+       concentracao: str
+       forma_farmaceutica: str
+       codigo_rename: str
+       cid10: str | None
+       ciap2: str | None
+       cns_paciente:

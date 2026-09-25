@@ -1,4 +1,4 @@
-# Dashboard Executivo Interativo para MedIA
+# Dashboard Executivo Interativo — MedIA
 
 ## Estrutura do Projeto
 
@@ -6,349 +6,452 @@
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── dashboard.py
-│   ├── models/
-│   │   ├── __init__.py
-│   │   └── appointment.py
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── dashboard.py
+│   ├── main.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── api.py
 │   ├── static/
-│   │   ├── dashboard_analytics.html
-│   │   ├── dashboard_analytics.css
-│   │   └── dashboard_analytics.js
-│   └── config.py
+│   │   └── dashboard_analytics.html
+│   └── services/
+│       ├── __init__.py
+│       └── analytics.py
 ├── tests/
 │   ├── __init__.py
-│   └── test_dashboard.py
-└── requirements.txt
+│   ├── test_models.py
+│   ├── test_schemas.py
+│   ├── test_api.py
+│   └── test_services.py
+├── requirements.txt
+└── pytest.ini
 ```
 
 ---
 
-## Arquivo: `backend/app/static/dashboard_analytics.html`
+## Arquivo: `backend/app/models.py`
 
-```html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Executivo - MedIA</title>
-    <link rel="stylesheet" href="dashboard_analytics.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="dashboard_analytics.js"></script>
-</head>
-<body>
-    <div class="dashboard-container">
-        <header class="dashboard-header">
-            <div class="header-left">
-                <h1>🏥 Dashboard Executivo - MedIA</h1>
-                <p class="subtitle">Monitoramento em Tempo Real de Atividade Clinica</p>
-            </div>
-            <div class="header-right">
-                <div class="date-selector">
-                    <label for="dateRange">Período:</label>
-                    <select id="dateRange">
-                        <option value="7">Últimos 7 dias</option>
-                        <option value="14" selected>Últimos 14 dias</option>
-                        <option value="30">Últimos 30 dias</option>
-                        <option value="90">Últimos 90 dias</option>
-                    </select>
-                </div>
-                <button id="refreshBtn" class="btn-refresh">🔄 Atualizar</button>
-            </div>
-        </header>
+```python
+# Arquivo: backend/app/models.py
+"""
+Modelos SQLAlchemy 2.0 com tipagem estrita.
+Padrões SUS/APS: CIAP-2, CID-10, método SOAP, identificação por CNS/CPF.
+"""
 
-        <main class="dashboard-main">
-            <!-- KPI Cards -->
-            <section class="kpi-section">
-                <h2>📊 KPIs em Tempo Real</h2>
-                <div class="kpi-grid">
-                    <div class="kpi-card" data-kpi="totalPatients">
-                        <div class="kpi-icon">👥</div>
-                        <div class="kpi-label">Pacientes Atendidos</div>
-                        <div class="kpi-value" id="kpi-totalPatients">0</div>
-                        <div class="kpi-change" id="kpi-totalPatientsChange">+0%</div>
-                    </div>
-                    <div class="kpi-card" data-kpi="appointmentsCompleted">
-                        <div class="kpi-icon">✅</div>
-                        <div class="kpi-label">Apoentamentos Completados</div>
-                        <div class="kpi-value" id="kpi-appointmentsCompleted">0</div>
-                        <div class="kpi-change" id="kpi-appointmentsCompletedChange">+0%</div>
-                    </div>
-                    <div class="kpi-card" data-kpi="noShowRate">
-                        <div class="kpi-icon">⚠️</div>
-                        <div class="kpi-label">Taxa de No-Show</div>
-                        <div class="kpi-value" id="kpi-noShowRate">0%</div>
-                        <div class="kpi-change" id="kpi-noShowRateChange">+0%</div>
-                    </div>
-                    <div class="kpi-card" data-kpi="doctorAvailability">
-                        <div class="kpi-icon">🩺</div>
-                        <div class="kpi-label">Disponibilidade Médicos</div>
-                        <div class="kpi-value" id="kpi-doctorAvailability">0%</div>
-                        <div class="kpi-change" id="kpi-doctorAvailabilityChange">+0%</div>
-                    </div>
-                    <div class="kpi-card" data-kpi="avgWaitTime">
-                        <div class="kpi-icon">⏱️</div>
-                        <div class="kpi-label">Tempo de Espera Médio</div>
-                        <div class="kpi-value" id="kpi-avgWaitTime">0 min</div>
-                        <div class="kpi-change" id="kpi-avgWaitTimeChange">+0%</div>
-                    </div>
-                    <div class="kpi-card" data-kpi="suspensionRate">
-                        <div class="kpi-icon">📉</div>
-                        <div class="kpi-label">Taxa de Suspensão</div>
-                        <div class="kpi-value" id="kpi-suspensionRate">0%</div>
-                        <div class="kpi-change" id="kpi-suspensionRateChange">+0%</div>
-                    </div>
-                </div>
-            </section>
+from __future__ import annotations
 
-            <!-- Heatmap Section -->
-            <section class="heatmap-section">
-                <h2>🔥 Heatmap de Horários de Pico</h2>
-                <div class="heatmap-container">
-                    <div class="heatmap-header">
-                        <span class="heatmap-day">Seg</span>
-                        <span class="heatmap-day">Seg</span>
-                        <span class="heatmap-day">Seg</span>
-                        <span class="heatmap-day">Qua</span>
-                        <span class="heatmap-day">Qua</span>
-                        <span class="heatmap-day">Fri</span>
-                        <span class="heatmap-day">Sb</span>
-                    </div>
-                    <div class="heatmap-body" id="heatmapBody">
-                        <!-- Heatmap cells generated by JS -->
-                    </div>
-                </div>
-            </section>
+import enum
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
 
-            <!-- Line Graph Section -->
-            <section class="graph-section">
-                <h2>📈 Evolução dos Últimos 30 Dias</h2>
-                <div class="graph-container">
-                    <div class="graph-toolbar">
-                        <select id="graphFilter">
-                            <option value="all">Todos os Especialidades</option>
-                            <option value="cardiology">Cardiologia</option>
-                            <option value="neurology">Neurologia</option>
-                            <option value="pediatrics">Pedatria</option>
-                            <option value="orthopedics">Ortedropia</option>
-                            <option value="general">Geral</option>
-                        </select>
-                        <select id="graphType">
-                            <option value="line">Gráfico de Linha</option>
-                            <option value="area">Gráfico de Área</option>
-                        </select>
-                    </div>
-                    <div class="graph-wrapper">
-                        <canvas id="lineChart"></canvas>
-                    </div>
-                </div>
-            </section>
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
-            <!-- Activity Feed -->
-            <section class="activity-section">
-                <h2>📋 Atividade Recente</h2>
-                <div class="activity-feed" id="activityFeed">
-                    <!-- Activity items generated by JS -->
-                </div>
-            </section>
-        </main>
 
-        <footer class="dashboard-footer">
-            <div class="footer-info">
-                <span>⏰ Atualizado: <span id="lastUpdated">-</span></span>
-                <span>📍 MedIA - Sistema de Gestão Clinica</span>
-            </div>
-            <div class="footer-links">
-                <a href="#">Sobre</a>
-                <a href="#">Suporte</a>
-                <a href="#">Privacidade</a>
-            </div>
-        </footer>
-    </div>
-</body>
-</html>
+class Base(DeclarativeBase):
+    """Base declarativa com suporte a timestamps."""
+
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class PatientType(enum.Enum):
+    """Identificação por CNS/CPF conforme SUS."""
+    CNS = "CNS"
+    CPF = "CPF"
+    FOREIGN = "FORNEIRO"
+
+
+class Patient(Base):
+    """
+    Modelo de Paciente com identificação por CNS/CPF.
+    Padrão SUS: identificação única por CNS ou CPF.
+    """
+
+    __tablename__ = "patients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_type: Mapped[PatientType] = mapped_column(
+        Enum(PatientType, values=[t.value for t in PatientType]),
+        nullable=False,
+    )
+    identifier: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    gender: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    date_of_birth: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="patient"
+    )
+    diagnoses: Mapped[list["Diagnosis"]] = relationship(
+        "Diagnosis", back_populates="patient"
+    )
+
+
+class Diagnosis(Base):
+    """
+    Diagnóstico com CID-10 e CIAP-2.
+    Padrão SUS: código CID-10 e CIAP-2 para classificação.
+    """
+
+    __tablename__ = "diagnoses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="diagnoses")
+    cid10_code: Mapped[str] = mapped_column(
+        String(10), nullable=False, comment="CID-10"
+    )
+    ciap2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CIAP-2"
+    )
+    diagnosis_name: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    severity: Mapped[str] = mapped_column(
+        String(20), default="Médio", nullable=False
+    )
+    date_of_diagnosis: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="diagnoses"
+    )
+
+
+class Appointment(Base):
+    """
+    Agendamento com método SOAP.
+    Padrão SUS: registro de SOAP completo.
+    """
+
+    __tablename__ = "appointments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")
+    doctor_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    diagnosis_ids: Mapped[list[int]] = mapped_column(
+        JSONB, default=list, comment="IDs do diagnóstico"
+    )
+    soap_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scheduled_time: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    actual_time: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), default="Agendado", nullable=False
+    )
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, default=30, nullable=False
+    )
+    date_of_appointment: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    diagnoses: Mapped[list["Diagnosis"]] = relationship(
+        "Diagnosis", back_populates="appointments"
+    )
+
+
+class Doctor(Base):
+    """
+    Médico com identificação por CNS.
+    Padrão SUS: identificação única por CNS.
+    """
+
+    __tablename__ = "doctors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cns: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    specialty: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="doctor"
+    )
+
+
+class Service(Base):
+    """
+    Serviço de saúde registrado no SUS.
+    """
+
+    __tablename__ = "services"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="service"
+    )
+
+
+class ServiceAppointment(Base):
+    """
+    Relação entre serviço e agendamento.
+    """
+
+    __tablename__ = "service_appointments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    appointment_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    appointment: Mapped["Appointment"] = relationship("Appointment")
+    service_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    service: Mapped["Service"] = relationship("Service")
+
+
+class HealthRecord(Base):
+    """
+    Registro de saúde para análise de KPIs.
+    """
+
+    __tablename__ = "health_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient")
+    appointment_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    appointment: Mapped["Appointment"] = relationship("Appointment")
+    service_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    service: Mapped["Service"] = relationship("Service")
+    appointment_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    appointment_hour: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Horário do agendamento (0-23)"
+    )
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )
+    patient_type: Mapped[PatientType] = mapped_column(
+        Enum(PatientType, values=[t.value for t in PatientType]),
+        nullable=False,
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    ciap2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("patient_id", "appointment_id", name="uq_patient_appointment"),
+    )
+
+
+class KPI(Base):
+    """
+    KPI para dashboard executivo.
+    """
+
+    __tablename__ = "kpis"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=True)
+    target_value: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )
+    current_value: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), default="unidades")
+    status: Mapped[str] = mapped_column(
+        String(20), default="Normal", nullable=False
+    )
+    last_updated: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
+
+class HeatmapData(Base):
+    """
+    Dados para heatmap de calor dos horários de pico.
+    """
+
+    __tablename__ = "heatmap_data"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    hour: Mapped[int] = mapped_column(Integer, nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("date", "hour", name="uq_heatmap_date_hour"),
+    )
+
+
+class AnalyticsConfig(Base):
+    """
+    Configuração de analytics para dashboard.
+    """
+
+    __tablename__ = "analytics_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dashboard_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )
+    refresh_interval_minutes: Mapped[int] = mapped_column(
+        Integer, default=15, nullable=False
+    )
+    show_heatmap: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_line_chart: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_kpis: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_range_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    last_refreshed: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
 ```
 
 ---
 
-## Arquivo: `backend/app/static/dashboard_analytics.css`
+## Arquivo: `backend/app/schemas.py`
 
-```css
-/* Arquivo: backend/app/static/dashboard_analytics.css */
+```python
+# Arquivo: backend/app/schemas.py
+"""
+Esquemas Pydantic v2 com tipagem estrita.
+Validação de dados para API do dashboard.
+"""
 
-:root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --primary-light: #dbeafe;
-    --success: #10b981;
-    --success-light: #d1fae5;
-    --warning: #f59e0b;
-    --warning-light: #fef3c7;
-    --danger: #ef4444;
-    --danger-light: #fee2e2;
-    --info: #3b82f6;
-    --info-light: #dbeafe;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
-    --gray-900: #111827;
-    --white: #ffffff;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
-    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+from __future__ import annotations
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Any, Optional, List
 
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--gray-50);
-    color: var(--gray-800);
-    line-height: 1.6;
-    min-height: 100vh;
-}
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
-.dashboard-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
-}
 
-/* Header */
-.dashboard-header {
-    background: var(--white);
-    padding: 20px 24px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    border: 1px solid var(--gray-200);
-}
+class PatientType(str, Enum):
+    """Identificação por CNS/CPF conforme SUS."""
+    CNS = "CNS"
+    CPF = "CPF"
+    FOREIGN = "FORNEIRO"
 
-.dashboard-header h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--gray-900);
-}
 
-.subtitle {
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    margin-top: 4px;
-}
+class Severity(str, Enum):
+    """Nível de gravidade do diagnóstico."""
+    Baixo = "Baixo"
+    Médio = "Médio"
+    Alto = "Alto"
+    Crítico = "Crítico"
 
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
 
-.date-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+class AppointmentStatus(str, Enum):
+    """Status do agendamento."""
+    Agendado = "Agendado"
+    EmProgrido = "Em Progrido"
+    Concluído = "Concluído"
+    Cancelado = "Cancelado"
+    Adiado = "Adiado"
 
-.date-selector label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--gray-600);
-}
 
-.date-selector select {
-    padding: 8px 12px;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius-sm);
-    background: var(--white);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: var(--transition);
-}
+class KPIStatus(str, Enum):
+    """Status do KPI."""
+    Normal = "Normal"
+    Alerta = "Alerta"
+    Crítico = "Crítico"
 
-.date-selector select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
-}
 
-.btn-refresh {
-    padding: 8px 16px;
-    background: var(--primary);
-    color: var(--white);
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+class PatientCreate(BaseModel):
+    """Esquema para criação de paciente."""
 
-.btn-refresh:hover {
-    background: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-}
+    model_config = ConfigDict(extra="forbid")
 
-.btn-refresh:active {
-    transform: translateY(0);
-}
+    patient_type: PatientType
+    identifier: str = Field(..., min_length=1, max_length=20)
+    name: str = Field(..., min_length=1, max_length=255)
+    gender: Optional[str] = Field(None, max_length=10)
+    date_of_birth: Optional[datetime] = None
+    address: Optional[str] = Field(None, max_length=500)
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=255)
 
-/* Main Content */
-.dashboard-main {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-}
+    @field_validator("identifier", mode="before")
+    @classmethod
+    def validate_identifier(cls, v: Any) -> str:
+        """Validação do identificador (CNS ou CPF)."""
+        if not v:
+            raise ValueError("Identifier is required")
+        identifier = str(v).strip()
+        if len(identifier) < 1:
+            raise ValueError("Identifier must be at least 1 character")
+        return identifier
 
-@media (min-width: 768px) {
-    .dashboard-main {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto 1fr;
-    }
-}
 
-@media (min-width: 1024px) {
-    .dashboard-main {
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: auto 1fr 1fr;
-    }
-}
-
-/* KPI Cards */
-.kpi-section {
-    background: var(--white);
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--gray-200);
-}
-
-.kpi-section h2 {
-    font-size: 1.25rem;
+class PatientUpdate(BaseModel):
+    """Esquema para

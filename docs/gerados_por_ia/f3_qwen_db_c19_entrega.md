@@ -3,77 +3,42 @@ Here's a thinking process:
 1.  **Understand User Role & Task:**
    - **Role:** Software Engineer (Tester)
    - **Task:** Create `backend/app/repositories/sinais_vitais_repo.py` for the MedIA project.
-   - **Purpose:** Longitudinal History Repository of Vital Signs (C19).
-   - **Features:** Register and query temporal data for BP (PA), HR (FC), RR (FR), Temp, Glucose (Glicemia), SpO2. Include alerts for decompensation.
+   - **Functionality:** Longitudinal repository for vital signs (BP/PA, HR/FC, RR/FR, Temp, Glucose/Glicemia, SpO2) with alerts for decompensation.
    - **Architecture Guidelines:**
      - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
-     - SUS/APS standards (CIAP-2, CID-10, SOAP method, identification by CNS/CPF).
+     - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
      - Full compliance and coverage with automated pytest tests.
    - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
    - **File:** `backend/app/repositories/sinais_vitais_repo.py`
-   - **Domain:** Vital Signs (Sinais Vitais)
-   - **Data Model:** Needs SQLAlchemy models for vital signs records, linked to patients (CNS/CPF).
-   - **Pydantic Models:** For request/response validation.
-   - **Repository Pattern:** Methods for CRUD and temporal queries.
-   - **Alerts:** Logic to detect decompensation based on clinical thresholds.
-   - **Standards:** SUS/APS context (CIAP-2, CID-10, SOAP, CNS/CPF).
-   - **Testing:** Need pytest tests covering the repository.
+   - **Domain:** Vital signs (Sinais Vitais)
+   - **Fields:** PA (Systolic/Diastolic), FC (Heart Rate), FR (Respiratory Rate), Temp (Temperature), Glicemia (Blood Glucose), SpO2 (Oxygen Saturation)
+   - **Features:** Registration (create), Temporal consultation (query by time range/patient), Alerts for decompensation (thresholds)
+   - **Standards:** SUS/APS (CIAP-2, CID-10, SOAP, CNS/CPF)
+   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0, pytest
+   - **Output:** Complete code + tests (implied by "cobertura de testes automatizados com pytest")
 
-3.  **Design Decisions:**
-   - **Database:** SQLAlchemy 2.0 with async or sync? I'll use sync for simplicity but structure it to be compatible with async if needed. I'll stick to standard SQLAlchemy 2.0 `Session` pattern.
-   - **Pydantic v2:** Use `BaseModel`, `Field`, `ConfigDict`, `model_validator` for alerts.
-   - **Alerts:** Define clinical thresholds. If a value is outside normal ranges, trigger an alert. I'll create a function/method that evaluates the latest readings or a specific reading against thresholds.
-   - **SUS/APS Context:** Patient identification via `cpf` (string) and `cns` (string). SOAP method reference. CIAP-2/CID-10 codes can be stored in the record or patient model. I'll add them to the repository methods as optional parameters.
-   - **Repository Structure:**
-     - `VitalSignsRepository` class.
-     - Methods: `register_vital_sign`, `get_patient_vital_signs_history`, `get_latest_vital_signs`, `check_decompensation_alerts`.
-   - **Models:** I'll define SQLAlchemy models inline or assume they exist. Since the task is specifically for the repository, I'll define the necessary SQLAlchemy models and Pydantic schemas in the same file or import them. To keep it self-contained and executable, I'll define them in the file.
-   - **Testing:** Provide a `test_sinais_vitais_repo.py` file with pytest fixtures, test cases, and assertions.
+3.  **Design Architecture (Mental):**
+   - **Models/Entities:** Need SQLAlchemy models for `VitalSign` and maybe `VitalSignAlert`.
+   - **Pydantic Schemas:** For input/output validation (Create, Read, Alert).
+   - **Repository Class:** `SinaisVitaisRepository` with methods like:
+     - `create_vital_sign(session, data)`
+     - `get_vital_signs_history(session, patient_id, start_date, end_date)`
+     - `check_decompensation_alerts(session, patient_id, threshold_config)`
+   - **SUS/APS Integration:** Add fields for `cns`, `cpf`, `ciap_code`, `cid_code`, `soap_note` to the model/schema.
+   - **Alert Logic:** Define thresholds for each vital sign. If a new sign crosses a threshold, generate an alert.
+   - **Testing:** Use `pytest`, `pytest-asyncio` (if async, but I'll stick to sync for simplicity unless specified, but SQLAlchemy 2.0 often uses async. I'll provide sync with `Session` for broader compatibility, but mention async if needed. Actually, SQLAlchemy 2.0 recommends `AsyncSession`. I'll stick to sync `Session` for simplicity in a repo pattern, but I'll make it compatible with both or explicitly use `Session` from `sqlalchemy.orm`).
+   - **Strict Typing:** Use `typing` module, Pydantic v2 `BaseModel`, SQLAlchemy 2.0 `Mapped`, `mapped_column`, etc.
 
-4.  **Drafting - `backend/app/repositories/sinais_vitais_repo.py`:**
-   - *Imports:* `datetime`, `enum`, `typing`, `sqlalchemy`, `pydantic`, `typing_extensions` (for `Annotated`), `sqlalchemy.orm`, `sqlalchemy.ext.asyncio` (maybe not needed, stick to sync for simplicity but mention async compatibility).
-   - *Pydantic Models:*
-     - `VitalSignType` enum.
-     - `VitalSignCreate` (Pydantic v2).
-     - `VitalSignResponse` (Pydantic v2).
-     - `DecompensationAlert` (Pydantic v2).
-   - *SQLAlchemy Models:*
-     - `Patient` (id, cpf, cns, name).
-     - `VitalSignRecord` (id, patient_id, type, value, unit, recorded_at, soap_note, ciap2_code, cid10_code, created_at).
-   - *Repository Class:*
-     - `__init__(self, session: Session)`.
-     - `register_vital_sign(...)`.
-     - `get_patient_history(...)`.
-     - `check_decompensation(...)`.
-   - *Alert Logic:* Define thresholds. E.g., PA: SBP > 140 or DBP > 90, HR: > 100 or < 60, Temp: > 37.5 or < 36.0, SpO2: < 95, Glucose: > 180 or < 70. Return alerts if triggered.
+4.  **Draft - Step by Step:**
 
-   Let's write it out carefully with strict typing and Pydantic v2/SQLAlchemy 2.0 syntax.
-
-   *Self-Correction/Refinement during drafting:*
-   - Need to ensure Pydantic v2 syntax: `model_config = ConfigDict(from_attributes=True)` for ORM mapping.
-   - SQLAlchemy 2.0: Use `Mapped`, `mapped_column`, `MappedAsDict`? Actually, `from_attributes=True` is enough. I'll use `sqlalchemy.orm.decl_api` style with `Mapped` and `mapped_column`.
-   - I'll make the repository generic enough but focused on the task.
-   - I'll include the SQLAlchemy models in the same file for completeness, as requested "código completo e executável".
-   - I'll add a `Session` dependency pattern.
-   - I'll structure alerts to return a list of `DecompensationAlert` models.
-
-   Let's draft the code mentally first, then write it out.
-
+   *Pydantic Schemas:*
    ```python
-   # backend/app/repositories/sinais_vitais_repo.py
-   from __future__ import annotations
-   from datetime import datetime, date
+   from pydantic import BaseModel, Field, field_validator
+   from datetime import datetime
+   from typing import Optional
    from enum import Enum
-   from typing import Optional, Sequence
-   from pydantic import BaseModel, Field, ConfigDict, model_validator
-   from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey
-   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session, relationship
-   import uuid
-
-   class Base(DeclarativeBase):
-       pass
 
    class VitalSignType(str, Enum):
        PA = "PA"
@@ -83,196 +48,296 @@ Here's a thinking process:
        GLICEMIA = "GLICEMIA"
        SPO2 = "SPO2"
 
-   class Patient(Base):
-       __tablename__ = "patients"
-       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       cpf: Mapped[str] = mapped_column(String(14), unique=True, index=True)
-       cns: Mapped[str] = mapped_column(String(15), unique=True, index=True)
-       name: Mapped[str] = mapped_column(String(100))
-       vital_signs: Mapped[list["VitalSignRecord"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
-
-   class VitalSignRecord(Base):
-       __tablename__ = "vital_signs"
-       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"))
-       type: Mapped[VitalSignType] = mapped_column(SAEnum(VitalSignType), nullable=False)
-       value: Mapped[float] = mapped_column(Float, nullable=False)
-       unit: Mapped[str] = mapped_column(String(10), nullable=False)
-       recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       soap_note: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-       ciap2_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       cid10_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       patient: Mapped[Patient] = relationship(back_populates="vital_signs")
-
-   # Pydantic models
    class VitalSignCreate(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       cpf: str = Field(..., pattern=r"^\d{11}$")
-       cns: Optional[str] = Field(None, pattern=r"^\d{15}$")
-       type: VitalSignType
-       value: float = Field(..., gt=0)
-       unit: str
-       recorded_at: Optional[datetime] = None
+       patient_cns: str = Field(..., min_length=15, max_length=15)
+       patient_cpf: Optional[str] = None
+       ciap_code: Optional[str] = None
+       cid_code: Optional[str] = None
        soap_note: Optional[str] = None
-       ciap2_code: Optional[str] = None
-       cid10_code: Optional[str] = None
+       sign_type: VitalSignType
+       value: float
+       recorded_at: datetime = Field(default_factory=datetime.now)
 
    class VitalSignResponse(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: uuid.UUID
-       patient_id: uuid.UUID
-       cpf: str
-       type: VitalSignType
-       value: float
-       unit: str
-       recorded_at: datetime
+       id: int
+       patient_cns: str
+       patient_cpf: Optional[str]
+       ciap_code: Optional[str]
+       cid_code: Optional[str]
        soap_note: Optional[str]
-       ciap2_code: Optional[str]
-       cid10_code: Optional[str]
+       sign_type: VitalSignType
+       value: float
+       recorded_at: datetime
+
+       model_config = {"from_attributes": True}
 
    class DecompensationAlert(BaseModel):
-       type: VitalSignType
+       patient_cns: str
+       sign_type: VitalSignType
        value: float
-       threshold_min: Optional[float] = None
-       threshold_max: Optional[float] = None
-       severity: str = Field(..., pattern=r"^(LOW|MEDIUM|HIGH|CRITICAL)$")
+       threshold: float
+       severity: str  # "ALTA", "MEDIA", "BAIXA"
        message: str
+       recorded_at: datetime
+   ```
 
-   # Thresholds (SUS/APS guidelines)
-   THRESHOLDS = {
-       VitalSignType.PA: {"sbp_max": 140, "dbp_max": 90, "severity": "HIGH"}, # Simplified for demo
-       VitalSignType.FC: {"min": 60, "max": 100, "severity": "MEDIUM"},
-       VitalSignType.FR: {"min": 12, "max": 20, "severity": "MEDIUM"},
-       VitalSignType.TEMP: {"min": 36.0, "max": 37.5, "severity": "MEDIUM"},
-       VitalSignType.GLICEMIA: {"min": 70, "max": 180, "severity": "HIGH"},
-       VitalSignType.SPO2: {"min": 95, "severity": "CRITICAL"},
+   *SQLAlchemy Model:*
+   ```python
+   from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+   import enum
+
+   class Base(DeclarativeBase):
+       pass
+
+   class VitalSignStatus(str, enum.Enum):
+       NORMAL = "NORMAL"
+       ALERT = "ALERT"
+
+   class VitalSignModel(Base):
+       __tablename__ = "sinais_vitais"
+
+       id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+       patient_cns: Mapped[str] = mapped_column(String(15), nullable=False)
+       patient_cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
+       ciap_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+       cid_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+       soap_note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+       sign_type: Mapped[VitalSignType] = mapped_column(SAEnum(VitalSignType), nullable=False)
+       value: Mapped[float] = mapped_column(Float(precision=10, scale=2), nullable=False)
+       recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now)
+       status: Mapped[VitalSignStatus] = mapped_column(SAEnum(VitalSignStatus), default=VitalSignStatus.NORMAL)
+   ```
+
+   *Repository Class:*
+   Need thresholds for alerts. I'll define a configuration dict or class.
+   ```python
+   from sqlalchemy.orm import Session
+   from sqlalchemy import select, func
+   from datetime import datetime, timedelta
+   import logging
+
+   logger = logging.getLogger(__name__)
+
+   VITAL_SIGNS_THRESHOLDS = {
+       VitalSignType.PA: {"sys_min": 90, "sys_max": 140, "dia_min": 60, "dia_max": 90}, # Simplified, usually PA is two values. I'll adjust to handle systolic/diastolic or just use a single value for simplicity, but PA is typically two. Let's assume value stores systolic for simplicity, or I'll create a separate model for PA. Actually, SUS often records PA as two numbers. I'll stick to a single `value` field for simplicity but note it, or better, handle PA specially. Let's keep it simple: `value` is the primary measurement. For PA, I'll assume systolic. Or I'll add `value2` for diastolic. To keep it clean, I'll use `value` and `value2` for PA.
    }
+   ```
+   Actually, let's refine the model to handle PA properly or just use a single value for all for simplicity in this repo pattern. I'll stick to single `value` but add a note. Or better, I'll make `value` generic and handle thresholds accordingly.
 
-   class VitalSignsRepository:
-       def __init__(self, session: Session):
-           self.session = session
+   Let's define thresholds clearly:
+   ```python
+   THRESHOLDS = {
+       VitalSignType.FC: {"min": 60, "max": 100},
+       VitalSignType.FR: {"min": 12, "max": 20},
+       VitalSignType.TEMP: {"min": 36.0, "max": 37.5},
+       VitalSignType.GLICEMIA: {"min": 70, "max": 140},
+       VitalSignType.SPO2: {"min": 95, "max": 100},
+       VitalSignType.PA: {"min": 90, "max": 140}, # Systolic
+   }
+   ```
 
-       def register_vital_sign(self, data: VitalSignCreate) -> VitalSignRecord:
-           # Find or create patient
-           patient = self.session.query(Patient).filter(Patient.cpf == data.cpf).first()
-           if not patient:
-               patient = Patient(cpf=data.cpf, cns=data.cns, name="Paciente SUS")
-               self.session.add(patient)
-               self.session.flush()
+   Repository methods:
+   - `create_vital_sign(session: Session, data: VitalSignCreate) -> VitalSignResponse`
+   - `get_patient_history(session: Session, patient_cns: str, start_date: datetime, end_date: datetime) -> list[VitalSignResponse]`
+   - `check_decompensation(session: Session, patient_cns: str, sign_type: VitalSignType, value: float) -> Optional[DecompensationAlert]`
+   - `get_alerts_for_patient(session: Session, patient_cns: str, since: datetime) -> list[DecompensationAlert]`
 
-           record = VitalSignRecord(
-               patient_id=patient.id,
-               type=data.type,
-               value=data.value,
-               unit=data.unit,
-               recorded_at=data.recorded_at or datetime.utcnow(),
+   I'll implement these carefully with SQLAlchemy 2.0 syntax.
+
+   *Refining Repository:*
+   ```python
+   class SinaisVitaisRepository:
+       @staticmethod
+       def create_vital_sign(session: Session, data: VitalSignCreate) -> VitalSignResponse:
+           # Check thresholds
+           alert = SinaisVitaisRepository.check_decompensation(session, data.patient_cns, data.sign_type, data.value)
+           status = VitalSignStatus.ALERT if alert else VitalSignStatus.NORMAL
+
+           db_obj = VitalSignModel(
+               patient_cns=data.patient_cns,
+               patient_cpf=data.patient_cpf,
+               ciap_code=data.ciap_code,
+               cid_code=data.cid_code,
                soap_note=data.soap_note,
-               ciap2_code=data.ciap2_code,
-               cid10_code=data.cid10_code,
+               sign_type=data.sign_type,
+               value=data.value,
+               recorded_at=data.recorded_at,
+               status=status
            )
-           self.session.add(record)
-           self.session.flush()
-           return record
+           session.add(db_obj)
+           session.flush()
+           session.refresh(db_obj)
+           return VitalSignResponse.model_validate(db_obj)
 
-       def get_patient_history(self, cpf: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Sequence[VitalSignRecord]:
-           query = self.session.query(VitalSignRecord).join(Patient).filter(Patient.cpf == cpf)
-           if start_date:
-               query = query.filter(VitalSignRecord.recorded_at >= start_date)
-           if end_date:
-               query = query.filter(VitalSignRecord.recorded_at <= end_date)
-           return query.order_by(VitalSignRecord.recorded_at).all()
+       @staticmethod
+       def check_decompensation(session: Session, patient_cns: str, sign_type: VitalSignType, value: float) -> Optional[DecompensationAlert]:
+           thresholds = THRESHOLDS.get(sign_type)
+           if not thresholds:
+               return None
 
-       def check_decompensation_alerts(self, cpf: str, limit: int = 1) -> list[DecompensationAlert]:
-           records = self.get_patient_history(cpf)
+           severity = "NORMAL"
+           message = "Sinal vital dentro da faixa esperada."
+           if value < thresholds["min"]:
+               severity = "BAIXA"
+               message = f"Valor abaixo do esperado ({value} < {thresholds['min']})"
+           elif value > thresholds["max"]:
+               severity = "ALTA"
+               message = f"Valor acima do esperado ({value} > {thresholds['max']})"
+
+           if severity != "NORMAL":
+               return DecompensationAlert(
+                   patient_cns=patient_cns,
+                   sign_type=sign_type,
+                   value=value,
+                   threshold=thresholds["min"] if severity == "BAIXA" else thresholds["max"],
+                   severity=severity,
+                   message=message,
+                   recorded_at=datetime.now()
+               )
+           return None
+
+       @staticmethod
+       def get_patient_history(session: Session, patient_cns: str, start_date: datetime, end_date: datetime) -> list[VitalSignResponse]:
+           stmt = select(VitalSignModel).where(
+               VitalSignModel.patient_cns == patient_cns,
+               VitalSignModel.recorded_at >= start_date,
+               VitalSignModel.recorded_at <= end_date
+           ).order_by(VitalSignModel.recorded_at)
+           result = session.execute(stmt).scalars().all()
+           return [VitalSignResponse.model_validate(obj) for obj in result]
+
+       @staticmethod
+       def get_alerts_for_patient(session: Session, patient_cns: str, since: datetime) -> list[DecompensationAlert]:
+           # In a real app, alerts might be a separate table. Here we derive them from history or store them.
+           # For simplicity, we'll query history with status ALERT
+           stmt = select(VitalSignModel).where(
+               VitalSignModel.patient_cns == patient_cns,
+               VitalSignModel.recorded_at >= since,
+               VitalSignModel.status == VitalSignStatus.ALERT
+           ).order_by(VitalSignModel.recorded_at)
+           result = session.execute(stmt).scalars().all()
            alerts = []
-           # Group by type and get latest
-           latest_by_type = {}
-           for r in records:
-               latest_by_type[r.type] = r
-
-           for vtype, record in latest_by_type.items():
-               thresholds = THRESHOLDS.get(vtype)
-               if not thresholds:
-                   continue
-               val = record.value
-               severity = thresholds.get("severity", "MEDIUM")
-               msg = ""
-               if "min" in thresholds and val < thresholds["min"]:
-                   msg = f"{vtype.value} abaixo do esperado ({val} < {thresholds['min']})"
-                   alerts.append(DecompensationAlert(type=vtype, value=val, threshold_min=thresholds["min"], severity=severity, message=msg))
-               elif "max" in thresholds and val > thresholds["max"]:
-                   msg = f"{vtype.value} acima do esperado ({val} > {thresholds['max']})"
-                   alerts.append(DecompensationAlert(type=vtype, value=val, threshold_max=thresholds["max"], severity=severity, message=msg))
-               elif "min" in thresholds and "max" not in thresholds and val < thresholds["min"]:
-                   # Already handled above, but for SPO2 logic
-                   pass
+           for obj in result:
+               threshold = THRESHOLDS.get(obj.sign_type, {})
+               alerts.append(DecompensationAlert(
+                   patient_cns=obj.patient_cns,
+                   sign_type=obj.sign_type,
+                   value=obj.value,
+                   threshold=threshold.get("min") if obj.value < threshold.get("min", 0) else threshold.get("max", 0),
+                   severity="BAIXA" if obj.value < threshold.get("min", 0) else "ALTA",
+                   message=f"Alerta: {obj.sign_type.value} = {obj.value}",
+                   recorded_at=obj.recorded_at
+               ))
            return alerts
    ```
 
-   Wait, I need to make sure the Pydantic models use `from_attributes=True` correctly for SQLAlchemy 2.0. Also, I should add proper type hints and ensure it's Python 3.12 compatible. I'll refine the Pydantic models to use `model_config = ConfigDict(from_attributes=True)`.
+   *Pytest Coverage:*
+   Need a complete test file. I'll create `tests/test_sinais_vitais_repo.py`.
+   Use `pytest`, `pytest-asyncio` (optional, I'll stick to sync), `sqlalchemy` in-memory SQLite.
+   Setup: Create engine, session, tables.
+   Test cases:
+   - Create normal sign
+   - Create alert sign
+   - Get history
+   - Get alerts
+   - SUS/APS fields validation
+   - Threshold boundaries
 
-   Also, the alert logic for PA is simplified. I'll make it more robust or just keep it simple for the repo. The task says "alertas para descompensação", so I'll implement a clear threshold check.
-
-   Let's adjust the Pydantic models to be strictly typed and compatible with Pydantic v2. I'll also add a `Session` dependency injection pattern comment.
-
-   I'll also create the test file `backend/app/tests/test_sinais_vitais_repo.py` with pytest, using `pytest-mock` or `sqlalchemy` in-memory DB. I'll use `sqlite` in-memory for tests.
-
-   Structure of test file:
-   - Fixtures: `db_session`, `repo`, `sample_patient`.
-   - Tests: `test_register_vital_sign`, `test_get_patient_history`, `test_check_decompensation_alerts`, `test_alerts_for_multiple_types`, `test_invalid_data_raises`.
-   - Use `pytest` and `sqlalchemy`.
-
-   Let's write it out carefully.
-
-   *Self-Correction/Verification during thought:*
-   - Pydantic v2 `from_attributes=True` is correct.
-   - SQLAlchemy 2.0 uses `Mapped` and `mapped_column`. I'll use `sqlalchemy.orm.Mapped` and `sqlalchemy.orm.mapped_column`.
-   - I need to ensure the code is self-contained and executable. I'll add a `create_engine` and `SessionLocal` for the test setup.
-   - I'll make sure the repository methods are properly typed.
-   - I'll add comments explaining SUS/APS alignment (CIAP-2, CID-10, SOAP, CNS/CPF).
-   - I'll ensure strict typing with `typing` module.
-   - I'll handle the PA threshold properly (systolic/diastolic). For simplicity in this repo, I'll treat PA as a single value or add a note. Actually, in SUS, PA is often recorded as two values. I'll keep it simple: `value` represents systolic for PA, or I'll add a comment. To be precise, I'll add `value_systolic` and `value_diastolic` or just keep `value` and note it's for demo. I'll stick to `value` for simplicity but mention it in comments. Actually, I'll add `value` as the primary metric and let the threshold check handle it. I'll adjust thresholds to be clear.
-
-   Let's refine the repository code to be production-ready and strictly typed.
+   Let's draft the test file carefully.
 
    ```python
-   # backend/app/repositories/sinais_vitais_repo.py
-   from __future__ import annotations
-   from datetime import datetime
-   from enum import Enum
-   from typing import Optional, Sequence
-   import uuid
-   from pydantic import BaseModel, Field, ConfigDict, model_validator
-   from sqlalchemy import String, Float, DateTime, Enum as SAEnum, ForeignKey, create_engine
-   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session, relationship, sessionmaker
+   import pytest
+   from sqlalchemy import create_engine
+   from sqlalchemy.orm import sessionmaker, Session
+   from datetime import datetime, timedelta
+   from backend.app.repositories.sinais_vitais_repo import (
+       SinaisVitaisRepository,
+       VitalSignCreate,
+       VitalSignType,
+       Base,
+       THRESHOLDS
+   )
 
-   # ... (models and repo)
+   @pytest.fixture
+   def db_session():
+       engine = create_engine("sqlite:///:memory:")
+       Base.metadata.create_all(engine)
+       SessionLocal = sessionmaker(bind=engine)
+       session = SessionLocal()
+       yield session
+       session.close()
+
+   class TestSinaisVitaisRepository:
+       def test_create_normal_vital_sign(self, db_session: Session):
+           data = VitalSignCreate(
+               patient_cns="123456789012345",
+               patient_cpf="12345678900",
+               ciap_code="B01",
+               cid_code="I10",
+               soap_note="Paciente estável.",
+               sign_type=VitalSignType.FC,
+               value=75.0,
+               recorded_at=datetime.now()
+           )
+           result = SinaisVitaisRepository.create_vital_sign(db_session, data)
+           assert result.id is not None
+           assert result.status == "NORMAL"
+           assert result.sign_type == VitalSignType.FC
+           assert result.value == 75.0
+
+       def test_create_alert_vital_sign(self, db_session: Session):
+           data = VitalSignCreate(
+               patient_cns="123456789012345",
+               sign_type=VitalSignType.FC,
+               value=110.0,
+               recorded_at=datetime.now()
+           )
+           result = SinaisVitaisRepository.create_vital_sign(db_session, data)
+           assert result.status == "ALERT"
+
+       def test_get_patient_history(self, db_session: Session):
+           now = datetime.now()
+           for i in range(3):
+               data = VitalSignCreate(
+                   patient_cns="123456789012345",
+                   sign_type=VitalSignType.FC,
+                   value=70.0 + i,
+                   recorded_at=now - timedelta(hours=i)
+               )
+               SinaisVitaisRepository.create_vital_sign(db_session, data)
+
+           history = SinaisVitaisRepository.get_patient_history(
+               db_session, "123456789012345", now - timedelta(days=1), now
+           )
+           assert len(history) == 3
+           assert history[0].recorded_at <= history[1].recorded_at
+
+       def test_get_alerts_for_patient(self, db_session: Session):
+           now = datetime.now()
+           # Create normal
+           SinaisVitaisRepository.create_vital_sign(db_session, VitalSignCreate(
+               patient_cns="123456789012345", sign_type=VitalSignType.FC, value=70.0, recorded_at=now
+           ))
+           # Create alert
+           SinaisVitaisRepository.create_vital_sign(db_session, VitalSignCreate(
+               patient_cns="123456789012345", sign_type=VitalSignType.FC, value=110.0, recorded_at=now
+           ))
+
+           alerts = SinaisVitaisRepository.get_alerts_for_patient(db_session, "123456789012345", now - timedelta(days=1))
+           assert len(alerts) == 1
+           assert alerts[0].severity == "ALTA"
+
+       def test_sus_aps_fields_validation(self):
+           # Pydantic v2 validation
+           with pytest.raises(Exception): # Actually Pydantic raises ValidationError
+               VitalSignCreate(
+                   patient_cns="123", # Too short
+                   sign_type=VitalSignType.FC,
+                   value=70.0
+               )
    ```
 
-   I'll structure it properly. I'll also add a `Session` factory for testing.
-
-   Now, the test file. I'll use `pytest` and `sqlalchemy` with `sqlite:///:memory:`. I'll create fixtures for the database session and repository. I'll test registration, history retrieval, and alert generation. I'll also test Pydantic validation.
-
-   Let's draft the test file mentally:
-   - `@pytest.fixture` for `engine`, `session`, `repo`.
-   - `@pytest.fixture` for `test_patient_data`.
-   - Tests:
-     - `test_register_vital_sign_creates_patient_if_not_exists`
-     - `test_register_vital_sign_updates_existing_patient`
-     - `test_get_patient_history_filters_by_date`
-     - `test_check_decompensation_alerts_returns_alerts_for_thresholds`
-     - `test_pydantic_validation_rejects_invalid_cpf`
-     - `test_pydantic_validation_rejects_invalid_cns`
-   - I'll use `pytest` and `sqlalchemy`.
-
-   I need to make sure the code is complete and executable. I'll provide both files.
-
-   One detail: Pydantic v2 `from_attributes=True` is correct for ORM mapping. I'll use `model_config = ConfigDict(from_attributes=True)`.
-   SQLAlchemy 2.0 `Mapped` and `mapped_column` are correct.
-   I'll add proper imports.
-
-   Let's write it out carefully. I'll ensure strict typing, Pydantic v2, SQLAlchemy 2.0, SUS/APS context, and pytest coverage.
-
-   *Structure of output:*
-   - `backend/app/repositories/sinais_vitais_repo.py`
-   - `backend/app/tests/test_sinais_v
+   Wait, I need to make sure the code is complete, executable, and follows all guidelines strictly. I'll structure it properly.
+   I'll add proper imports, type hints, and ensure Pydantic v2 syntax (`model_config`, `Field`, etc.).
+   I'll also add a `__init__.py` or just provide the single file as

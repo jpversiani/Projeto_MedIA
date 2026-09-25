@@ -1,6 +1,6 @@
 Here's a thinking process:
 
-1.  **Understand User Request:**
+1.  **Understand User Role & Task:**
    - **Role:** Software Engineer (Tester)
    - **Task:** Create `backend/app/repositories/campanhas_repo.py` for a "Health Campaigns Repository and Send History" (C8).
    - **Requirements:**
@@ -8,350 +8,337 @@ Here's a thinking process:
      - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
      - SUS/APS standards: CIAP-2, CID-10, SOAP method, CNS/CPF identification.
      - Full compliance and automated test coverage with pytest.
-     - Provide complete, executable code.
-     - Specify file paths in code blocks.
-   - **Context:** Project MedIA (likely a health tech project).
+     - Provide complete, executable code. Specify file paths in code blocks.
 
 2.  **Deconstruct Requirements:**
-   - **Repository:** `backend/app/repositories/campanhas_repo.py`
-   - **Models/Schema:** Pydantic v2 models for request/response/validation.
-   - **Database:** SQLAlchemy 2.0 ORM models for campaigns, message history, confirmation status, audit log.
-   - **Standards:** CIAP-2 (International Classification of Primary Care), CID-10 (ICD-10), SOAP (Subjective, Objective, Assessment, Plan), CNS (Unified Health System Card number), CPF (Brazilian tax ID).
-   - **Testing:** Pytest coverage for all repository methods.
-   - **Compliance:** LGPD (Brazilian Data Protection Law) considerations for audit logs.
+   - **File:** `backend/app/repositories/campanhas_repo.py`
+   - **Domain:** Health campaigns (Campanhas de Saúde)
+   - **Key Entities/Models:**
+     - Campaign (Campanha)
+     - Message Send/Dispatch (Disparo/Mensagem)
+     - Patient Confirmation Status (Status de Confirmação)
+     - Data Protection Audit Log (Log de Auditoria LGPD)
+   - **Standards:** CIAP-2, CID-10, SOAP, CNS, CPF
+   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0
+   - **Testing:** pytest coverage, full compliance
 
 3.  **Design Database Models (SQLAlchemy 2.0):**
    Need tables for:
-   - `Campanha` (Campaign): id, name, description, start_date, end_date, status, created_at, updated_at
-   - `MensagemCampanha` (Campaign Message): id, campanha_id, paciente_cpf, paciente_cns, status (sent, delivered, confirmed, failed), message_content, sent_at, confirmed_at, confirmation_method, created_at
-   - `LogAuditoriaLGPD` (Audit Log): id, campanha_id, mensagem_id, action (send, confirm, view, delete, export), user_id, ip_address, timestamp, details, compliance_status
-   - Need to incorporate SUS/APS fields: CIAP-2 code, CID-10 code, SOAP notes, CNS, CPF.
+   - `campanhas`: id, name, description, start_date, end_date, status, created_at, updated_at
+   - `disparos`: id, campanha_id, paciente_cns, paciente_cpf, mensagem, status_envio, data_envio, metodo_sus (CIAP-2/CID-10/SOAP), created_at
+   - `confirmacoes_paciente`: id, disparo_id, confirmado, data_confirmacao, observacoes
+   - `auditoria_lgpd`: id, disparo_id, acao, usuario_sistema, ip, data_hora, detalhes
 
-   Let's refine the models:
+   Let's refine the models to align with SUS/APS standards and Pydantic v2.
+   - Use `Enum` for status fields.
+   - Use `UUID` or `Integer` for IDs. I'll use `Integer` for simplicity, but `UUID` is often better. I'll stick to `Integer` as per common SUS systems, but add `UUID` if needed. Actually, `UUID` is fine. I'll use `Integer` for simplicity in examples.
+   - Pydantic schemas for request/response validation.
+   - Repository pattern with async SQLAlchemy 2.0.
+
+   Let's define the SQLAlchemy models first:
    ```python
-   # Campaign
-   class Campanha(Base):
-       __tablename__ = "campanhas"
-       id = Column(Integer, primary_key=True)
-       nome = Column(String(255), nullable=False)
-       descricao = Column(Text)
-       codigo_ciap2 = Column(String(10)) # CIAP-2 code for primary care
-       codigo_cid10 = Column(String(10)) # CID-10 code
-       metodo_soap = Column(String(50)) # SOAP method type
-       data_inicio = Column(DateTime, nullable=False)
-       data_fim = Column(DateTime, nullable=False)
-       status = Column(String(20), default="ativa")
-       created_at = Column(DateTime, server_default=func.now())
-       updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-   # Message/Send History
-   class HistoricoDisparo(Base):
-       __tablename__ = "historico_disparos"
-       id = Column(Integer, primary_key=True)
-       campanha_id = Column(Integer, ForeignKey("campanhas.id"), nullable=False)
-       paciente_cpf = Column(String(14), nullable=False)
-       paciente_cns = Column(String(15), nullable=False)
-       status_envio = Column(String(20), default="pendente") # pendente, enviado, confirmado, falha
-       mensagem = Column(Text, nullable=False)
-       data_envio = Column(DateTime)
-       data_confirmacao = Column(DateTime)
-       metodo_confirmacao = Column(String(50)) # sms, whatsapp, email, etc.
-       created_at = Column(DateTime, server_default=func.now())
-
-   # Audit Log
-   class LogAuditoria(Base):
-       __tablename__ = "logs_auditoria"
-       id = Column(Integer, primary_key=True)
-       campanha_id = Column(Integer, ForeignKey("campanhas.id"))
-       disparo_id = Column(Integer, ForeignKey("historico_disparos.id"))
-       acao = Column(String(50), nullable=False) # enviar, confirmar, visualizar, exportar, excluir
-       usuario_id = Column(String(50))
-       ip_origem = Column(String(45))
-       timestamp = Column(DateTime, server_default=func.now())
-       detalhes = Column(Text)
-       conformidade_lgpd = Column(String(20), default="conforme")
-   ```
-
-4.  **Design Pydantic Models (v2):**
-   Need schemas for validation and API contracts.
-   - `CampanhaCreate`, `CampanhaRead`
-   - `HistoricoDisparoCreate`, `HistoricoDisparoRead`
-   - `LogAuditoriaCreate`, `LogAuditoriaRead`
-   - Use `ConfigDict`, `Field`, `validator`/`model_validator` for CPF/CNS validation.
-
-   CPF validation: Standard algorithm or regex. I'll use a simple regex for brevity but note it's for demo. Actually, I'll implement a proper CPF/CNS validator using Pydantic v2's `model_validator`.
-   CNS validation: 15 digits, checksum. I'll implement a basic validator.
-
-   ```python
-   from pydantic import BaseModel, Field, model_validator, ConfigDict
+   from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean
+   from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
    from datetime import datetime
-   from typing import Optional
-   from enum import Enum
+   import enum
 
-   class StatusCampanha(str, Enum):
+   class Base(DeclarativeBase):
+       pass
+
+   class CampanhaStatus(enum.Enum):
        RASCUNHO = "rascunho"
        ATIVA = "ativa"
        PAUSADA = "pausada"
        CONCLUIDA = "concluida"
 
-   class StatusDisparo(str, Enum):
+   class DisparoStatus(enum.Enum):
        PENDENTE = "pendente"
        ENVIADO = "enviado"
-       CONFIRMADO = "confirmado"
        FALHA = "falha"
+       CONFIRMADO = "confirmado"
+       NAO_CONFIRMADO = "nao_confirmado"
 
-   class AcaoAuditoria(str, Enum):
-       ENVIAR = "enviar"
-       CONFIRMAR = "confirmar"
-       VISUALIZAR = "visualizar"
-       EXPORTAR = "exportar"
-       EXCLUIR = "excluir"
+   class Campanha(Base):
+       __tablename__ = "campanhas"
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       nome: Mapped[str] = mapped_column(String(255))
+       descricao: Mapped[str] = mapped_column(Text)
+       status: Mapped[CampanhaStatus] = mapped_column(Enum(CampanhaStatus), default=CampanhaStatus.RASCUNHO)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       data_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+   class Disparo(Base):
+       __tablename__ = "disparos"
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       campanha_id: Mapped[int] = mapped_column(Integer, ForeignKey("campanhas.id"))
+       paciente_cns: Mapped[str] = mapped_column(String(15)) # CNS format
+       paciente_cpf: Mapped[str] = mapped_column(String(14)) # CPF format
+       mensagem: Mapped[str] = mapped_column(Text)
+       metodo_sus: Mapped[str] = mapped_column(String(50)) # CIAP-2, CID-10, SOAP
+       status: Mapped[DisparoStatus] = mapped_column(Enum(DisparoStatus), default=DisparoStatus.PENDENTE)
+       data_envio: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+       confirmacoes: Mapped[list["ConfirmacaoPaciente"]] = relationship(back_populates="disparo")
+       auditoria: Mapped[list["AuditoriaLgpd"]] = relationship(back_populates="disparo")
+
+   class ConfirmacaoPaciente(Base):
+       __tablename__ = "confirmacoes_paciente"
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       disparo_id: Mapped[int] = mapped_column(Integer, ForeignKey("disparos.id"))
+       confirmado: Mapped[bool] = mapped_column(Boolean, default=False)
+       data_confirmacao: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+       observacoes: Mapped[str] = mapped_column(Text, nullable=True)
+
+       disparo: Mapped["Disparo"] = relationship(back_populates="confirmacoes")
+
+   class AuditoriaLgpd(Base):
+       __tablename__ = "auditoria_lgpd"
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       disparo_id: Mapped[int] = mapped_column(Integer, ForeignKey("disparos.id"))
+       acao: Mapped[str] = mapped_column(String(100)) # e.g., "ENVIO", "CONFIRMACAO", "ACESSO"
+       usuario_sistema: Mapped[str] = mapped_column(String(100))
+       ip: Mapped[str] = mapped_column(String(45))
+       data_hora: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       detalhes: Mapped[str] = mapped_column(Text, nullable=True)
+
+       disparo: Mapped["Disparo"] = relationship(back_populates="auditoria")
+   ```
+
+4.  **Design Pydantic Schemas (v2):**
+   Need schemas for validation and serialization.
+   ```python
+   from pydantic import BaseModel, Field, ConfigDict, field_validator
+   from datetime import datetime
+   from typing import Optional
+   import re
 
    class CampanhaCreate(BaseModel):
-       nome: str = Field(..., min_length=1, max_length=255)
-       descricao: Optional[str] = None
-       codigo_ciap2: Optional[str] = Field(None, pattern=r"^[A-Z0-9]{1,10}$")
-       codigo_cid10: Optional[str] = Field(None, pattern=r"^[A-Z0-9]{1,10}$")
-       metodo_soap: Optional[str] = Field(None, pattern=r"^(S|O|A|P|SOAP)$")
-       data_inicio: datetime
-       data_fim: datetime
-       status: StatusCampanha = StatusCampanha.RASCUNHO
+       nome: str = Field(..., min_length=3, max_length=255)
+       descricao: str = Field(..., min_length=10)
+       status: Optional[CampanhaStatus] = None
 
        model_config = ConfigDict(from_attributes=True)
 
-   class CampanhaRead(CampanhaCreate):
-       id: int
-       created_at: datetime
-       updated_at: datetime
-
-   class HistoricoDisparoCreate(BaseModel):
+   class DisparoCreate(BaseModel):
        campanha_id: int
-       paciente_cpf: str = Field(..., pattern=r"^\d{11}$")
        paciente_cns: str = Field(..., pattern=r"^\d{15}$")
+       paciente_cpf: str = Field(..., pattern=r"^\d{11}$")
        mensagem: str = Field(..., min_length=1)
-       metodo_confirmacao: Optional[str] = None
+       metodo_sus: str = Field(..., pattern=r"^(CIAP-2|CID-10|SOAP)$")
 
        model_config = ConfigDict(from_attributes=True)
 
-   class HistoricoDisparoRead(HistoricoDisparoCreate):
-       id: int
-       status_envio: StatusDisparo
-       data_envio: Optional[datetime] = None
-       data_confirmacao: Optional[datetime] = None
-       created_at: datetime
+       @field_validator("paciente_cpf")
+       @classmethod
+       def validate_cpf(cls, v):
+           # Basic CPF validation logic could go here, but regex is enough for schema
+           return v
 
-   class LogAuditoriaCreate(BaseModel):
-       campanha_id: Optional[int] = None
-       disparo_id: Optional[int] = None
-       acao: AcaoAuditoria
-       usuario_id: str
-       ip_origem: Optional[str] = None
+   class ConfirmacaoCreate(BaseModel):
+       disparo_id: int
+       confirmado: bool
+       observacoes: Optional[str] = None
+
+       model_config = ConfigDict(from_attributes=True)
+
+   class AuditoriaLgpdCreate(BaseModel):
+       disparo_id: int
+       acao: str
+       usuario_sistema: str
+       ip: str
        detalhes: Optional[str] = None
 
        model_config = ConfigDict(from_attributes=True)
-
-   class LogAuditoriaRead(LogAuditoriaCreate):
-       id: int
-       timestamp: datetime
-       conformidade_lgpd: str = "conforme"
    ```
 
 5.  **Design Repository Class:**
-   Need methods for:
-   - Create campaign
-   - Get campaign by ID
-   - Send message (track history)
-   - Update confirmation status
-   - Get send history/pagination
-   - Create audit log
-   - Get audit logs
-   - Use SQLAlchemy 2.0 async/sync? I'll use sync for simplicity but note it's compatible with async. I'll stick to sync `Session` for standard repo pattern, but make it type-hinted properly.
-
-   Repository structure:
+   Need async methods for CRUD and specific tracking queries.
    ```python
-   from sqlalchemy.orm import Session
-   from sqlalchemy import select, func, update, delete
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy import select, func
+   from sqlalchemy.orm import selectinload
    from typing import List, Optional, Dict, Any
-   from datetime import datetime
    import logging
 
    logger = logging.getLogger(__name__)
 
    class CampanhasRepository:
-       def __init__(self, db: Session):
-           self.db = db
+       def __init__(self, session: AsyncSession):
+           self.session = session
 
-       def criar_campanha(self, schema: CampanhaCreate) -> Campanha:
-           ...
-       def obter_campanha(self, campanha_id: int) -> Optional[Campanha]:
-           ...
-       def registrar_disparo(self, schema: HistoricoDisparoCreate) -> HistoricoDisparo:
-           ...
-       def atualizar_confirmacao(self, disparo_id: int, status: StatusDisparo, metodo: Optional[str] = None) -> HistoricoDisparo:
-           ...
-       def obter_historico_disparos(self, campanha_id: Optional[int] = None, paciente_cpf: Optional[str] = None, status: Optional[StatusDisparo] = None) -> List[HistoricoDisparo]:
-           ...
-       def registrar_log_auditoria(self, schema: LogAuditoriaCreate) -> LogAuditoria:
-           ...
-       def obter_logs_auditoria(self, campanha_id: Optional[int] = None, disparo_id: Optional[int] = None, acao: Optional[AcaoAuditoria] = None) -> List[LogAuditoria]:
-           ...
+       async def criar_campanha(self, data: CampanhaCreate) -> Campanha:
+           campanha = Campanha(**data.model_dump())
+           self.session.add(campanha)
+           await self.session.commit()
+           await self.session.refresh(campanha)
+           return campanha
+
+       async def criar_disparo(self, data: DisparoCreate) -> Disparo:
+           disparo = Disparo(**data.model_dump())
+           self.session.add(disparo)
+           await self.session.commit()
+           await self.session.refresh(disparo)
+           return disparo
+
+       async def registrar_confirmacao(self, data: ConfirmacaoCreate) -> ConfirmacaoPaciente:
+           confirmacao = ConfirmacaoPaciente(**data.model_dump())
+           self.session.add(confirmacao)
+           await self.session.commit()
+           await self.session.refresh(confirmacao)
+           return confirmacao
+
+       async def registrar_auditoria(self, data: AuditoriaLgpdCreate) -> AuditoriaLgpd:
+           auditoria = AuditoriaLgpd(**data.model_dump())
+           self.session.add(auditoria)
+           await self.session.commit()
+           await self.session.refresh(auditoria)
+           return auditoria
+
+       async def get_disparos_por_campanha(self, campanha_id: int) -> List[Disparo]:
+           stmt = select(Disparo).options(selectinload(Dispo.confirmacoes), selectinload(Disparo.auditoria)).where(Disparo.campanha_id == campanha_id)
+           result = await self.session.execute(stmt)
+           return list(result.scalars().all())
+
+       async def get_status_confirmacao_por_paciente(self, paciente_cns: str) -> Dict[str, Any]:
+           stmt = select(Disparo, ConfirmacaoPaciente).join(ConfirmacaoPaciente, Disparo.id == ConfirmacaoPaciente.disparo_id, isouter=True).where(Disparo.paciente_cns == paciente_cns)
+           result = await self.session.execute(stmt)
+           rows = result.all()
+           status_map = {}
+           for d, c in rows:
+               status_map[d.id] = {
+                   "disparo_id": d.id,
+                   "status": d.status.value,
+                   "confirmado": c.confirmado if c else None,
+                   "data_confirmacao": c.data_confirmacao if c else None
+               }
+           return status_map
    ```
+   Wait, I need to fix the typo `Dispo.confirmacoes` -> `Disparo.confirmacoes`.
+   Also, SQLAlchemy 2.0 uses `mapped_column` and `relationship` correctly. I'll adjust the imports and types.
+   I should also add a method to track message send history with audit logs specifically for LGPD compliance.
+   Let's refine the repository to be more robust and aligned with the prompt.
 
-   Implement methods with SQLAlchemy 2.0 syntax:
-   ```python
-   # Inside CampanhasRepository
-   def criar_campanha(self, schema: CampanhaCreate) -> Campanha:
-       campanha = Campanha(
-           nome=schema.nome,
-           descricao=schema.descricao,
-           codigo_ciap2=schema.codigo_ciap2,
-           codigo_cid10=schema.codigo_cid10,
-           metodo_soap=schema.metodo_soap,
-           data_inicio=schema.data_inicio,
-           data_fim=schema.data_fim,
-           status=schema.status.value
-       )
-       self.db.add(campanha)
-       self.db.commit()
-       self.db.refresh(campanha)
-       return campanha
+   Key requirements to address:
+   - Rastreio de mensagens enviadas (Send history tracking)
+   - Status de confirmação pelo paciente (Patient confirmation status)
+   - Log de auditoria de proteção de dados (LGPD audit log)
+   - SUS/APS standards: CIAP-2, CID-10, SOAP, CNS/CPF
+   - Pydantic v2, SQLAlchemy 2.0, Python 3.12
+   - pytest coverage
 
-   def obter_campanha(self, campanha_id: int) -> Optional[Campanha]:
-       stmt = select(Campanha).where(Campanha.id == campanha_id)
-       return self.db.execute(stmt).scalar_one_or_none()
+   I'll structure the file properly with all models, schemas, and repository class. I'll also add a test file `backend/app/tests/test_campanhas_repo.py` to fulfill the "cobertura de testes automatizados com pytest" requirement.
 
-   def registrar_disparo(self, schema: HistoricoDisparoCreate) -> HistoricoDisparo:
-       disparo = HistoricoDisparo(
-           campanha_id=schema.campanha_id,
-           paciente_cpf=schema.paciente_cpf,
-           paciente_cns=schema.paciente_cns,
-           mensagem=schema.mensagem,
-           status_envio=StatusDisparo.PENDENTE.value,
-           data_envio=datetime.utcnow()
-       )
-       self.db.add(disparo)
-       self.db.commit()
-       self.db.refresh(disparo)
-       # Log audit
-       self.registrar_log_auditoria(LogAuditoriaCreate(
-           campanha_id=schema.campanha_id,
-           disparo_id=disparo.id,
-           acao=AcaoAuditoria.ENVIAR,
-           usuario_id="sistema",
-           detalhes=f"Disparo registrado para CPF {schema.paciente_cpf}"
-       ))
-       return disparo
+6.  **Draft the Repository File (`backend/app/repositories/campanhas_repo.py`):**
+   I'll combine models, schemas, and repository into one file as requested, but keep it clean.
+   I'll use `sqlalchemy.orm.Mapped` and `mapped_column` correctly.
+   I'll ensure Pydantic v2 compatibility (`model_config`, `field_validator`, `ConfigDict`).
+   I'll add type hints strictly.
 
-   def atualizar_confirmacao(self, disparo_id: int, status: StatusDisparo, metodo: Optional[str] = None) -> HistoricoDisparo:
-       stmt = update(HistoricoDisparo).where(HistoricoDisparo.id == disparo_id).values(
-           status_envio=status.value,
-           data_confirmacao=datetime.utcnow(),
-           metodo_confirmacao=metodo
-       )
-       self.db.execute(stmt)
-       self.db.commit()
-       stmt_get = select(HistoricoDisparo).where(HistoricoDisparo.id == disparo_id)
-       return self.db.execute(stmt_get).scalar_one()
-
-   def obter_historico_disparos(self, campanha_id: Optional[int] = None, paciente_cpf: Optional[str] = None, status: Optional[StatusDisparo] = None) -> List[HistoricoDisparo]:
-       stmt = select(HistoricoDisparo)
-       if campanha_id:
-           stmt = stmt.where(HistoricoDisparo.campanha_id == campanha_id)
-       if paciente_cpf:
-           stmt = stmt.where(HistoricoDisparo.paciente_cpf == paciente_cpf)
-       if status:
-           stmt = stmt.where(HistoricoDisparo.status_envio == status.value)
-       stmt = stmt.order_by(HistoricoDisparo.data_envio.desc())
-       return list(self.db.execute(stmt).scalars().all())
-
-   def registrar_log_auditoria(self, schema: LogAuditoriaCreate) -> LogAuditoria:
-       log = LogAuditoria(
-           campanha_id=schema.campanha_id,
-           disparo_id=schema.disparo_id,
-           acao=schema.acao.value,
-           usuario_id=schema.usuario_id,
-           ip_origem=schema.ip_origem,
-           detalhes=schema.detalhes,
-           conformidade_lgpd="conforme"
-       )
-       self.db.add(log)
-       self.db.commit()
-       self.db.refresh(log)
-       return log
-
-   def obter_logs_auditoria(self, campanha_id: Optional[int] = None, disparo_id: Optional[int] = None, acao: Optional[AcaoAuditoria] = None) -> List[LogAuditoria]:
-       stmt = select(LogAuditoria)
-       if campanha_id:
-           stmt = stmt.where(LogAuditoria.campanha_id == campanha_id)
-       if disparo_id:
-           stmt = stmt.where(LogAuditoria.disparo_id == disparo_id)
-       if acao:
-           stmt = stmt.where(LogAuditoria.acao == acao.value)
-       stmt = stmt.order_by(LogAuditoria.timestamp.desc())
-       return list(self.db.execute(stmt).scalars().all())
-   ```
-
-6.  **Add Pydantic Validators for CPF/CNS (LGPD/SUS compliance):**
-   I'll add a `model_validator` to `HistoricoDisparoCreate` to validate CPF and CNS properly.
-   CPF validation: 11 digits, check digits.
-   CNS validation: 15 digits, checksum algorithm (standard SUS).
-   I'll implement simplified but functional validators.
+   Let's write it out carefully.
 
    ```python
-   def validar_cpf(cpf: str) -> bool:
-       cpf = cpf.replace('.', '').replace('-', '')
-       if len(cpf) != 11 or not cpf.isdigit():
-           return False
-       if len(set(cpf)) == 1:
-           return False
-       add = lambda i, v: sum(int(cpf[i]) * v for i in range(len(cpf)))
-       if add(0, range(10, 1, -1)) % 11 % 10 != int(cpf[9]):
-           return False
-       if add(0, range(11, 1, -1)) % 11 % 10 != int(cpf[10]):
-           return False
-       return True
+   # Arquivo: backend/app/repositories/campanhas_repo.py
+   from __future__ import annotations
 
-   def validar_cns(cns: str) -> bool:
-       if len(cns) != 15 or not cns.isdigit():
-           return False
-       # Simplified checksum for CNS (standard algorithm)
-       weights = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
-       total = sum(int(cns[i]) * weights[i] for i in range(13))
-       remainder = total % 11
-       check = 11 - remainder if remainder > 1 else 0
-       return check == int(cns[13])
-   ```
-
-   Add to Pydantic model:
-   ```python
-   @model_validator(mode='before')
-   @classmethod
-   def validar_identificacao_sus(cls, data):
-       if isinstance(data, dict):
-           cpf = data.get('paciente_cpf', '')
-           cns = data.get('paciente_cns', '')
-           if cpf and not validar_cpf(cpf):
-               raise ValueError("CPF inválido")
-           if cns and not validar_cns(cns):
-               raise ValueError("CNS inválido")
-       return data
-   ```
-
-7.  **Create Pytest Test Suite:**
-   Need tests for:
-   - Campaign CRUD
-   - Disparo registration & confirmation
-   - Audit log creation & retrieval
-   - CPF/CNS validation
-   - Use `pytest`, `sqlalchemy`, `pytest-mock` or `pytest-asyncio`? I'll stick to sync SQLAlchemy with `pytest` and `unittest.mock` or `pytest` fixtures with `SessionLocal`.
-   I'll create a test file: `tests/test_campanhas_repo.py`
-   Use `pytest` with `pytest-mock` or standard `unittest.mock`. I'll use `pytest` with `sqlalchemy` in-memory SQLite for testing.
-
-   Test structure:
-   ```python
-   import pytest
-   from sqlalchemy import create_engine
-   from sqlalchemy.orm import sessionmaker
+   import enum
+   import logging
    from datetime import datetime
-   from backend.app.repositories.campanhas_repo import (
-       CampanhasRepository, Campanha
+   from typing import Any, Dict, List, Optional
+
+   from pydantic import BaseModel, ConfigDict, Field, field_validator
+   from sqlalchemy import Enum as SAEnum, ForeignKey, Integer, String, Text, DateTime, Boolean, select
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+
+   logger = logging.getLogger(__name__)
+
+   # ------------------------------------------------------------------
+   # 1. Modelos SQLAlchemy 2.0 (SUS/APS Standards)
+   # ------------------------------------------------------------------
+
+   class Base(DeclarativeBase):
+       pass
+
+   class CampanhaStatus(enum.Enum):
+       RASCUNHO = "rascunho"
+       ATIVA = "ativa"
+       PAUSADA = "pausada"
+       CONCLUIDA = "concluida"
+
+   class DisparoStatus(enum.Enum):
+       PENDENTE = "pendente"
+       ENVIADO = "enviado"
+       FALHA = "falha"
+       CONFIRMADO = "confirmado"
+       NAO_CONFIRMADO = "nao_confirmado"
+
+   class MetodoSUS(enum.Enum):
+       CIAP2 = "CIAP-2"
+       CID10 = "CID-10"
+       SOAP = "SOAP"
+
+   class Campanha(Base):
+       __tablename__ = "campanhas"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       nome: Mapped[str] = mapped_column(String(255))
+       descricao: Mapped[str] = mapped_column(Text)
+       status: Mapped[CampanhaStatus] = mapped_column(SAEnum(CampanhaStatus), default=CampanhaStatus.RASCUNHO)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       data_atualizacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+   class Disparo(Base):
+       __tablename__ = "disparos"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       campanha_id: Mapped[int] = mapped_column(Integer, ForeignKey("campanhas.id"))
+       paciente_cns: Mapped[str] = mapped_column(String(15))  # Código Nacional de Saúde
+       paciente_cpf: Mapped[str] = mapped_column(String(14))  # CPF formatado
+       mensagem: Mapped[str] = mapped_column(Text)
+       metodo_sus: Mapped[MetodoSUS] = mapped_column(SAEnum(MetodoSUS))
+       status: Mapped[DisparoStatus] = mapped_column(SAEnum(DisparoStatus), default=DisparoStatus.PENDENTE)
+       data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       data_criacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+       confirmacoes: Mapped[list[ConfirmacaoPaciente]] = relationship(back_populates="disparo", cascade="all, delete-orphan")
+       auditoria: Mapped[list[AuditoriaLgpd]] = relationship(back_populates="disparo", cascade="all, delete-orphan")
+
+   class ConfirmacaoPaciente(Base):
+       __tablename__ = "confirmacoes_paciente"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       disparo_id: Mapped[int] = mapped_column(Integer, ForeignKey("disparos.id"))
+       confirmado: Mapped[bool] = mapped_column(Boolean, default=False)
+       data_confirmacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       observacoes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+       disparo: Mapped[Disparo] = relationship(back_populates="confirmacoes")
+
+   class AuditoriaLgpd(Base):
+       __tablename__ = "auditoria_lgpd"
+
+       id: Mapped[int] = mapped_column(Integer, primary_key=True)
+       disparo_id: Mapped[int] = mapped_column(Integer, ForeignKey("disparos.id"))
+       acao: Mapped[str] = mapped_column(String(100))  # ENVIO, CONFIRMACAO, ACESSO, etc.
+       usuario_sistema: Mapped[str] = mapped_column(String(100))
+       ip: Mapped[str] = mapped_column(String(45))
+       data_hora: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       detalhes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+       disparo: Mapped[Disparo] = relationship(back_populates="auditoria")
+
+   # ------------------------------------------------------------------
+   # 2. Schemas Pydantic v2 (Validação Estrita)
+   # ------------------------------------------------------------------
+
+   class CampanhaCreate(BaseModel):
+       nome: str = Field(..., min_length=3, max_length=255)
+       descricao: str = Field(..., min_length=10)
+       status: Optional[CampanhaStatus] = None
+
+       model_config = ConfigDict(from_attributes=True)
+
+   class DisparoCreate(BaseModel):
+       campanha_id: int
+       paciente_cns: str = Field(..., pattern=r"^\d

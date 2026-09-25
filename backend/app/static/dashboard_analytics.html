@@ -2,18 +2,357 @@ backend/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
-│   ├── config.py
 │   ├── models.py
 │   ├── schemas.py
-│   ├── services.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── dashboard.py
+│   ├── api.py
 │   ├── static/
 │   │   └── dashboard_analytics.html
-│   └── tests/
+│   └── services/
 │       ├── __init__.py
-│       └── test_dashboard.py
+│       └── analytics.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_models.py
+│   ├── test_schemas.py
+│   ├── test_api.py
+│   └── test_services.py
 ├── requirements.txt
-├── pytest.ini
-└── README.md
+└── pytest.ini
+
+# Arquivo: backend/app/models.py
+"""
+Modelos SQLAlchemy 2.0 com tipagem estrita.
+Padrões SUS/APS: CIAP-2, CID-10, método SOAP, identificação por CNS/CPF.
+"""
+
+from __future__ import annotations
+
+import enum
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+)
+
+
+class Base(DeclarativeBase):
+    """Base declarativa com suporte a timestamps."""
+
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class PatientType(enum.Enum):
+    """Identificação por CNS/CPF conforme SUS."""
+    CNS = "CNS"
+    CPF = "CPF"
+    FOREIGN = "FORNEIRO"
+
+
+class Patient(Base):
+    """
+    Modelo de Paciente com identificação por CNS/CPF.
+    Padrão SUS: identificação única por CNS ou CPF.
+    """
+
+    __tablename__ = "patients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_type: Mapped[PatientType] = mapped_column(
+        Enum(PatientType, values=[t.value for t in PatientType]),
+        nullable=False,
+    )
+    identifier: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    gender: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    date_of_birth: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="patient"
+    )
+    diagnoses: Mapped[list["Diagnosis"]] = relationship(
+        "Diagnosis", back_populates="patient"
+    )
+
+
+class Diagnosis(Base):
+    """
+    Diagnóstico com CID-10 e CIAP-2.
+    Padrão SUS: código CID-10 e CIAP-2 para classificação.
+    """
+
+    __tablename__ = "diagnoses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="diagnoses")
+    cid10_code: Mapped[str] = mapped_column(
+        String(10), nullable=False, comment="CID-10"
+    )
+    ciap2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, comment="CIAP-2"
+    )
+    diagnosis_name: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    severity: Mapped[str] = mapped_column(
+        String(20), default="Médio", nullable=False
+    )
+    date_of_diagnosis: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="diagnoses"
+    )
+
+
+class Appointment(Base):
+    """
+    Agendamento com método SOAP.
+    Padrão SUS: registro de SOAP completo.
+    """
+
+    __tablename__ = "appointments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")
+    doctor_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    diagnosis_ids: Mapped[list[int]] = mapped_column(
+        JSONB, default=list, comment="IDs do diagnóstico"
+    )
+    soap_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scheduled_time: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    actual_time: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), default="Agendado", nullable=False
+    )
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, default=30, nullable=False
+    )
+    date_of_appointment: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
+    diagnoses: Mapped[list["Diagnosis"]] = relationship(
+        "Diagnosis", back_populates="appointments"
+    )
+
+
+class Doctor(Base):
+    """
+    Médico com identificação por CNS.
+    Padrão SUS: identificação única por CNS.
+    """
+
+    __tablename__ = "doctors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cns: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    specialty: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="doctor"
+    )
+
+
+class Service(Base):
+    """
+    Serviço de saúde registrado no SUS.
+    """
+
+    __tablename__ = "services"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="service"
+    )
+
+
+class ServiceAppointment(Base):
+    """
+    Relação entre serviço e agendamento.
+    """
+
+    __tablename__ = "service_appointments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    appointment_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    appointment: Mapped["Appointment"] = relationship("Appointment")
+    service_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    service: Mapped["Service"] = relationship("Service")
+
+
+class HealthRecord(Base):
+    """
+    Registro de saúde para análise de KPIs.
+    """
+
+    __tablename__ = "health_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    patient: Mapped["Patient"] = relationship("Patient")
+    appointment_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    appointment: Mapped["Appointment"] = relationship("Appointment")
+    service_id: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    service: Mapped["Service"] = relationship("Service")
+    appointment_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+    appointment_hour: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Horário do agendamento (0-23)"
+    )
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )
+    patient_type: Mapped[PatientType] = mapped_column(
+        Enum(PatientType, values=[t.value for t in PatientType]),
+        nullable=False,
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    ciap2_code: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("patient_id", "appointment_id", name="uq_patient_appointment"),
+    )
+
+
+class KPI(Base):
+    """
+    KPI para dashboard executivo.
+    """
+
+    __tablename__ = "kpis"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=True)
+    target_value: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )
+    current_value: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), default="unidades")
+    status: Mapped[str] = mapped_column(
+        String(20), default="Normal", nullable=False
+    )
+    last_updated: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
+
+class HeatmapData(Base):
+    """
+    Dados para heatmap de calor dos horários de pico.
+    """
+
+    __tablename__ = "heatmap_data"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    hour: Mapped[int] = mapped_column(Integer, nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("date", "hour", name="uq_heatmap_date_hour"),
+    )
+
+
+class AnalyticsConfig(Base):
+    """
+    Configuração de analytics para dashboard.
+    """
+
+    __tablename__ = "analytics_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dashboard_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )
+    refresh_interval_minutes: Mapped[int] = mapped_column(
+        Integer, default=15, nullable=False
+    )
+    show_heatmap: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_line_chart: Mapped[bool] = mapped_column(Boolean, default=True)
+    show_kpis: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_range_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    last_refreshed: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )

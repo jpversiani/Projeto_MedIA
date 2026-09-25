@@ -1,161 +1,189 @@
-from pydantic import BaseModel, Field, field_validator
-   from enum import Enum
+from __future__ import annotations
+   import logging
    from datetime import datetime
-   from typing import Optional
+   from decimal import Decimal
+   from typing import Optional, Sequence
+   from pydantic import BaseModel, Field, field_validator
+   from sqlalchemy import (
+       Column,
+       DateTime,
+       Numeric,
+       String,
+       Text,
+       func,
+       select,
+   )
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+   import uuid
 
-   class VitalSignType(str, Enum):
-       PA = "PA"
-       FC = "FC"
-       FR = "FR"
-       TEMP = "TEMP"
-       GLICEMIA = "GLICEMIA"
-       SPO2 = "SPO2"
+   # Base class for SQLAlchemy models
+   class Base(DeclarativeBase):
+       pass
 
-   class UrgencyLevel(str, Enum):
-       LOW = "BAIXO"
-       MEDIUM = "MEDIO"
-       HIGH = "ALTO"
-       CRITICAL = "CRITICO"
+   # SQLAlchemy Model
+   class VitalSign(Base):
+       __tablename__ = "sinais_vitais"
 
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       patient_cns: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
+       patient_cpf: Mapped[str] = mapped_column(String(14), nullable=False, index=True)
+       recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+       pa_sistolica: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1))
+       pa_diastolica: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1))
+       fc: Mapped[Optional[Decimal]] = mapped_column(Numeric(4, 1))
+       fr: Mapped[Optional[Decimal]] = mapped_column(Numeric(4, 1))
+       temperatura: Mapped[Optional[Decimal]] = mapped_column(Numeric(4, 1))
+       glicemia: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 1))
+       spo2: Mapped[Optional[Decimal]] = mapped_column(Numeric(4, 1))
+       cid10: Mapped[Optional[str]] = mapped_column(String(7))
+       ciap2: Mapped[Optional[str]] = mapped_column(String(4))
+       soap_note: Mapped[Optional[str]] = mapped_column(Text)
+       created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+   # Pydantic Schemas
    class VitalSignCreate(BaseModel):
-       paciente_cns: str = Field(..., pattern=r"^\d{15}$")
-       paciente_cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
-       tipo_sinal: VitalSignType
-       valor: float
-       data_hora: datetime = Field(default_factory=datetime.now)
-       ciap2: Optional[str] = Field(None, pattern=r"^[A-Z0-9]{1,4}$")
-       cid10: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}$")
-       nota_soap: Optional[str] = None
+       patient_cns: str
+       patient_cpf: str
+       recorded_at: Optional[datetime] = None
+       pa_sistolica: Optional[Decimal] = None
+       pa_diastolica: Optional[Decimal] = None
+       fc: Optional[Decimal] = None
+       fr: Optional[Decimal] = None
+       temperatura: Optional[Decimal] = None
+       glicemia: Optional[Decimal] = None
+       spo2: Optional[Decimal] = None
+       cid10: Optional[str] = None
+       ciap2: Optional[str] = None
+       soap_note: Optional[str] = None
+
+       @field_validator("pa_sistolica", "pa_diastolica", "fc", "fr", "temperatura", "glicemia", "spo2")
+       @classmethod
+       def validate_vital_sign(cls, v):
+           if v is not None and v < 0:
+               raise ValueError("Valores de sinais vitais não podem ser negativos")
+           return v
 
    class VitalSignResponse(BaseModel):
-       id: int
-       paciente_cns: str
-       paciente_cpf: Optional[str]
-       tipo_sinal: VitalSignType
-       valor: float
-       data_hora: datetime
-       ciap2: Optional[str]
-       cid10: Optional[str]
-       nota_soap: Optional[str]
-       alertas: list[VitalSignAlert] = []
+       id: uuid.UUID
+       patient_cns: str
+       patient_cpf: str
+       recorded_at: datetime
+       pa_sistolica: Optional[Decimal] = None
+       pa_diastolica: Optional[Decimal] = None
+       fc: Optional[Decimal] = None
+       fr: Optional[Decimal] = None
+       temperatura: Optional[Decimal] = None
+       glicemia: Optional[Decimal] = None
+       spo2: Optional[Decimal] = None
+       cid10: Optional[str] = None
+       ciap2: Optional[str] = None
+       soap_note: Optional[str] = None
+       created_at: datetime
+       updated_at: datetime
 
-       class ConfigDict = {"from_attributes": True}
-
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-   from enum import Enum
-   from datetime import datetime
-   from typing import Optional, List
-
-   class VitalSignType(str, Enum):
-       PA = "PA"
-       FC = "FC"
-       FR = "FR"
-       TEMP = "TEMP"
-       GLICEMIA = "GLICEMIA"
-       SPO2 = "SPO2"
-
-   class UrgencyLevel(str, Enum):
-       LOW = "BAIXO"
-       MEDIUM = "MEDIO"
-       HIGH = "ALTO"
-       CRITICAL = "CRITICO"
+       model_config = {"from_attributes": True}
 
    class VitalSignAlert(BaseModel):
-       tipo_sinal: VitalSignType
-       valor: float
-       limite_inferior: Optional[float] = None
-       limite_superior: Optional[float] = None
-       nivel_urgencia: UrgencyLevel
-       mensagem: str
+       vital_sign_type: str
+       value: Decimal
+       threshold: str
+       severity: str  # "CRITICO", "ALERTA", "NORMAL"
+       message: str
 
-   class VitalSignCreate(BaseModel):
-       paciente_cns: str = Field(..., pattern=r"^\d{15}$")
-       paciente_cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
-       tipo_sinal: VitalSignType
-       valor: float
-       data_hora: datetime = Field(default_factory=datetime.now)
-       ciap2: Optional[str] = Field(None, pattern=r"^[A-Z0-9]{1,4}$")
-       cid10: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}$")
-       nota_soap: Optional[str] = None
+   # Thresholds for decompensation
+   VITAL_SIGN_THRESHOLDS = {
+       "pa_sistolica": {"min": Decimal("90"), "max": Decimal("180"), "crit_min": Decimal("80"), "crit_max": Decimal("200")},
+       "pa_diastolica": {"min": Decimal("60"), "max": Decimal("110"), "crit_min": Decimal("50"), "crit_max": Decimal("120")},
+       "fc": {"min": Decimal("50"), "max": Decimal("120"), "crit_min": Decimal("40"), "crit_max": Decimal("140")},
+       "fr": {"min": Decimal("10"), "max": Decimal("30"), "crit_min": Decimal("8"), "crit_max": Decimal("35")},
+       "temperatura": {"min": Decimal("35.0"), "max": Decimal("39.0"), "crit_min": Decimal("34.0"), "crit_max": Decimal("40.0")},
+       "glicemia": {"min": Decimal("70"), "max": Decimal("300"), "crit_min": Decimal("50"), "crit_max": Decimal("400")},
+       "spo2": {"min": Decimal("90"), "max": Decimal("100"), "crit_min": Decimal("85"), "crit_max": Decimal("100")},
+   }
 
-   class VitalSignResponse(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: int
-       paciente_cns: str
-       paciente_cpf: Optional[str]
-       tipo_sinal: VitalSignType
-       valor: float
-       data_hora: datetime
-       ciap2: Optional[str]
-       cid10: Optional[str]
-       nota_soap: Optional[str]
-       alertas: List[VitalSignAlert] = []
+   class SinaisVitaisRepository:
+       def __init__(self, session: Session):
+           self.session = session
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SAEnum
-   from sqlalchemy.orm import DeclarativeBase
-   import enum
+       def create_vital_sign(self, data: VitalSignCreate) -> VitalSign:
+           now = datetime.utcnow()
+           db_obj = VitalSign(
+               patient_cns=data.patient_cns,
+               patient_cpf=data.patient_cpf,
+               recorded_at=data.recorded_at or now,
+               pa_sistolica=data.pa_sistolica,
+               pa_diastolica=data.pa_diastolica,
+               fc=data.fc,
+               fr=data.fr,
+               temperatura=data.temperatura,
+               glicemia=data.glicemia,
+               spo2=data.spo2,
+               cid10=data.cid10,
+               ciap2=data.ciap2,
+               soap_note=data.soap_note,
+           )
+           self.session.add(db_obj)
+           self.session.flush()
+           return db_obj
 
-   class Base(DeclarativeBase):
-       pass
+       def get_vital_signs_history(
+           self,
+           patient_cns: str,
+           patient_cpf: str,
+           start_date: Optional[datetime] = None,
+           end_date: Optional[datetime] = None,
+           vital_type: Optional[str] = None,
+       ) -> Sequence[VitalSign]:
+           stmt = select(VitalSign).where(
+               VitalSign.patient_cns == patient_cns,
+               VitalSign.patient_cpf == patient_cpf,
+           )
+           if start_date:
+               stmt = stmt.where(VitalSign.recorded_at >= start_date)
+           if end_date:
+               stmt = stmt.where(VitalSign.recorded_at <= end_date)
+           if vital_type:
+               # Filter by specific vital sign type (e.g., 'fc', 'pa_sistolica')
+               stmt = stmt.where(getattr(VitalSign, vital_type) != None)
+           stmt = stmt.order_by(VitalSign.recorded_at.desc())
+           result = self.session.execute(stmt)
+           return result.scalars().all()
 
-   class VitalSignTypeEnum(str, enum.Enum):
-       PA = "PA"
-       FC = "FC"
-       FR = "FR"
-       TEMP = "TEMP"
-       GLICEMIA = "GLICEMIA"
-       SPO2 = "SPO2"
+       def check_decompensation_alerts(self, vital_sign: VitalSign) -> list[VitalSignAlert]:
+           alerts = []
+           for field, thresholds in VITAL_SIGN_THRESHOLDS.items():
+               value = getattr(vital_sign, field)
+               if value is None:
+                   continue
+               severity = "NORMAL"
+               threshold_desc = "dentro da faixa"
+               if value < thresholds["crit_min"] or value > thresholds["crit_max"]:
+                   severity = "CRITICO"
+                   threshold_desc = f"< {thresholds['crit_min']} ou > {thresholds['crit_max']}"
+               elif value < thresholds["min"] or value > thresholds["max"]:
+                   severity = "ALERTA"
+                   threshold_desc = f"< {thresholds['min']} ou > {thresholds['max']}"
 
-   class UrgencyLevelEnum(str, enum.Enum):
-       LOW = "BAIXO"
-       MEDIUM = "MEDIO"
-       HIGH = "ALTO"
-       CRITICAL = "CRITICO"
+               if severity != "NORMAL":
+                   alerts.append(VitalSignAlert(
+                       vital_sign_type=field,
+                       value=value,
+                       threshold=threshold_desc,
+                       severity=severity,
+                       message=f"Sinal vital {field} descompensado: {value} ({threshold_desc}). Severidade: {severity}."
+                   ))
+           return alerts
 
-   class SinalVitalModel(Base):
-       __tablename__ = "sinais_vitais"
-
-       id = Column(Integer, primary_key=True, autoincrement=True)
-       paciente_cns = Column(String(15), nullable=False, index=True)
-       paciente_cpf = Column(String(11), nullable=True)
-       tipo_sinal = Column(SAEnum(VitalSignTypeEnum), nullable=False)
-       valor = Column(Float, nullable=False)
-       data_hora = Column(DateTime, nullable=False, default=datetime.now)
-       ciap2 = Column(String(4), nullable=True)
-       cid10 = Column(String(3), nullable=True)
-       nota_soap = Column(String, nullable=True)
-
-from sqlalchemy import String, Float, DateTime, Enum as SAEnum
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-   from datetime import datetime
-   import enum
-
-   class Base(DeclarativeBase):
-       pass
-
-   class VitalSignTypeEnum(str, enum.Enum):
-       PA = "PA"
-       FC = "FC"
-       FR = "FR"
-       TEMP = "TEMP"
-       GLICEMIA = "GLICEMIA"
-       SPO2 = "SPO2"
-
-   class UrgencyLevelEnum(str, enum.Enum):
-       LOW = "BAIXO"
-       MEDIUM = "MEDIO"
-       HIGH = "ALTO"
-       CRITICAL = "CRITICO"
-
-   class SinalVitalModel(Base):
-       __tablename__ = "sinais_vitais"
-
-       id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-       paciente_cns: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
-       paciente_cpf: Mapped[str | None] = mapped_column(String(11), nullable=True)
-       tipo_sinal: Mapped[VitalSignTypeEnum] = mapped_column(SAEnum(VitalSignTypeEnum), nullable=False)
-       valor: Mapped[float] = mapped_column(Float, nullable=False)
-       data_hora: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now)
-       ciap2: Mapped[str | None] = mapped_column(String(4), nullable=True)
-       cid10: Mapped[str | None] = mapped_column(String(3), nullable=True)
-       nota_soap: Mapped[str | None] = mapped_column(String, nullable=True)
+       def get_alerts_for_patient(
+           self,
+           patient_cns: str,
+           patient_cpf: str,
+           start_date: Optional[datetime] = None,
+           end_date: Optional[datetime] = None,
+       ) -> list[VitalSignAlert]:
+           history = self.get_vital_signs_history(patient_cns, patient_cpf, start_date, end_date)
+           all_alerts = []
+           for sign in history:
+               all_alerts.extend(self.check_decompensation_alerts(sign))
+           return all_alerts

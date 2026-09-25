@@ -4,364 +4,313 @@ Here's a thinking process:
    - **Role:** Software Engineer (Tester)
    - **Task:** Create `backend/app/repositories/offline_cache_repo.py` for a project called "MedIA".
    - **Functionality:** Manage a local queue of pending mutations (outbox pattern), synchronization status (PENDENTE, ENVIADO, CONFLITO), and integrity using SQLAlchemy 2.0.
-   - **Architecture Guidelines:**
+   - **Guidelines:**
      - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
      - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
-     - Full compliance and coverage with automated pytest tests.
-   - **Output Requirement:** Provide complete, executable code. Specify file paths in code blocks.
+     - Full compliance and automated test coverage with pytest.
+     - Provide complete, executable code.
+     - Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
    - **File:** `backend/app/repositories/offline_cache_repo.py`
    - **Core Features:**
-     - Outbox pattern implementation (local queue for pending mutations)
-     - Status management: `PENDENTE`, `ENVIADO`, `CONFLITO`
-     - SQLAlchemy 2.0 ORM models & queries
-     - Pydantic v2 for data validation/serialization
-     - SUS/APS standards integration (CIAP-2, CID-10, SOAP, CNS/CPF)
-     - Type hints (Python 3.12)
-     - Pytest coverage (I'll provide the test file as well, as requested: "cobertura de testes automatizados com pytest")
-   - **Constraints:** Complete, executable, strict typing, specific architecture.
+     - Outbox pattern implementation for offline mutations.
+     - Status management: `PENDENTE`, `ENVIADO`, `CONFLITO`.
+     - Data integrity handling.
+     - SQLAlchemy 2.0 ORM models and queries.
+     - Pydantic v2 for data validation/serialization.
+     - Python 3.12 type hints.
+     - SUS/APS context: CIAP-2, CID-10, SOAP, CNS/CPF. This implies the mutations might relate to patient records, clinical notes, or appointments. I'll design the model to support these fields.
+     - Pytest coverage: Need to provide tests as well, though the prompt specifically asks for the repo file. I should include tests to fulfill "cobertura de testes automatizados com pytest". I'll create a separate test file or include it in the response as requested. The prompt says "Para cada arquivo criado ou modificado...", so I'll provide both the repo and the test file.
 
-3.  **Design the Solution:**
-   - **Database Model (SQLAlchemy 2.0):**
-     - Table: `offline_cache_mutation`
-     - Fields: `id` (UUID), `entity_type` (str), `entity_id` (str), `payload` (JSON), `status` (Enum), `created_at`, `updated_at`, `error_message` (nullable), `sync_attempt_count` (int)
-     - Status Enum: `PENDENTE`, `ENVIADO`, `CONFLITO`
-   - **Pydantic Models:**
-     - `OfflineCacheMutationCreate` (for input)
-     - `OfflineCacheMutationResponse` (for output)
-     - `SyncStatus` (enum)
-   - **Repository Class:**
-     - `OfflineCacheRepository`
-     - Methods:
-       - `add_mutation()`
-       - `get_pending_mutations()`
-       - `mark_as_sent()`
-       - `mark_as_conflict()`
-       - `get_by_id()`
-       - `update_status()`
-       - `cleanup_old_sent()` (optional but good practice)
-     - Use SQLAlchemy 2.0 async/sync? I'll stick to sync for simplicity but note it can be adapted. Actually, modern apps often use async, but I'll provide sync with explicit session management or use a dependency injection pattern. I'll use a standard sync approach with `Session` for clarity, but ensure it's compatible with SQLAlchemy 2.0 syntax.
-   - **SUS/APS Standards Integration:**
-     - Validate CNS/CPF format in payload or as separate fields? I'll add validation for CNS/CPF in the Pydantic model or as a utility.
-     - Support CIAP-2 and CID-10 codes in the payload.
-     - SOAP method structure in payload.
-     - I'll create a Pydantic model that enforces these standards.
-   - **Testing (Pytest):**
-     - Test setup with SQLite in-memory DB
-     - Test each repository method
-     - Test validation (CNS/CPF, CIAP-2, CID-10, SOAP)
-     - Test status transitions
-     - Ensure coverage
+3.  **Design the SQLAlchemy Model:**
+   - Table: `offline_cache_mutation`
+   - Fields:
+     - `id`: UUID or Integer (PK)
+     - `mutation_type`: Enum (CREATE, UPDATE, DELETE)
+     - `entity_type`: Enum (PATIENT, APPOINTMENT, CLINICAL_NOTE, etc.)
+     - `entity_id`: String/UUID (FK reference)
+     - `payload`: JSON (Pydantic model or dict)
+     - `status`: Enum (PENDENTE, ENVIADO, CONFLITO)
+     - `error_message`: Optional String
+     - `created_at`: DateTime
+     - `updated_at`: DateTime
+     - `synced_at`: Optional DateTime
+   - SUS/APS specific fields might be embedded in `payload`, but I can add specific columns for CNS/CPF, CID-10, CIAP-2, SOAP if needed. However, keeping it generic with JSON payload is better for an outbox pattern. I'll add specific columns for quick indexing/filtering if needed, or just rely on payload. Let's stick to a generic outbox model but include SUS/APS context in the Pydantic schemas and comments.
 
-4.  **Draft - Code Structure:**
+   Actually, the prompt says "Padrões do SUS / APS (CIAP-2, CID-10, método SOAP, identificação por CNS/CPF)". This likely means the mutations should support these fields. I'll add them as optional columns or ensure the Pydantic schema supports them.
 
-   *File 1: `backend/app/repositories/offline_cache_repo.py`*
-   - Imports: SQLAlchemy 2.0, Pydantic v2, Enums, UUID, datetime, JSON, typing
-   - Models: `OfflineCacheMutation` (SQLAlchemy), `MutationPayload` (Pydantic with SUS/APS validation)
-   - Repository: `OfflineCacheRepository`
-   - Helper: CNS/CPF validation, CIAP-2/CID-10 format checks
+   Let's design the model with explicit columns for clarity and performance:
+   - `id`: UUID
+   - `mutation_type`: String
+   - `target_entity`: String
+   - `target_id`: String
+   - `patient_cns`: Optional[str]
+   - `patient_cpf`: Optional[str]
+   - `cid10_codes`: JSON (list)
+   - `ciap2_codes`: JSON (list)
+   - `soap_method`: JSON (dict)
+   - `payload`: JSON
+   - `status`: String (Enum)
+   - `error_message`: Optional[str]
+   - `created_at`: DateTime
+   - `updated_at`: DateTime
+   - `synced_at`: Optional[DateTime]
 
-   *File 2: `backend/app/repositories/test_offline_cache_repo.py`*
-   - Pytest fixtures (DB session)
-   - Test cases for all repo methods
-   - Validation tests
-   - Status transition tests
+   Wait, SQLAlchemy 2.0 uses `Mapped` and `mapped_column`. I'll use that.
+   Enums: `MutationStatus` (PENDENTE, ENVIADO, CONFLITO), `MutationType` (CREATE, UPDATE, DELETE).
 
-5.  **Refine - Implementation Details (Mental Walkthrough):**
+4.  **Design Pydantic Schemas:**
+   - `OfflineCacheMutationCreate`
+   - `OfflineCacheMutationUpdate`
+   - `OfflineCacheMutationRead`
+   - All with Pydantic v2 features (`model_config`, `Field`, `ConfigDict`, `computed_field`, etc.)
 
-   *SQLAlchemy Model:*
+5.  **Design Repository Class:**
+   - `OfflineCacheRepository`
+   - Methods:
+     - `__init__(self, session: AsyncSession)`
+     - `add_mutation(self, mutation: OfflineCacheMutationCreate) -> OfflineCacheMutationRead`
+     - `get_pending_mutations(self, limit: int = 100) -> list[OfflineCacheMutationRead]`
+     - `mark_as_sent(self, mutation_id: UUID) -> bool`
+     - `mark_as_conflict(self, mutation_id: UUID, error: str) -> bool`
+     - `get_by_status(self, status: MutationStatus) -> list[OfflineCacheMutationRead]`
+     - `get_integrity_report(self) -> dict` (for integrity checks)
+     - `clear_synced_mutations(self, before_date: datetime) -> int`
+   - Use SQLAlchemy 2.0 async queries (`select`, `insert`, `update`, `delete`).
+   - Handle transactions properly.
+
+6.  **Incorporate SUS/APS Context:**
+   - Add validation in Pydantic schemas for CNS/CPF format.
+   - Add validation for CID-10/CIAP-2 codes.
+   - Add comments explaining compliance.
+   - Use `pydantic` validators (`@field_validator`).
+
+7.  **Draft the Code (Mental Refinement):**
+   *Imports:* `uuid`, `datetime`, `enum`, `typing`, `sqlalchemy`, `pydantic`, `pydantic.functional_validators`, `pydantic.functional_serializers`, `sqlalchemy.orm`, `sqlalchemy.ext.asyncio`, `sqlalchemy.dialects.postgresql`, etc.
+   *Enums:* `MutationStatus`, `MutationType`
+   *Pydantic Models:* `OfflineCacheMutationPayload`, `OfflineCacheMutationCreate`, `OfflineCacheMutationRead`
+   *SQLAlchemy Model:* `OfflineCacheMutation`
+   *Repository:* `OfflineCacheRepository`
+
+   Let's write it out carefully.
+
+   *Self-Correction/Verification during drafting:*
+   - SQLAlchemy 2.0 requires `Mapped` and `mapped_column`. I'll use `sqlalchemy.orm.Mapped` and `sqlalchemy.orm.mapped_column`.
+   - Pydantic v2 uses `model_config = ConfigDict(from_attributes=True)` for ORM mode.
+   - CNS/CPF validation: CNS is 15 digits, CPF is 11 digits. I'll add regex validators.
+   - CID-10/CIAP-2: Usually alphanumeric. I'll keep it flexible but add type hints.
+   - Outbox pattern: The repo should handle adding to the queue, retrieving pending, and updating status. It should be async.
+   - Integrity: Check for orphaned records, status consistency, or payload schema validation. I'll add a method to verify integrity.
+   - Tests: I'll provide a comprehensive pytest file.
+
+   Structure:
    ```python
-   from sqlalchemy import Column, String, Integer, DateTime, JSON, Enum, ForeignKey
-   from sqlalchemy.orm import DeclarativeBase
-   from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+   # Arquivo: backend/app/repositories/offline_cache_repo.py
+   ... code ...
+   ```
+   ```python
+   # Arquivo: backend/tests/test_offline_cache_repo.py
+   ... code ...
+   ```
+
+   Let's draft the repository file carefully.
+
+   *Key SQLAlchemy 2.0 patterns:*
+   ```python
+   from sqlalchemy import select, update, delete, func
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
    import uuid
    from datetime import datetime
-   from enum import Enum as PyEnum
+   from enum import Enum
+   from pydantic import BaseModel, Field, ConfigDict, field_validator
+   from typing import Optional, List, Dict, Any
+   ```
 
+   *Model:*
+   ```python
    class Base(DeclarativeBase):
        pass
 
-   class SyncStatus(PyEnum):
+   class MutationStatus(str, Enum):
        PENDENTE = "PENDENTE"
        ENVIADO = "ENVIADO"
        CONFLITO = "CONFLITO"
 
-   class OfflineCacheMutation(Base):
-       __tablename__ = "offline_cache_mutation"
-       id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-       entity_type = Column(String, nullable=False)
-       entity_id = Column(String, nullable=False)
-       payload = Column(JSON, nullable=False)
-       status = Column(Enum(SyncStatus, name="sync_status_enum"), nullable=False, default=SyncStatus.PENDENTE)
-       created_at = Column(DateTime, default=datetime.utcnow)
-       updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-       error_message = Column(String, nullable=True)
-       sync_attempt_count = Column(Integer, default=0)
-   ```
-   *Wait*, SQLAlchemy 2.0 prefers `sa.Enum` or `sqlalchemy.Enum`. I'll use `sqlalchemy.Enum`. Also, `PG_UUID` is fine, but I'll use `sa.Uuid` for SQLAlchemy 2.0 compatibility. Actually, `sa.Uuid` is available in 2.0. I'll stick to `sa.String` for UUID to avoid dialect issues, or use `sa.Uuid`. Let's use `sa.String` for simplicity and cross-dialect compatibility, or `sa.Uuid` with `uuid.UUID`. I'll use `sa.String` for UUID to keep it simple and robust.
-
-   *Pydantic Models:*
-   Need to enforce SUS/APS standards. I'll create a `MutationPayload` model that validates:
-   - `cns` or `cpf` (with regex/validation)
-   - `cid10_codes` (list of strings matching CID-10 pattern)
-   - `ciap2_codes` (list of strings matching CIAP-2 pattern)
-   - `soap_method` (dict with S, O, A, D)
-   I'll add custom validators.
-
-   *Repository:*
-   ```python
-   class OfflineCacheRepository:
-       def __init__(self, session):
-           self.session = session
-
-       def add_mutation(self, entity_type: str, entity_id: str, payload: dict) -> OfflineCacheMutation:
-           ...
-       def get_pending_mutations(self, limit: int = 100) -> list[OfflineCacheMutation]:
-           ...
-       def mark_as_sent(self, mutation_id: uuid.UUID) -> None:
-           ...
-       def mark_as_conflict(self, mutation_id: uuid.UUID, error: str) -> None:
-           ...
-       ...
-   ```
-
-   *SUS/APS Validation:*
-   CNS: 15 digits, starts with 7, 8, or 9. CPF: 11 digits, validation algorithm.
-   CID-10: 1-2 letters + 1-3 digits (e.g., A00, J18.9)
-   CIAP-2: 1 letter + 1-2 digits (e.g., A0, B12)
-   SOAP: S, O, A, D keys present.
-   I'll implement regex validators in Pydantic.
-
-   *Testing:*
-   Use `pytest`, `sqlalchemy`, `pytest-asyncio` (if async, but I'll stick to sync for simplicity unless specified). I'll use sync SQLAlchemy with `sessionmaker`.
-   Fixtures: `db_engine`, `db_session`, `repo`.
-   Tests: CRUD, status transitions, validation, conflict handling.
-
-6.  **Write Code (Mental to Text):**
-
-   I'll structure the response carefully.
-   First, `backend/app/repositories/offline_cache_repo.py`
-   Then, `backend/app/repositories/test_offline_cache_repo.py`
-
-   Let's draft the repository file carefully with SQLAlchemy 2.0 syntax:
-   ```python
-   from __future__ import annotations
-   import uuid
-   from datetime import datetime
-   from enum import Enum as PyEnum
-   from typing import Any, Optional
-
-   from pydantic import BaseModel, Field, field_validator, ConfigDict
-   from sqlalchemy import (
-       Column, String, Integer, DateTime, JSON, Enum as SAEnum,
-       create_engine, select, update, delete
-   )
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
-   import re
-
-   # --- SQLAlchemy 2.0 Model ---
-   class Base(DeclarativeBase):
-       pass
-
-   class SyncStatus(PyEnum):
-       PENDENTE = "PENDENTE"
-       ENVIADO = "ENVIADO"
-       CONFLITO = "CONFLITO"
+   class MutationType(str, Enum):
+       CREATE = "CREATE"
+       UPDATE = "UPDATE"
+       DELETE = "DELETE"
 
    class OfflineCacheMutation(Base):
        __tablename__ = "offline_cache_mutation"
 
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
-       entity_id: Mapped[str] = mapped_column(String(100), nullable=False)
-       payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-       status: Mapped[SyncStatus] = mapped_column(SAEnum(SyncStatus, name="sync_status_enum"), default=SyncStatus.PENDENTE, nullable=False)
-       created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-       error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-       sync_attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+       mutation_type: Mapped[MutationType] = mapped_column()
+       entity_type: Mapped[str] = mapped_column() # e.g., "CLINICAL_NOTE", "APPOINTMENT"
+       entity_id: Mapped[str] = mapped_column()
+       patient_cns: Mapped[Optional[str]] = mapped_column(index=True)
+       patient_cpf: Mapped[Optional[str]] = mapped_column(index=True)
+       cid10_codes: Mapped[Optional[List[str]]] = mapped_column(server_default="[]")
+       ciap2_codes: Mapped[Optional[List[str]]] = mapped_column(server_default="[]")
+       soap_method: Mapped[Optional[Dict[str, Any]]] = mapped_column(server_default="{}")
+       payload: Mapped[Dict[str, Any]] = mapped_column()
+       status: Mapped[MutationStatus] = mapped_column(default=MutationStatus.PENDENTE)
+       error_message: Mapped[Optional[str]] = mapped_column()
+       created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, server_default=func.now(), onupdate=datetime.utcnow)
+       synced_at: Mapped[Optional[datetime]] = mapped_column()
+   ```
+   Wait, `server_default` for JSON in PostgreSQL is usually `'{}'::json` or `'[]'::json`. I'll use `default` and `server_default` carefully, or just rely on Pydantic defaults and let SQLAlchemy handle it. Actually, for async, `default` is fine. I'll use `default_factory` or just `default`.
 
-   # --- Pydantic Models (SUS/APS Standards) ---
-   class MutationPayload(BaseModel):
-       model_config = ConfigDict(extra="forbid")
+   *Pydantic Schemas:*
+   ```python
+   class OfflineCacheMutationPayload(BaseModel):
+       model_config = ConfigDict(from_attributes=True)
+       id: uuid.UUID
+       mutation_type: MutationType
+       entity_type: str
+       entity_id: str
+       patient_cns: Optional[str] = None
+       patient_cpf: Optional[str] = None
+       cid10_codes: List[str] = Field(default_factory=list)
+       ciap2_codes: List[str] = Field(default_factory=list)
+       soap_method: Optional[Dict[str, Any]] = None
+       payload: Dict[str, Any]
+       status: MutationStatus
+       error_message: Optional[str] = None
+       created_at: datetime
+       updated_at: datetime
+       synced_at: Optional[datetime] = None
 
-       cns: Optional[str] = Field(None, pattern=r"^[789]\d{14}$")
-       cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
-       cid10_codes: list[str] = Field(default_factory=list, min_length=0)
-       ciap2_codes: list[str] = Field(default_factory=list, min_length=0)
-       soap_method: dict[str, str] = Field(default_factory=dict)
-
-       @field_validator("cpf")
+       @field_validator('patient_cns')
        @classmethod
-       def validate_cpf(cls, v: Optional[str]) -> Optional[str]:
-           if v is None:
-               return v
-           # CPF validation algorithm
-           if not re.match(r"^\d{11}$", v):
-               raise ValueError("CPF deve ter 11 dígitos numéricos")
-           # Simplified validation for demo (full algorithm omitted for brevity but structure is here)
+       def validate_cns(cls, v):
+           if v and not v.isdigit() or len(v) != 15:
+               raise ValueError('CNS deve ter 15 dígitos numéricos')
            return v
 
-       @field_validator("cid10_codes")
+       @field_validator('patient_cpf')
        @classmethod
-       def validate_cid10(cls, v: list[str]) -> list[str]:
-           pattern = re.compile(r"^[A-Z]\d{1,3}(\.\d{1,2})?$")
-           for code in v:
-               if not pattern.match(code):
-                   raise ValueError(f"CID-10 inválido: {code}")
+       def validate_cpf(cls, v):
+           if v and not v.isdigit() or len(v) != 11:
+               raise ValueError('CPF deve ter 11 dígitos numéricos')
            return v
+   ```
+   Actually, CPF validation is more complex (check digits), but for simplicity in this context, I'll keep it basic or use a regex. I'll stick to basic length/digit check for brevity, but note it. I'll add a proper CPF validator if needed, but it's fine.
 
-       @field_validator("ciap2_codes")
-       @classmethod
-       def validate_ciap2(cls, v: list[str]) -> list[str]:
-           pattern = re.compile(r"^[A-Z]\d{1,2}$")
-           for code in v:
-               if not pattern.match(code):
-                   raise ValueError(f"CIAP-2 inválido: {code}")
-           return v
-
-       @field_validator("soap_method")
-       @classmethod
-       def validate_soap(cls, v: dict[str, str]) -> dict[str, str]:
-           required_keys = {"S", "O", "A", "D"}
-           if not required_keys.issubset(v.keys()):
-               raise ValueError("SOAP method deve conter as chaves S, O, A, D")
-           return v
-
-   # --- Repository ---
+   *Repository:*
+   ```python
    class OfflineCacheRepository:
-       def __init__(self, session: Session):
+       def __init__(self, session: AsyncSession):
            self.session = session
 
-       def add_mutation(self, entity_type: str, entity_id: str, payload: MutationPayload) -> OfflineCacheMutation:
-           mutation = OfflineCacheMutation(
-               entity_type=entity_type,
-               entity_id=entity_id,
-               payload=payload.model_dump(),
-               status=SyncStatus.PENDENTE
-           )
-           self.session.add(mutation)
-           self.session.flush()
-           return mutation
+       async def add_mutation(self, mutation: OfflineCacheMutationPayload) -> OfflineCacheMutationPayload:
+           db_mutation = OfflineCacheMutation(**mutation.model_dump())
+           self.session.add(db_mutation)
+           await self.session.flush()
+           await self.session.refresh(db_mutation)
+           return OfflineCacheMutationPayload.model_validate(db_mutation)
 
-       def get_pending_mutations(self, limit: int = 100) -> list[OfflineCacheMutation]:
+       async def get_pending_mutations(self, limit: int = 100) -> List[OfflineCacheMutationPayload]:
            stmt = select(OfflineCacheMutation).where(
-               OfflineCacheMutation.status == SyncStatus.PENDENTE
+               OfflineCacheMutation.status == MutationStatus.PENDENTE
            ).order_by(OfflineCacheMutation.created_at.asc()).limit(limit)
-           return list(self.session.scalars(stmt).all())
+           result = await self.session.execute(stmt)
+           return [OfflineCacheMutationPayload.model_validate(row) for row in result.scalars().all()]
 
-       def mark_as_sent(self, mutation_id: uuid.UUID) -> None:
-           stmt = (
-               update(OfflineCacheMutation)
-               .where(OfflineCacheMutation.id == mutation_id)
-               .values(status=SyncStatus.ENVIADO, updated_at=datetime.utcnow())
+       async def mark_as_sent(self, mutation_id: uuid.UUID) -> bool:
+           stmt = update(OfflineCacheMutation).where(
+               OfflineCacheMutation.id == mutation_id,
+               OfflineCacheMutation.status == MutationStatus.PENDENTE
+           ).values(
+               status=MutationStatus.ENVIADO,
+               synced_at=datetime.utcnow()
+           ).returning(OfflineCacheMutation.id)
+           result = await self.session.execute(stmt)
+           return result.scalar_one() is not None
+
+       async def mark_as_conflict(self, mutation_id: uuid.UUID, error: str) -> bool:
+           stmt = update(OfflineCacheMutation).where(
+               OfflineCacheMutation.id == mutation_id,
+               OfflineCacheMutation.status == MutationStatus.PENDENTE
+           ).values(
+               status=MutationStatus.CONFLITO,
+               error_message=error
+           ).returning(OfflineCacheMutation.id)
+           result = await self.session.execute(stmt)
+           return result.scalar_one() is not None
+
+       async def get_integrity_report(self) -> Dict[str, Any]:
+           # Integrity checks: orphaned records, status consistency, payload schema
+           stmt = select(
+               func.count(OfflineCacheMutation.id).label('total'),
+               func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.PENDENTE).label('pending'),
+               func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.ENVIADO).label('sent'),
+               func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.CONFLITO).label('conflict'),
+               func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.payload.is_(None)).label('invalid_payload'),
+               func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.patient_cns.is_(None) & OfflineCacheMutation.patient_cpf.is_(None)).label('missing_patient_id')
            )
-           self.session.execute(stmt)
-           self.session.flush()
-
-       def mark_as_conflict(self, mutation_id: uuid.UUID, error_message: str) -> None:
-           stmt = (
-               update(OfflineCacheMutation)
-               .where(OfflineCacheMutation.id == mutation_id)
-               .values(
-                   status=SyncStatus.CONFLITO,
-                   error_message=error_message,
-                   sync_attempt_count=OfflineCacheMutation.sync_attempt_count + 1,
-                   updated_at=datetime.utcnow()
-               )
-           )
-           self.session.execute(stmt)
-           self.session.flush()
-
-       def get_by_id(self, mutation_id: uuid.UUID) -> Optional[OfflineCacheMutation]:
-           return self.session.get(OfflineCacheMutation, mutation_id)
-
-       def cleanup_sent_mutations(self, older_than_days: int = 30) -> int:
-           cutoff = datetime.utcnow().days - older_than_days # Wait, datetime subtraction
-           # Better:
-           from datetime import timedelta
-           cutoff = datetime.utcnow() - timedelta(days=older_than_days)
-           stmt = delete(OfflineCacheMutation).where(
-               OfflineCacheMutation.status == SyncStatus.ENVIADO,
-               OfflineCacheMutation.updated_at < cutoff
-           )
-           result = self.session.execute(stmt)
-           self.session.flush()
-           return result.rowcount
+           result = await self.session.execute(stmt)
+           row = result.one()
+           return {
+               "total": row.total,
+               "pending": row.pending,
+               "sent": row.sent,
+               "conflict": row.conflict,
+               "invalid_payload": row.invalid_payload,
+               "missing_patient_id": row.missing_patient_id,
+               "integrity_ok": row.invalid_payload == 0 and row.missing_patient_id == 0
+           }
    ```
-   *Self-Correction/Refinement during drafting:*
-   - `datetime.utcnow()` is deprecated in Python 3.12+. I should use `datetime.now(datetime.timezone.utc)` or `datetime.now(tz=timezone.utc)`.
-   - `mapped_column` syntax is correct for SQLAlchemy 2.0.
-   - Pydantic v2 uses `field_validator` correctly.
-   - I'll fix the datetime issue.
-   - I'll add proper imports.
-   - I'll ensure the repository handles transactions properly (caller usually manages commit/rollback, but I'll note it).
-   - I'll make sure the code is complete and runnable.
+   Wait, `func.count(...).filter(...)` syntax in SQLAlchemy 2.0 is `func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == ...)`. Actually, it's `func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.PENDENTE)`. That's correct.
+   Also, `payload.is_(None)` might not work as expected for JSON. I'll use `OfflineCacheMutation.payload == {}` or just skip that check. I'll simplify integrity report to focus on status and required fields.
 
-   Let's fix the datetime:
+   Let's refine the integrity report to be more robust and SQLAlchemy 2.0 compliant:
    ```python
-   from datetime import datetime, timedelta, timezone
-   # ...
-   now = datetime.now(timezone.utc)
-   # ...
+   async def get_integrity_report(self) -> Dict[str, Any]:
+       stmt = select(
+           func.count(OfflineCacheMutation.id).label('total'),
+           func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.PENDENTE).label('pending'),
+           func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.ENVIADO).label('sent'),
+           func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.status == MutationStatus.CONFLITO).label('conflict'),
+           func.count(OfflineCacheMutation.id).filter(OfflineCacheMutation.payload == {}).label('empty_payload'),
+           func.count(OfflineCacheMutation.id).filter(
+               (OfflineCacheMutation.patient_cns == None) & (OfflineCacheMutation.patient_cpf == None)
+           ).label('missing_patient_id')
+       )
+       result = await self.session.execute(stmt)
+       row = result.one()
+       return {
+           "total": row.total,
+           "pending": row.pending,
+           "sent": row.sent,
+           "conflict": row.conflict,
+           "empty_payload": row.empty_payload,
+           "missing_patient_id": row.missing_patient_id,
+           "integrity_ok": row.empty_payload == 0 and row.missing_patient_id == 0
+       }
    ```
+   Actually, `payload == {}` might not index well. I'll just check `payload IS NULL` or skip. I'll keep it simple.
 
-   Now, the test file. I'll write comprehensive pytest tests.
-   Structure:
-   - `conftest.py` or inline fixtures
-   - Test DB setup (SQLite in-memory)
-   - Test cases for each method
-   - Validation tests
-   - Status transition tests
-   - Coverage requirements (I'll aim for >90% by testing edge cases)
+   Now, I need to ensure strict typing and Python 3.12 compatibility. I'll add `from __future__ import annotations` and use `typing` properly.
 
-   *Test File Draft:*
+   Let's also add a method to clear synced mutations for cleanup (common in outbox patterns).
    ```python
-   import pytest
-   import uuid
-   from datetime import datetime, timedelta, timezone
-   from sqlalchemy import create_engine
-   from sqlalchemy.orm import sessionmaker
-
-   from backend.app.repositories.offline_cache_repo import (
-       Base, SyncStatus, OfflineCacheMutation, OfflineCacheRepository, MutationPayload
-   )
-
-   @pytest.fixture
-   def engine():
-       return create_engine("sqlite:///:memory:")
-
-   @pytest.fixture
-   def session_factory(engine):
-       Base.metadata.create_all(engine)
-       return sessionmaker(bind=engine, expire_on_commit=False)
-
-   @pytest.fixture
-   def repo(session_factory):
-       with session_factory() as session:
-           yield OfflineCacheRepository(session)
-           session.rollback() # Clean up after each test
-
-   # Tests...
+   async def clear_synced_mutations(self, before_date: datetime) -> int:
+       stmt = delete(OfflineCacheMutation).where(
+           OfflineCacheMutation.status == MutationStatus.ENVIADO,
+           OfflineCacheMutation.synced_at < before_date
+       )
+       result = await self.session.execute(stmt)
+       await self.session.flush()
+       return result.rowcount
    ```
-   I'll flesh out the tests carefully.
 
-   *Key Test Cases:*
-   1. `test_add_mutation_creates_pending_record`
-   2. `test_get_pending_mutations_returns_only_pending`
-   3. `test_mark_as_sent_updates_status`
-   4. `test_mark_as_conflict_updates_status_and_error`
-   5. `test_cleanup_sent_mutations_removes_old_records`
-   6. `test_mutation_payload_validates_cpf`
-   7. `test_mutation_payload_validates_cid10`
-   8. `test_mutation_payload_validates_ciap2`
-   9. `test_mutation_payload_validates_soap`
-   10. `test_mutation_payload_validates_cns`
-   11. `test_status_transitions`
-   12. `test_get_by_id`
+   Now, the Pydantic schema needs to handle the `from_attributes` correctly. I'll use `model_validate` properly.
 
-   I'll write them out properly with assertions.
+   Let's assemble the full repository file.
 
-   *Check SUS/APS Standards:*
-   - CNS: 15 digits, starts with 7/8/9. Regex:
+   *Self-Correction/Refinement during thought:*
+   - SQLAlchemy 2.0 `func.now()` vs `datetime.utcnow

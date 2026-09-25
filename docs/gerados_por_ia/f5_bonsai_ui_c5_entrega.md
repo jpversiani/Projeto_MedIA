@@ -1,29 +1,26 @@
-# Interface de Sincronização e Conectividade ACS (C5)
-
-## Arquivo: `backend/app/static/sync_status.html`
-
-```html
+```python
+# Arquivo: backend/app/static/sync_status.html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sincronização ACS - Atenção Domicilar</title>
+    <title>Sincronização ACS (C5) - Atenção Domicilar</title>
     <style>
         :root {
             --color-primary: #0056b3;
             --color-primary-dark: #003d80;
-            --color-success: #28a745;
-            --color-warning: #ffc107;
-            --color-danger: #dc3545;
-            --color-info: #17a2b8;
-            --color-bg: #f8f9fa;
+            --color-success: #2e7d32;
+            --color-warning: #f57c00;
+            --color-error: #c62828;
+            --color-info: #1976d2;
+            --color-bg: #f5f5f5;
             --color-card: #ffffff;
-            --color-text: #333;
-            --color-text-light: #666;
-            --color-border: #dee2e6;
-            --color-accent: #0d6efd;
-            --radius: 12px;
+            --color-text: #212121;
+            --color-text-light: #757575;
+            --color-border: #e0e0e0;
+            --color-accent: #42a5f5;
+            --radius: 8px;
             --shadow: 0 2px 8px rgba(0,0,0,0.1);
             --shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
         }
@@ -35,25 +32,24 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--color-bg);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            background-color: var(--color-bg);
             color: var(--color-text);
+            line-height: 1.6;
             min-height: 100vh;
-            padding: 20px;
         }
 
         .header {
             background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
             color: white;
-            padding: 24px 32px;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            margin-bottom: 24px;
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header h1 {
@@ -68,263 +64,361 @@
             font-size: 1.8rem;
         }
 
-        .header .status-indicator {
+        .header .meta {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            gap: 20px;
             font-size: 0.9rem;
+        }
+
+        .header .meta span {
             background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
+            padding: 4px 12px;
             border-radius: 20px;
+            font-weight: 500;
         }
 
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--color-success);
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.warning {
-            background: var(--color-warning);
-            animation: pulse 1.5s infinite;
-        }
-
-        .status-dot.error {
-            background: var(--color-danger);
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 30px;
         }
 
         .controls {
             display: flex;
-            gap: 12px;
-            margin-top: 16px;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
             flex-wrap: wrap;
+            gap: 12px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 10px 24px;
             border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
             font-weight: 500;
-            transition: all 0.2s;
-            display: flex;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            font-family: inherit;
         }
 
         .btn-primary {
-            background: var(--color-accent);
+            background: var(--color-primary);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #0b5ed7;
+            background: var(--color-primary-dark);
             transform: translateY(-1px);
             box-shadow: var(--shadow-hover);
         }
 
-        .btn-secondary {
-            background: var(--color-border);
-            color: var(--color-text);
-        }
-
-        .btn-secondary:hover {
-            background: #ced4da;
-        }
-
-        .btn-danger {
-            background: var(--color-danger);
+        .btn-success {
+            background: var(--color-success);
             color: white;
         }
 
-        .btn-danger:hover {
-            background: #c82333;
+        .btn-success:hover {
+            background: #1b5e20;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-warning {
+            background: var(--color-warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e65100;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-error {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .btn-error:hover {
+            background: #b71c1c;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--color-border);
+            color: var(--color-text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.8rem;
+            padding: 6px 16px;
+            font-size: 0.85rem;
         }
 
-        .grid {
+        .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
-        .card {
+        .status-card {
             background: var(--color-card);
             border-radius: var(--radius);
-            box-shadow: var(--shadow);
             padding: 20px;
-            transition: all 0.2s;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--color-primary);
         }
 
-        .card:hover {
-            box-shadow: var(--shadow-hover);
+        .status-card:hover {
             transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
         }
 
-        .card-header {
+        .status-card.success {
+            border-left-color: var(--color-success);
+        }
+
+        .status-card.warning {
+            border-left-color: var(--color-warning);
+        }
+
+        .status-card.error {
+            border-left-color: var(--color-error);
+        }
+
+        .status-card.info {
+            border-left-color: var(--color-info);
+        }
+
+        .status-card .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
-        .card-title {
-            font-size: 1rem;
+        .status-card .card-title {
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--color-text);
         }
 
-        .card-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+        .status-card .card-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .badge-connected {
-            background: #d4edda;
+        .status-card.success .card-status {
+            background: rgba(46, 125, 50, 0.1);
             color: var(--color-success);
         }
 
-        .badge-disconnected {
-            background: #f8d7da;
-            color: var(--color-danger);
-        }
-
-        .badge-syncing {
-            background: #fff3cd;
+        .status-card.warning .card-status {
+            background: rgba(245, 124, 0, 0.1);
             color: var(--color-warning);
         }
 
-        .badge-error {
-            background: #f8d7da;
-            color: var(--color-danger);
+        .status-card.error .card-status {
+            background: rgba(198, 40, 40, 0.1);
+            color: var(--color-error);
         }
 
-        .badge-processing {
-            background: #d1ecf1;
+        .status-card.info .card-status {
+            background: rgba(25, 118, 210, 0.1);
             color: var(--color-info);
         }
 
-        .badge-completed {
-            background: #d4edda;
-            color: var(--color-success);
+        .status-card .card-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .badge-pending {
-            background: #e2e3e5;
-            color: var(--color-text-light);
-        }
-
-        .badge-failed {
-            background: #f8d7da;
-            color: var(--color-danger);
-        }
-
-        .metric-row {
+        .status-card .stat-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--color-border);
+            flex-direction: column;
+            gap: 4px;
         }
 
-        .metric-row:last-child {
-            border-bottom: none;
-        }
-
-        .metric-label {
-            font-size: 0.85rem;
+        .status-card .stat-label {
+            font-size: 0.8rem;
             color: var(--color-text-light);
-        }
-
-        .metric-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .metric-value.success {
-            color: var(--color-success);
-        }
-
-        .metric-value.warning {
-            color: var(--color-warning);
-        }
-
-        .metric-value.error {
-            color: var(--color-danger);
-        }
-
-        .metric-value.info {
-            color: var(--color-info);
-        }
-
-        .progress-container {
-            margin-top: 16px;
-        }
-
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .progress-label {
-            font-size: 0.85rem;
             font-weight: 500;
         }
 
-        .progress-percent {
+        .status-card .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-card .stat-value.success {
+            color: var(--color-success);
+        }
+
+        .status-card .stat-value.warning {
+            color: var(--color-warning);
+        }
+
+        .status-card .stat-value.error {
+            color: var(--color-error);
+        }
+
+        .status-card .stat-value.info {
+            color: var(--color-info);
+        }
+
+        .progress-section {
+            background: var(--color-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .progress-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-section h2 .badge {
+            background: var(--color-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .batch-progress {
+            margin-bottom: 16px;
+        }
+
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .batch-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .batch-info .batch-id {
+            background: var(--color-bg);
+            padding: 4px 10px;
+            border-radius: 4px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: var(--color-primary);
+            color: var(--color-text);
+        }
+
+        .batch-info .batch-type {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+        }
+
+        .batch-info .batch-date {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 24px;
+            background: var(--color-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
         }
 
         .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--color-border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
             height: 100%;
-            border-radius: 4px;
+            border-radius: 12px;
             transition: width 0.5s ease;
+            position: relative;
         }
 
-        .progress-fill.success {
-            background: var(--color-success);
+        .progress-bar.active {
+            background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         }
 
-        .progress-fill.warning {
-            background: var(--color-warning);
+        .progress-bar.completed {
+            background: linear-gradient(90deg, var(--color-success), #4caf50);
         }
 
-        .progress-fill.error {
-            background: var(--color-danger);
+        .progress-bar.error {
+            background: linear-gradient(90deg, var(--color-error), #e53935);
         }
 
-        .progress-fill.info {
-            background: var(--color-info);
+        .progress-bar.warning {
+            background: linear-gradient(90deg, var(--color-warning), #ff9800);
+        }
+
+        .progress-bar .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .progress-bar.completed .progress-text {
+            color: white;
+        }
+
+        .progress-bar.error .progress-text {
+            color: white;
+        }
+
+        .progress-bar.warning .progress-text {
+            color: white;
+        }
+
+        .progress-bar .bar-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+        }
+
+        .batch-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .batch-item {
@@ -332,32 +426,16 @@
             align-items: center;
             gap: 12px;
             padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            transition: background 0.2s;
+            background: var(--color-bg);
+            border-radius: var(--radius);
+            transition: all 0.3s ease;
         }
 
         .batch-item:hover {
-            background: var(--color-bg);
+            background: #f0f0f0;
         }
 
-        .batch-item.completed {
-            background: #d4edda;
-        }
-
-        .batch-item.failed {
-            background: #f8d7da;
-        }
-
-        .batch-item.syncing {
-            background: #fff3cd;
-        }
-
-        .batch-item.pending {
-            background: #e2e3e5;
-        }
-
-        .batch-icon {
+        .batch-item .batch-icon {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -368,174 +446,53 @@
             flex-shrink: 0;
         }
 
-        .batch-icon.success {
-            background: #d4edda;
+        .batch-item .batch-icon.success {
+            background: rgba(46, 125, 50, 0.1);
             color: var(--color-success);
         }
 
-        .batch-icon.failed {
-            background: #f8d7da;
-            color: var(--color-danger);
-        }
-
-        .batch-icon.syncing {
-            background: #fff3cd;
+        .batch-item .batch-icon.warning {
+            background: rgba(245, 124, 0, 0.1);
             color: var(--color-warning);
         }
 
-        .batch-icon.pending {
-            background: #e2e3e5;
-            color: var(--color-text-light);
+        .batch-item .batch-icon.error {
+            background: rgba(198, 40, 40, 0.1);
+            color: var(--color-error);
         }
 
-        .batch-info {
-            flex: 1;
-        }
-
-        .batch-name {
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 2px;
-        }
-
-        .batch-detail {
-            font-size: 0.8rem;
-            color: var(--color-text-light);
-        }
-
-        .batch-status {
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 12px;
-            white-space: nowrap;
-        }
-
-        .batch-status.success {
-            background: #d4edda;
-            color: var(--color-success);
-        }
-
-        .batch-status.failed {
-            background: #f8d7da;
-            color: var(--color-danger);
-        }
-
-        .batch-status.syncing {
-            background: #fff3cd;
-            color: var(--color-warning);
-        }
-
-        .batch-status.pending {
-            background: #e2e3e5;
-            color: var(--color-text-light);
-        }
-
-        .batch-status.completed {
-            background: #d4edda;
-            color: var(--color-success);
-        }
-
-        .log-section {
-            margin-top: 24px;
-        }
-
-        .log-section h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .log-entry {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
-            line-height: 1.5;
-            border-left: 4px solid;
-        }
-
-        .log-entry.success {
-            background: #d4edda;
-            border-color: var(--color-success);
-        }
-
-        .log-entry.failed {
-            background: #f8d7da;
-            border-color: var(--color-danger);
-        }
-
-        .log-entry.warning {
-            background: #fff3cd;
-            border-color: var(--color-warning);
-        }
-
-        .log-entry.info {
-            background: #d1ecf1;
-            border-color: var(--color-info);
-        }
-
-        .log-entry.error {
-            background: #f8d7da;
-            border-color: var(--color-danger);
-        }
-
-        .log-entry .log-time {
-            font-size: 0.75rem;
-            color: var(--color-text-light);
-            margin-bottom: 4px;
-        }
-
-        .log-entry .log-level {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .log-entry .log-level.success {
-            color: var(--color-success);
-        }
-
-        .log-entry .log-level.failed {
-            color: var(--color-danger);
-        }
-
-        .log-entry .log-level.warning {
-            color: var(--color-warning);
-        }
-
-        .log-entry .log-level.info {
+        .batch-item .batch-icon.info {
+            background: rgba(25, 118, 210, 0.1);
             color: var(--color-info);
         }
 
-        .log-entry .log-level.error {
-            color: var(--color-danger);
+        .batch-item .batch-details {
+            flex: 1;
+            min-width: 0;
         }
 
-        .log-entry .log-message {
-            color: var(--color-text);
+        .batch-item .batch-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .log-entry .log-message code {
-            background: #f8f9fa;
-            padding: 2px 6px;
-            border-radius: 4px;
+        .batch-item .batch-meta {
             font-size: 0.8rem;
-            color: var(--color-primary);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
             color: var(--color-text-light);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
-        .empty-state .icon {
-            font-size: 3rem;
-            margin-bottom: 12px;
+        .batch-item .batch-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .empty-state p {
-            font-size: 0.
+        .batch-item .batch-status {
+            padding: 4px 12px;
+            border-radius:

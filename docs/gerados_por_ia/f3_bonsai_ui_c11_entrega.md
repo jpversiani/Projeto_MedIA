@@ -1,4 +1,4 @@
-# Painel Visual da Triage e Monitor de Fila APS (C11)
+# Painel Visual da Triagem e Monitor de Fila APS (C11)
 
 ## Estrutura do Projeto
 
@@ -7,433 +7,427 @@ backend/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py
+│   ├── config.py
 │   ├── models.py
 │   ├── schemas.py
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── triage.py
-│   └── static/
-│       └── painel_triagem.html
-├── tests/
-│   ├── __init__.py
-│   └── test_triage.py
-└── requirements.txt
+│   │   └── triagem.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── queue_service.py
+│   ├── static/
+│   │   └── painel_triagem.html
+│   └── tests/
+│       ├── __init__.py
+│       └── test_triagem.py
+├── requirements.txt
+└── pyproject.toml
 ```
 
 ---
 
-## Arquivo: `backend/app/static/painel_triagem.html`
+## Arquivo: `backend/requirements.txt`
 
-```html
-<!-- Arquivo: backend/app/static/painel_triagem.html -->
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Triagem e Monitor de Fila - APS C11</title>
-    <style>
-        /* ============================================
-           PALETA MANCHESTER (SUS/APS)
-           ============================================ */
-        :root {
-            --manc-primary: #0056b3;
-            --manc-secondary: #003d80;
-            --manc-accent: #ff6b35;
-            --manc-success: #28a745;
-            --manc-warning: #ffc107;
-            --manc-danger: #dc3545;
-            --manc-light: #f8f9fa;
-            --manc-dark: #212529;
-            --manc-card-bg: #ffffff;
-            --manc-border: #dee2e6;
-            --manc-radius: 12px;
-            --manc-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            --manc-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+```text
+# Arquivo: backend/requirements.txt
+fastapi==0.115.0
+uvicorn==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+pydantic-settings==2.5.2
+alembic==1.13.1
+pytest==8.3.2
+httpx==0.27.0
+python-dotenv==1.0.1
+```
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+---
 
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--manc-light);
-            color: var(--manc-dark);
-            line-height: 1.6;
-            min-height: 100vh;
-        }
+## Arquivo: `backend/pyproject.toml`
 
-        /* ============================================
-           CABEÇA DO PAINEL
-           ============================================ */
-        .panel-header {
-            background: linear-gradient(135deg, var(--manc-primary), var(--manc-secondary));
-            color: white;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--manc-shadow);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+```toml
+# Arquivo: backend/pyproject.toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-        .panel-header h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+[project]
+name = "media-triage"
+version = "1.0.0"
+description = "Painel Visual da Triagem e Monitor de Fila APS (C11)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn==0.30.6",
+    "sqlalchemy==2.0.35",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.5.2",
+    "alembic==1.13.1",
+    "httpx==0.27.0",
+    "python-dotenv==1.0.1",
+]
 
-        .panel-header h1 .icon {
-            font-size: 1.8rem;
-        }
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.2",
+    "pytest-asyncio==0.23.8",
+    "httpx==0.27.0",
+]
 
-        .panel-header .meta {
-            display: flex;
-            gap: 20px;
-            font-size: 0.9rem;
-        }
+[tool.pytest.ini_options]
+testpaths = ["backend/app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+```
 
-        .panel-header .meta span {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 6px 14px;
-            border-radius: 20px;
-        }
+---
 
-        /* ============================================
-           BARRA DE NAVEGAÇÃO
-           ============================================ */
-        .nav-bar {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            gap: 5px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
+## Arquivo: `backend/app/__init__.py`
 
-        .nav-bar a {
-            text-decoration: none;
-            color: var(--manc-dark);
-            padding: 10px 20px;
-            border-radius: var(--manc-radius);
-            font-weight: 500;
-            transition: var(--manc-transition);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+```python
+# Arquivo: backend/app/__init__.py
+"""
+Projeto MedIA - Sistema de Triagem e Monitor de Fila APS (C11)
+Padrões SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF
+"""
+```
 
-        .nav-bar a:hover {
-            background: var(--manc-light);
-            color: var(--manc-primary);
-        }
+---
 
-        .nav-bar a.active {
-            background: var(--manc-primary);
-            color: white;
-        }
+## Arquivo: `backend/app/config.py`
 
-        /* ============================================
-           CARDS MANCHESTER (SUS/APS)
-           ============================================ */
-        .card {
-            background: var(--manc-card-bg);
-            border-radius: var(--manc-radius);
-            box-shadow: var(--manc-shadow);
-            padding: 20px;
-            transition: var(--manc-transition);
-            border: 1px solid var(--manc-border);
-        }
+```python
+# Arquivo: backend/app/config.py
+from pydantic_settings import BaseSettings
+from typing import Optional
 
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
+class Settings(BaseSettings):
+    """Configuração do sistema MedIA com padrões SUS/APS."""
 
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--manc-dark);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    # Banco de Dados
+    DATABASE_URL: str = "sqlite:///./media_triage.db"
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
 
-        .card-title .badge {
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
+    # API
+    APP_NAME: str = "MedIA - Sistema de Triagem APS"
+    APP_VERSION: str = "1.0.0"
+    API_PREFIX: str = "/api/v1"
 
-        /* Cards por estado da fila */
-        .card-attendezendo {
-            border-left: 4px solid var(--manc-warning);
-        }
-        .card-attendezendo .card-title { color: #856404; }
+    # Fila de Fila
+    MAX_QUEUE_SIZE: int = 100
+    ALERT_THRESHOLD: int = 10  # Alertar se fila > 10 patients
 
-        .card-chamando {
-            border-left: 4px solid var(--manc-accent);
-            animation: pulse 1.5s infinite;
-        }
-        .card-chamando .card-title { color: #854d0e; }
+    # Identificação SUS
+    SUS_CNS_PREFIX: str = "00"  # Prefixo CNS padrão
+    SUS_CPF_PREFIX: str = "11"  # Prefixo CPF padrão
 
-        .card-em-triage {
-            border-left: 4px solid var(--manc-primary);
-        }
-        .card-em-triage .card-title { color: #003d80; }
+    # CID-10
+    CID10_CODE_LENGTH: int = 4  # CID-10 padrão
 
-        .card-em-atendimento {
-            border-left: 4px solid var(--manc-success);
-        }
-        .card-em-atendimento .card-title { color: #155724; }
+    # SOAP
+    SOAP_TEMPLATE: str = "SOAP"
+    SOAP_VERSION: str = "2.0"
 
-        .card-em-urgência {
-            border-left: 4px solid var(--manc-danger);
-            background: #fff5f5;
-        }
-        .card-em-urgência .card-title { color: #850000; }
+    # Sistema
+    DEBUG: bool = True
+    LOG_LEVEL: str = "INFO"
 
-        .card-concluída {
-            border-left: 4px solid #6c757d;
-        }
-        .card-concluída .card-title { color: #495057; }
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
-        /* ============================================
-           CARDS DE STATÍSTICAS
-           ============================================ */
-        .stat-card {
-            background: linear-gradient(135deg, var(--manc-primary), var(--manc-secondary));
-            color: white;
-            border-radius: var(--manc-radius);
-            padding: 20px;
-            text-align: center;
-            box-shadow: var(--manc-shadow);
-        }
 
-        .stat-card .stat-icon {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
+settings = Settings()
+```
 
-        .stat-card .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
+---
 
-        .stat-card .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
+## Arquivo: `backend/app/models.py`
 
-        .stat-card.warning {
-            background: linear-gradient(135deg, var(--manc-warning), #ffc800);
-        }
-        .stat-card.warning .stat-icon { color: #856404; }
+```python
+# Arquivo: backend/app/models.py
+"""
+Modelos do banco de dados com padrões SUS/APS.
+- Identificação por CNS/CPF
+- CID-10 para diagnóstico
+- Método SOAP para registro
+- Padrão CIAP-2 para triagem
+"""
 
-        .stat-card.danger {
-            background: linear-gradient(135deg, var(--manc-danger), #dc3545);
-        }
-        .stat-card.danger .stat-icon { color: #850000; }
+from datetime import datetime
+from enum import Enum
+from typing import Optional
 
-        .stat-card.success {
-            background: linear-gradient(135deg, var(--manc-success), #28a745);
-        }
-        .stat-card.success .stat-icon { color: #155724; }
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    Integer,
+    String,
+    Text,
+    func,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-        /* ============================================
-           LISTA DE PACIENTES (FILA)
-           ============================================ */
-        .patient-card {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            transition: var(--manc-transition);
-        }
 
-        .patient-card:hover {
-            background: var(--manc-light);
-        }
+class Base(DeclarativeBase):
+    """Base declarativa com padrão CIAP-2."""
 
-        .patient-card.em-urgência {
-            background: #fff5f5;
-            border: 1px solid #f5c6cb;
-        }
 
-        .patient-card .patient-photo {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--manc-primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-        }
+class TriagePriority(Enum):
+    """Prioridade de triagem conforme padrão SUS/APS."""
+    URGENT = "urgente"      # Crítico - 0 segundos
+    HIGH = "alta"           # Alta - 1-5 minutos
+    MEDIUM = "média"        # Média - 5-30 minutos
+    LOW = "baixa"           # Baixa - 30+ minutos
+    OBSERVATION = "observacao"  # Observação - 60+ minutos
 
-        .patient-card .patient-info {
-            flex: 1;
-        }
 
-        .patient-card .patient-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
+class PatientStatus(Enum):
+    """Estato do paciente na fila."""
+    WAITING = "aguardando"
+    IN_TREATMENT = "em_tratamento"
+    ADMITTED = "admitido"
+    DISCHARGED = "descarregado"
+    COMPLETED = "completado"
+    NO_SHOW = "ausente"
 
-        .patient-card .patient-cns {
-            color: var(--manc-dark);
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
 
-        .patient-card .patient-age {
-            color: var(--manc-dark);
-            font-size: 0.85rem;
-        }
+class SOAPSection(Enum):
+    """Seções do método SOAP."""
+    SUBJECTIVE = "S"
+    OBJECTIVE = "O"
+    ANALYSIS = "A"
+    PLAN = "P"
 
-        .patient-card .patient-position {
-            font-size: 0.8rem;
-            color: var(--manc-dark);
-        }
 
-        .patient-card .patient-position span {
-            background: var(--manc-light);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
+class Patient(Base):
+    """
+    Modelo do Paciente com identificação SUS.
+    - CNS (Cadastro Nacional de Sistemas)
+    - CPF (Cadastro Nacional de Pessoas Físicas)
+    - CID-10 para diagnóstico
+    - Método SOAP para registro
+    """
+    __tablename__ = "patients"
 
-        .patient-card .patient-wait {
-            color: var(--manc-dark);
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID do paciente"
+    )
+    cns: Mapped[str] = mapped_column(
+        String(14), unique=True, nullable=False, comment="CNS do paciente"
+    )
+    cpf: Mapped[str] = mapped_column(
+        String(11), unique=True, nullable=False, comment="CPF do paciente"
+    )
+    full_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Nome completo"
+    )
+    gender: Mapped[str] = mapped_column(
+        String(1), nullable=False, comment="M/F"
+    )
+    age: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Idade em anos"
+    )
+    date_of_birth: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Data de nascimento"
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True, comment="CID-10 do diagnóstico"
+    )
+    soap_section: Mapped[Optional[SOAPSection]] = mapped_column(
+        Enum(SOAPSection), nullable=True, comment="Seção SOAP atual"
+    )
+    soap_content: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Conteúdo SOAP"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), default=TriagePriority.MEDIUM, comment="Prioridade de triagem"
+    )
+    status: Mapped[PatientStatus] = mapped_column(
+        Enum(PatientStatus), default=PatientStatus.WAITING, comment="Estato atual"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
 
-        .patient-card .patient-wait .wait-time {
-            color: var(--manc-accent);
-        }
+    __table_args__ = (
+        UniqueConstraint("cns", name="uq_patient_cns"),
+        UniqueConstraint("cpf", name="uq_patient_cpf"),
+    )
 
-        /* ============================================
-           PANEL DE EQUIPA DE ERMENGAEM (C11)
-           ============================================ */
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-        }
 
-        .team-member {
-            background: var(--manc-light);
-            border-radius: var(--manc-radius);
-            padding: 15px;
-            text-align: center;
-            border: 1px solid var(--manc-border);
-            transition: var(--manc-transition);
-        }
+class TriageQueue(Base):
+    """
+    Modelo da Fila de Triagem.
+    - Monitor de espera
+    - Identificação por CNS/CPF
+    - Padrão SOAP para registro
+    """
+    __tablename__ = "triage_queue"
 
-        .team-member:hover {
-            background: white;
-            box-shadow: var(--manc-shadow);
-        }
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID da fila"
+    )
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID do paciente na fila"
+    )
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Posição na fila"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), nullable=False, comment="Prioridade de triagem"
+    )
+    estimated_wait_time: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Tempo de espera estimado (min)"
+    )
+    sound_alert: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="Alerta sonoro ativado"
+    )
+    status: Mapped[PatientStatus] = mapped_column(
+        Enum(PatientStatus), default=PatientStatus.WAITING, comment="Estato"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
 
-        .team-member .member-photo {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--manc-primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.2rem;
-            margin: 0 auto 10px;
-        }
+    __table_args__ = (
+        UniqueConstraint("patient_id", "position", name="uq_patient_position"),
+    )
 
-        .team-member .member-name {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: var(--manc-dark);
-        }
 
-        .team-member .member-role {
-            font-size: 0.8rem;
-            color: var(--manc-dark);
-            opacity: 0.7;
-        }
+class NursingTeam(Base):
+    """
+    Modelo da Equipe de Enfermagem.
+    - Monitor de fila
+    - Identificação por CNS/CPF
+    - Padrão SOAP para registro
+    """
+    __tablename__ = "nursing_team"
 
-        .team-member .member-status {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 8px;
-        }
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID da equipe"
+    )
+    cns: Mapped[str] = mapped_column(
+        String(14), unique=True, nullable=False, comment="CNS da equipe"
+    )
+    cpf: Mapped[str] = mapped_column(
+        String(11), unique=True, nullable=False, comment="CPF da equipe"
+    )
+    full_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Nome completo"
+    )
+    role: Mapped[str] = mapped_column(
+        String(50), nullable=False, comment="Função"
+    )
+    shift_start: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Início do turno"
+    )
+    shift_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Fim do turno"
+    )
+    current_patients: Mapped[int] = mapped_column(
+        Integer, default=0, comment="Pacientes atuais"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
 
-        .team-member .member-status.on-call {
-            background: #d4edda;
-            color: #155724;
-        }
+    __table_args__ = (
+        UniqueConstraint("cns", name="uq_nursing_cns"),
+        UniqueConstraint("cpf", name="uq_nursing_cpf"),
+    )
 
-        .team-member .member-status.on-leave {
-            background: #fff3cd;
-            color: #856404;
-        }
 
-        .team-member .member-status.on-leave {
-            background: #fff3cd;
-            color: #856404;
-        }
+class TriageRecord(Base):
+    """
+    Registro de Triagem com padrão SOAP.
+    - Identificação por CNS/CPF
+    - CID-10 para diagnóstico
+    - Método SOAP para registro
+    """
+    __tablename__ = "triage_records"
 
-        .team-member .member-status.on-leave {
-            background: #fff3cd;
-            color: #856404;
-        }
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID do registro"
+    )
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID do paciente"
+    )
+    nurse_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID da equipe de enfermagem"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), nullable=False, comment="Prioridade de triagem"
+    )
+    soap_subjective: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção S - Subjetivo"
+    )
+    soap_objective: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção O - Objetivoivo"
+    )
+    soap_analysis: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção A - Análise"
+    )
+    soap_plan: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção P - Plano"
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True, comment="CID-10"
+    )
+    triage_timestamp: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Tempo de triagem"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
 
-        /* ============================================
-           BLOCO DE AUDIO (CHAMADA SONORA)
-           ============================================ */
-        .audio-block {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-radius: var(--manc-radius);
-            padding: 20px;
-            text-align: center;
-            box-shadow: var(--manc-shadow);
-        }
+    __table_args__ = (
+        UniqueConstraint("patient_id", "triage_timestamp", name="uq_patient_triage"),
+    )
+```
 
-        .audio-block .audio-icon {
-            font-size: 3rem;
-            margin-bottom: 10px;
-        }
+---
 
-        .audio-block .audio-patient {
-            font-size: 1.2rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
+## Arquivo: `backend/app/schemas.py`
 
-        .audio-block .audio-cns {
-            font-size
+```python
+# Arquivo: backend/app/schemas.py
+"""
+Esquemas Pydantic v2 com tipagem estrita.
+- Identificação por CNS/CPF
+- Padrão SOAP
+- CID-10
+- CIAP-2
+"""
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional, List
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class PatientCreate(BaseModel):
+    """Esquema de criação de paciente com validação SUS."""
+
+    cns: str = Field(..., min_length=14, max_length=14, description="CNS do paciente")
+    cpf: str = Field(..., min_length=11, max_length=11, description="CPF do paciente")
+    full_name: str = Field(..., min_length=2, max_length=100, description="Nome completo")
+    gender: str = Field

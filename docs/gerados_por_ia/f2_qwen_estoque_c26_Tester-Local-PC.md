@@ -2,300 +2,305 @@ Here's a thinking process:
 
 1.  **Understand User Request:**
    - **Task:** Create `backend/app/repositories/medicamentos_repo.py` for the MedIA project.
-   - **Purpose:** Methods to search for standardized drugs from the RENAME/SUS (Relação Nacional de Medicamentos Essenciais), with filtering by active ingredient, concentration, and pharmaceutical form.
+   - **Purpose:** Repository for searching standardized drugs from RENAME/SUS (Relação Nacional de Medicamentos Essenciais), with filtering by active ingredient, concentration, and pharmaceutical form.
    - **Architecture Guidelines:**
      - Python 3.12
      - Strict typing with Pydantic v2 and SQLAlchemy 2.0
      - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification)
-     - Full compliance and coverage with automated tests using pytest
+     - Full compliance and automated test coverage with pytest
    - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
    - **File:** `backend/app/repositories/medicamentos_repo.py`
-   - **Core Functionality:** Database repository for RENAME/SUS drugs.
-   - **Filtering:** Active ingredient (princípio ativo), concentration (concentração), pharmaceutical form (forma farmacêutica).
-   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0, pytest.
-   - **Standards:** SUS/APS context (CIAP-2, CID-10, SOAP, CNS/CPF) - I need to integrate these concepts into the data models or query parameters, even if the primary focus is RENAME/SUS. This likely means the repository should support filtering or returning data that aligns with SUS clinical standards, or at least have models that reference these standards.
-   - **Testing:** Must include pytest tests for full coverage.
+   - **Core Functionality:** Search/filter drugs from RENAME/SUS database.
+   - **Filters:** Active ingredient (princípio ativo), concentration (concentração), pharmaceutical form (forma farmacêutica).
+   - **Tech Stack:** Python 3.12, Pydantic v2, SQLAlchemy 2.0 (async/sync? I'll assume sync for simplicity unless specified, but I'll make it compatible with both or explicitly use SQLAlchemy 2.0 style with `Session` or `AsyncSession`. I'll stick to sync `Session` for repository pattern, but note it can be adapted. Actually, modern apps often use async, but I'll provide a clean sync version with type hints, as it's standard for repositories. I'll use `sqlalchemy.orm.Session` and `sqlalchemy.ext.asyncio.AsyncSession` if needed, but I'll stick to sync for simplicity and clarity, or explicitly define both. I'll go with sync `Session` as it's standard for repositories, but I'll make it type-safe.)
+   - **SUS/APS Standards:** Mention CIAP-2, CID-10, SOAP, CNS/CPF in comments/docs to show compliance context, even if the repo itself focuses on drugs. I should probably include models/schemas that reference these standards if relevant, but the task specifically asks for the repository file. I'll add relevant Pydantic models and SQLAlchemy models in the same file or import them. Since it's a single file request, I'll include necessary models/schemas inline or as imports with placeholders, but better to define them inline for completeness.
+   - **Testing:** Provide pytest tests covering the repository methods.
 
-3.  **Design Decisions:**
-   - **Database Model:** I'll create a SQLAlchemy 2.0 declarative model for `MedicamentoRename` representing RENAME/SUS drugs. Fields: `id`, `codigo_sus`, `nome_comercial`, `principio_ativo`, `concentracao`, `forma_farmaceutica`, `via_administracao`, `apresentacao`, `laboratorio`, `status_sus`, `cid10_relacionado` (to align with SUS standards), `ciap2_relacionado`, `created_at`, `updated_at`.
-   - **Pydantic Schemas:** Input schemas for filtering (`MedicamentoFilterSchema`), output schema (`MedicamentoSchema`).
-   - **Repository:** `MedicamentosRepository` class with methods like `get_by_filters`, `get_by_id`, `search_by_principle`, etc. Uses SQLAlchemy async session (standard for modern Python backends).
-   - **SUS/APS Integration:** I'll add fields/parameters that reference CID-10, CIAP-2, CNS/CPF for clinical context, and ensure the repository supports queries that might be used in APS (Atenção Primária à Saúde) workflows.
-   - **Testing:** Create a comprehensive pytest suite using `pytest-asyncio`, `sqlalchemy.ext.asyncio`, and in-memory SQLite for testing. Mock or use a test database session.
+3.  **Design the Repository:**
+   - **Database Model (SQLAlchemy 2.0):** `Medicamento` table mapping to RENAME/SUS data.
+     - Fields: `id`, `codigo_sus`, `nome_comercial`, `principio_ativo`, `concentracao`, `forma_farmaceutica`, `via_administracao`, `diferenciador`, `classificacao_therapeutica`, `ciap2_code` (optional but relevant to SUS standards), `cid10_codes` (JSON/Array), `created_at`, `updated_at`.
+   - **Pydantic Schemas:**
+     - `MedicamentoFilter` (for query parameters)
+     - `MedicamentoResponse` (for output)
+   - **Repository Class:** `MedicamentosRepository`
+     - Methods: `search()`, `get_by_code()`, `get_by_principle()`, etc. I'll implement a flexible `search()` method that handles the filters.
+   - **Type Hints:** Strict Python 3.12 typing.
+   - **Compliance Notes:** Add docstrings/comments referencing SUS/APS standards.
 
-4.  **Draft Code - `backend/app/repositories/medicamentos_repo.py`:**
-   Need to structure it carefully:
-   - Imports
-   - Pydantic schemas
-   - SQLAlchemy model
-   - Repository class
-   - Type hints throughout
-   - Docstrings
-
-   Let's write it out mentally first, then refine.
-   *Imports:* `asyncpg`, `sqlalchemy`, `pydantic`, `typing`, `datetime`, `uuid`, `enum`, `logging`
-   *Schemas:* `MedicamentoFilterRequest`, `MedicamentoResponse`
-   *Model:* `MedicamentoRename`
-   *Repo:* `class MedicamentosRepository:` with `__init__(self, session: AsyncSession)`, `get_filtered_medicamentos`, `get_by_id`, `search_by_principle_ativo`, etc.
-   *SUS/APS context:* I'll add parameters for `cid10`, `ciap2`, `cns` to the filter schema, even if they're not directly in the RENAME table, to show integration readiness. Actually, RENAME doesn't typically have CID-10/CIAP-2 directly, but in a real SUS system, they'd be linked via a junction table or clinical context. I'll keep it simple but compliant: add optional filter params and note the integration point.
-
-   Let's draft the code carefully.
-
+4.  **Draft the Code (Mental Refinement):**
    ```python
    # Arquivo: backend/app/repositories/medicamentos_repo.py
    from __future__ import annotations
    from typing import Optional, List, Any
-   from uuid import UUID
+   from pydantic import BaseModel, Field
+   from sqlalchemy import String, Float, Text, Boolean, DateTime, func
+   from sqlalchemy.orm import Mapped, mapped_column, Session, DeclarativeBase
    from datetime import datetime
-   import logging
+   import json
 
-   from sqlalchemy import select, func
-   from sqlalchemy.ext.asyncio import AsyncSession
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-   from pydantic import BaseModel, Field, ConfigDict
+   class Base(DeclarativeBase):
+       pass
 
-   logger = logging.getLogger(__name__)
+   class MedicamentoModel(Base):
+       __tablename__ = "medicamentos"
 
-   # --- Pydantic Schemas ---
-   class MedicamentoFilterRequest(BaseModel):
+       id: Mapped[int] = mapped_column(primary_key=True)
+       codigo_sus: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)
+       nome_comercial: Mapped[str] = mapped_column(String(255), nullable=False)
+       principio_ativo: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+       concentracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       forma_farmaceutica: Mapped[str] = mapped_column(String(100), nullable=False)
+       via_administracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       diferenciador: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+       classificacao_therapeutica: Mapped[str] = mapped_column(String(100), nullable=False)
+       ciap2_codes: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # JSON string
+       cid10_codes: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # JSON string
+       created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+   class MedicamentoFilter(BaseModel):
        principio_ativo: Optional[str] = None
        concentracao: Optional[str] = None
        forma_farmaceutica: Optional[str] = None
        codigo_sus: Optional[str] = None
-       cid10: Optional[str] = None  # SUS/APS integration
-       ciap2: Optional[str] = None  # SUS/APS integration
-       cns: Optional[str] = None    # Identification by CNS/CPF
-       limit: int = Field(default=50, ge=1, le=500)
-       offset: int = Field(default=0, ge=0)
+       limite: int = Field(default=50, ge=1, le=500)
+       pagina: int = Field(default=1, ge=1)
 
    class MedicamentoResponse(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: UUID
+       id: int
        codigo_sus: str
        nome_comercial: str
        principio_ativo: str
        concentracao: str
        forma_farmaceutica: str
        via_administracao: str
-       apresentacao: str
-       laboratorio: str
-       status_sus: str
-       cid10_relacionado: Optional[str] = None
-       ciap2_relacionado: Optional[str] = None
-       criado_em: datetime
-       atualizado_em: datetime
+       diferenciador: Optional[str] = None
+       classificacao_therapeutica: str
+       ciap2_codes: list[str] = []
+       cid10_codes: list[str] = []
+       created_at: datetime
+       updated_at: datetime
 
-   # --- SQLAlchemy Model ---
-   class Base(DeclarativeBase):
-       pass
+       model_config = {"from_attributes": True}
 
-   class MedicamentoRename(Base):
-       __tablename__ = "medicamentos_rename"
-
-       id: Mapped[UUID] = mapped_column(primary_key=True, default=UUID)
-       codigo_sus: Mapped[str] = mapped_column(String(20), unique=True, index=True)
-       nome_comercial: Mapped[str] = mapped_column(String(255), nullable=False)
-       principio_ativo: Mapped[str] = mapped_column(String(255), index=True)
-       concentracao: Mapped[str] = mapped_column(String(100))
-       forma_farmaceutica: Mapped[str] = mapped_column(String(100))
-       via_administracao: Mapped[str] = mapped_column(String(50))
-       apresentacao: Mapped[str] = mapped_column(String(100))
-       laboratorio: Mapped[str] = mapped_column(String(255))
-       status_sus: Mapped[str] = mapped_column(String(20), default="ATIVO")
-       cid10_relacionado: Mapped[Optional[str]] = mapped_column(String(10))
-       ciap2_relacionado: Mapped[Optional[str]] = mapped_column(String(10))
-       criado_em: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-       atualizado_em: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
-
-   # --- Repository ---
    class MedicamentosRepository:
-       def __init__(self, session: AsyncSession) -> None:
+       def __init__(self, session: Session):
            self.session = session
 
-       async def get_filtered_medicamentos(self, filters: MedicamentoFilterRequest) -> List[MedicamentoResponse]:
-           stmt = select(MedicamentoRename)
-           conditions = []
+       def search(self, filters: MedicamentoFilter) -> tuple[List[MedicamentoResponse], int]:
+           query = self.session.query(MedicamentoModel)
 
            if filters.principio_ativo:
-               conditions.append(MedicamentoRename.principio_ativo.ilike(f"%{filters.principio_ativo}%"))
+               query = query.filter(MedicamentoModel.principio_ativo.ilike(f"%{filters.principio_ativo}%"))
            if filters.concentracao:
-               conditions.append(MedicamentoRename.concentracao.ilike(f"%{filters.concentracao}%"))
+               query = query.filter(MedicamentoModel.concentracao.ilike(f"%{filters.concentracao}%"))
            if filters.forma_farmaceutica:
-               conditions.append(MedicamentoRename.forma_farmaceutica.ilike(f"%{filters.forma_farmaceutica}%"))
+               query = query.filter(MedicamentoModel.forma_farmaceutica.ilike(f"%{filters.forma_farmaceutica}%"))
            if filters.codigo_sus:
-               conditions.append(MedicamentoRename.codigo_sus == filters.codigo_sus)
-           if filters.cid10:
-               conditions.append(MedicamentoRename.cid10_relacionado == filters.cid10)
-           if filters.ciap2:
-               conditions.append(MedicamentoRename.ciap2_relacionado == filters.ciap2)
-           if filters.cns:
-               # CNS/CPF is typically a patient identifier, not a drug attribute.
-               # In APS context, we might link via prescriptions, but for direct filtering,
-               # we'll skip or add a comment. I'll omit direct DB filter for CNS as it's not a drug property.
-               pass
+               query = query.filter(MedicamentoModel.codigo_sus == filters.codigo_sus)
 
-           if conditions:
-               stmt = stmt.where(*conditions)
+           total = query.count()
+           query = query.offset((filters.pagina - 1) * filters.limite).limit(filters.limite)
+           results = query.all()
 
-           stmt = stmt.order_by(MedicamentoRename.nome_comercial).offset(filters.offset).limit(filters.limit)
-           result = await self.session.execute(stmt)
-           drugs = result.scalars().all()
-           return [MedicamentoResponse.model_validate(drug) for drug in drugs]
+           responses = [MedicamentoResponse.model_validate(r) for r in results]
+           return responses, total
 
-       async def get_by_id(self, drug_id: UUID) -> Optional[MedicamentoResponse]:
-           stmt = select(MedicamentoRename).where(MedicamentoRename.id == drug_id)
-           result = await self.session.execute(stmt)
-           drug = result.scalar_one_or_none()
-           return MedicamentoResponse.model_validate(drug) if drug else None
-
-       async def search_by_principle_ativo(self, principio: str, limit: int = 50) -> List[MedicamentoResponse]:
-           stmt = select(MedicamentoRename).where(
-               MedicamentoRename.principio_ativo.ilike(f"%{principio}%")
-           ).limit(limit)
-           result = await self.session.execute(stmt)
-           drugs = result.scalars().all()
-           return [MedicamentoResponse.model_validate(drug) for drug in drugs]
+       def get_by_codigo_sus(self, codigo_sus: str) -> Optional[MedicamentoResponse]:
+           result = self.session.query(MedicamentoModel).filter(MedicamentoModel.codigo_sus == codigo_sus).first()
+           if result:
+               return MedicamentoResponse.model_validate(result)
+           return None
    ```
 
-   Wait, I need to fix the `UUID` import and `String` import. Also, `datetime.utcnow` is deprecated in Python 3.12, should use `datetime.now(timezone.utc)`. Let's adjust.
-   Also, the repository should be more robust. I'll add proper imports and fix deprecation warnings.
+   Wait, I need to handle JSON fields properly in Pydantic v2. I'll add a custom validator or use `json.loads` in the response model, or just keep it simple with `list[str]` and handle parsing in the model. Actually, Pydantic v2 can handle `list[str]` if the DB stores JSON, but it's safer to parse it. I'll add a `@field_validator` or just use `json` module in the response model. Alternatively, I'll store them as JSON strings in DB and parse in Pydantic.
 
-   Let's refine the code structure and ensure it meets all requirements strictly.
+   Let's refine the Pydantic model to handle JSON parsing safely:
+   ```python
+   class MedicamentoResponse(BaseModel):
+       # ... fields ...
+       ciap2_codes: list[str] = []
+       cid10_codes: list[str] = []
 
-   *Self-Correction/Refinement during drafting:*
-   - `UUID` needs to be imported from `uuid`.
-   - `String` needs to be imported from `sqlalchemy`.
-   - `datetime.utcnow` -> `datetime.now(timezone.utc)`
-   - Add `__future__` annotations for type hints.
-   - Ensure Pydantic v2 compatibility (`model_config`, `from_attributes=True`).
-   - Add proper error handling/logging.
-   - The CNS/CPF requirement: In SUS/APS, CNS is for patients. I'll add a method to get drugs prescribed to a patient via CNS, or just note that CNS/CPF is used in the clinical context layer, not the drug repo. But to satisfy the prompt, I'll add a parameter to the filter that can be used for clinical context linking, or add a method `get_medicamentos_por_paciente_cns` that would join with a prescription table. Since we only have the drug repo, I'll keep it simple but add a comment and a placeholder method that demonstrates the integration point.
-   - Actually, the prompt says "identificação por CNS/CPF". I'll add it to the filter schema and note that in a real system it would link to a `receituário` table. For now, I'll keep the filter clean but add a method that accepts CNS/CPF for clinical context.
+       @field_validator("ciap2_codes", "cid10_codes", mode="before")
+       @classmethod
+       def parse_json_list(cls, v):
+           if isinstance(v, str):
+               return json.loads(v) if v else []
+           return v or []
+   ```
 
-   Let's rewrite carefully.
+   Also, need to import `field_validator` from pydantic.
 
+   Now, about SUS/APS standards compliance: The prompt says "Padrões do SUS / APS (CIAP-2, CID-10, método SOAP, identificação por CNS/CPF)." This is more about the broader project context, but I should mention it in docstrings and ensure the model supports these fields. I'll add comments and ensure the repository is ready for integration with those standards.
+
+   I should also provide the pytest file as requested: "Manter conformidade total e cobertura de testes automatizados com pytest." I'll create `tests/test_medicamentos_repo.py`.
+
+   Let's structure the output:
+   1. `backend/app/repositories/medicamentos_repo.py`
+   2. `tests/test_medicamentos_repo.py`
+   3. Brief explanation of architecture & compliance.
+
+   Check SQLAlchemy 2.0 syntax: `mapped_column`, `DeclarativeBase`, `Session` are correct.
+   Check Pydantic v2: `model_config = {"from_attributes": True}` is correct. `field_validator` is correct.
+   Check Python 3.12: `list[str]` is valid. `from __future__ import annotations` is good practice.
+   Check filtering: ILIKE for case-insensitive partial match. Pagination with offset/limit.
+   Check return type: `tuple[List[MedicamentoResponse], int]` for results and total count.
+
+   I'll make sure the repository is async-compatible or explicitly sync. I'll stick to sync `Session` for simplicity, but note it can be adapted. Actually, modern FastAPI apps often use `AsyncSession`. I'll provide a sync version but mention async adaptation, or just use `Session` as it's standard. I'll stick to sync for clarity, but I'll make the type hint `Session` from `sqlalchemy.orm`.
+
+   Let's draft the test file:
+   ```python
+   # Arquivo: tests/test_medicamentos_repo.py
+   import pytest
+   from sqlalchemy import create_engine
+   from sqlalchemy.orm import sessionmaker
+   from backend.app.repositories.medicamentos_repo import (
+       Base, MedicamentoModel, MedicamentosRepository, MedicamentoFilter, MedicamentoResponse
+   )
+
+   # In-memory SQLite for testing
+   engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+   SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+   @pytest.fixture
+   def db_session():
+       Base.metadata.create_all(bind=engine)
+       session = SessionLocal()
+       yield session
+       session.rollback()
+       session.close()
+
+   @pytest.fixture
+   def repo(db_session):
+       return MedicamentosRepository(db_session)
+
+   @pytest.fixture
+   def sample_medicamentos(db_session):
+       meds = [
+           MedicamentoModel(
+               codigo_sus="100001",
+               nome_comercial="Dipirona 1g",
+               principio_ativo="Dipirona Sódica",
+               concentracao="1g",
+               forma_farmaceutica="Comprimido",
+               via_administracao="Oral",
+               classificacao_therapeutica="Analgésico",
+               ciap2_codes='["B20"]',
+               cid10_codes='["R50.9"]'
+           ),
+           MedicamentoModel(
+               codigo_sus="100002",
+               nome_comercial="Losartana 50mg",
+               principio_ativo="Losartana Potássica",
+               concentracao="50mg",
+               forma_farmaceutica="Comprimido",
+               via_administracao="Oral",
+               classificacao_therapeutica="Anti-hipertensivo",
+               ciap2_codes='["H20"]',
+               cid10_codes='["I10"]'
+           )
+       ]
+       db_session.add_all(meds)
+       db_session.commit()
+       return meds
+
+   def test_search_by_principio_ativo(repo, sample_medicamentos):
+       filters = MedicamentoFilter(principio_ativo="dipirona")
+       results, total = repo.search(filters)
+       assert total == 1
+       assert len(results) == 1
+       assert results[0].principio_ativo == "Dipirona Sódica"
+
+   def test_search_by_concentracao(repo, sample_medicamentos):
+       filters = MedicamentoFilter(concentracao="50mg")
+       results, total = repo.search(filters)
+       assert total == 1
+       assert results[0].codigo_sus == "100002"
+
+   def test_search_by_forma_farmaceutica(repo, sample_medicamentos):
+       filters = MedicamentoFilter(forma_farmaceutica="comprimido")
+       results, total = repo.search(filters)
+       assert total == 2
+       assert len(results) == 2
+
+   def test_search_pagination(repo, sample_medicamentos):
+       filters = MedicamentoFilter(limite=1, pagina=1)
+       results, total = repo.search(filters)
+       assert total == 2
+       assert len(results) == 1
+
+   def test_get_by_codigo_sus(repo, sample_medicamentos):
+       result = repo.get_by_codigo_sus("100001")
+       assert result is not None
+       assert result.codigo_sus == "100001"
+       assert result.ciap2_codes == ["B20"]
+       assert result.cid10_codes == ["R50.9"]
+
+   def test_get_by_codigo_sus_not_found(repo):
+       result = repo.get_by_codigo_sus("999999")
+       assert result is None
+   ```
+
+   Wait, I need to ensure the Pydantic model correctly parses JSON strings. I'll add the validator. Also, `from pydantic import field_validator` is needed.
+   I'll also add proper docstrings referencing SUS/APS standards as requested.
+   I should also consider that RENAME/SUS has specific fields. I'll keep the model aligned with typical RENAME structure but simplified for the example. I'll add comments about CIAP-2, CID-10, CNS/CPF integration points.
+
+   Let's refine the repository file with all requirements:
+   - Python 3.12 strict typing
+   - Pydantic v2
+   - SQLAlchemy 2.0
+   - SUS/APS compliance notes
+   - Complete code
+
+   I'll structure it carefully.
+
+   One thing: `sqlalchemy.orm.Session` is the type. I'll import it.
+   I'll add `from typing import Optional, List, Tuple`
+   I'll use `sqlalchemy` imports properly.
+   I'll make sure the code is self-contained and executable.
+
+   Let's write it out carefully.
+   I'll also add a note about how to run tests.
+   I'll ensure the file path comment is at the top.
+   I'll check Pydantic v2 syntax: `model_config = ConfigDict(from_attributes=True)` is preferred over dict.
+   I'll use `ConfigDict`.
+
+   Refined Repository:
    ```python
    # Arquivo: backend/app/repositories/medicamentos_repo.py
    from __future__ import annotations
+   from typing import Optional, List, Tuple
+   from datetime import datetime
+   import json
 
-   import logging
-   from datetime import datetime, timezone
-   from typing import Optional, List
-   from uuid import UUID
+   from pydantic import BaseModel, ConfigDict, field_validator
+   from sqlalchemy import String, Text, DateTime, func
+   from sqlalchemy.orm import Mapped, mapped_column, Session, DeclarativeBase
 
-   from sqlalchemy import select, String
-   from sqlalchemy.ext.asyncio import AsyncSession
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-   from pydantic import BaseModel, Field, ConfigDict
-
-   logger = logging.getLogger(__name__)
-
-   # --- Pydantic Schemas (Pydantic v2) ---
-   class MedicamentoFilterRequest(BaseModel):
-       principio_ativo: Optional[str] = None
-       concentracao: Optional[str] = None
-       forma_farmaceutica: Optional[str] = None
-       codigo_sus: Optional[str] = None
-       cid10: Optional[str] = None
-       ciap2: Optional[str] = None
-       cns: Optional[str] = None
-       cpf: Optional[str] = None
-       limit: int = Field(default=50, ge=1, le=500)
-       offset: int = Field(default=0, ge=0)
-
-   class MedicamentoResponse(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: UUID
-       codigo_sus: str
-       nome_comercial: str
-       principio_ativo: str
-       concentracao: str
-       forma_farmaceutica: str
-       via_administracao: str
-       apresentacao: str
-       laboratorio: str
-       status_sus: str
-       cid10_relacionado: Optional[str] = None
-       ciap2_relacionado: Optional[str] = None
-       criado_em: datetime
-       atualizado_em: datetime
-
-   # --- SQLAlchemy 2.0 Model ---
    class Base(DeclarativeBase):
        pass
 
-   class MedicamentoRename(Base):
-       __tablename__ = "medicamentos_rename"
+   class MedicamentoModel(Base):
+       """
+       Modelo SQLAlchemy 2.0 para a tabela de medicamentos padronizados (RENAME/SUS).
+       Conforme diretrizes SUS/APS: suporta integração com CIAP-2, CID-10,
+       identificação por CNS/CPF e método SOAP no nível de aplicação.
+       """
+       __tablename__ = "medicamentos_rename_sus"
 
-       id: Mapped[UUID] = mapped_column(primary_key=True, default=UUID)
-       codigo_sus: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+       id: Mapped[int] = mapped_column(primary_key=True)
+       codigo_sus: Mapped[str] = mapped_column(String(6), unique=True, nullable=False, index=True)
        nome_comercial: Mapped[str] = mapped_column(String(255), nullable=False)
-       principio_ativo: Mapped[str] = mapped_column(String(255), index=True)
-       concentracao: Mapped[str] = mapped_column(String(100))
-       forma_farmaceutica: Mapped[str] = mapped_column(String(100))
-       via_administracao: Mapped[str] = mapped_column(String(50))
-       apresentacao: Mapped[str] = mapped_column(String(100))
-       laboratorio: Mapped[str] = mapped_column(String(255))
-       status_sus: Mapped[str] = mapped_column(String(20), default="ATIVO")
-       cid10_relacionado: Mapped[Optional[str]] = mapped_column(String(10))
-       ciap2_relacionado: Mapped[Optional[str]] = mapped_column(String(10))
-       criado_em: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-       atualizado_em: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-   ```
-
-   Wait, `default=UUID` is wrong. It should be `default=UUID.uuid4`. Or just `default_factory=UUID.uuid4`. Let's fix that.
-   Also, `mapped_column` syntax in SQLAlchemy 2.0 requires `default=...` or `default_factory=...`. I'll use `default_factory=UUID.uuid4`.
-
-   Let's continue with the repository class.
-
-   ```python
-   class MedicamentosRepository:
-       def __init__(self, session: AsyncSession) -> None:
-           self.session = session
-
-       async def get_filtered_medicamentos(self, filters: MedicamentoFilterRequest) -> List[MedicamentoResponse]:
-           stmt = select(MedicamentoRename)
-           conditions = []
-
-           if filters.principio_ativo:
-               conditions.append(MedicamentoRename.principio_ativo.ilike(f"%{filters.principio_ativo}%"))
-           if filters.concentracao:
-               conditions.append(MedicamentoRename.concentracao.ilike(f"%{filters.concentracao}%"))
-           if filters.forma_farmaceutica:
-               conditions.append(MedicamentoRename.forma_farmaceutica.ilike(f"%{filters.forma_farmaceutica}%"))
-           if filters.codigo_sus:
-               conditions.append(MedicamentoRename.codigo_sus == filters.codigo_sus)
-           if filters.cid10:
-               conditions.append(MedicamentoRename.cid10_relacionado == filters.cid10)
-           if filters.ciap2:
-               conditions.append(MedicamentoRename.ciap2_relacionado == filters.ciap2)
-
-           if conditions:
-               stmt = stmt.where(*conditions)
-
-           stmt = stmt.order_by(MedicamentoRename.nome_comercial).offset(filters.offset).limit(filters.limit)
-           result = await self.session.execute(stmt)
-           drugs = result.scalars().all()
-           return [MedicamentoResponse.model_validate(drug) for drug in drugs]
-
-       async def get_by_id(self, drug_id: UUID) -> Optional[MedicamentoResponse]:
-           stmt = select(MedicamentoRename).where(MedicamentoRename.id == drug_id)
-           result = await self.session.execute(stmt)
-           drug = result.scalar_one_or_none()
-           return MedicamentoResponse.model_validate(drug) if drug else None
-
-       async def search_by_principle_ativo(self, principio: str, limit: int = 50) -> List[MedicamentoResponse]:
-           stmt = select(MedicamentoRename).where(
-               MedicamentoRename.principio_ativo.ilike(f"%{principio}%")
-           ).limit(limit)
-           result = await self.session.execute(stmt)
-           drugs = result.scalars().all()
-           return [MedicamentoResponse.model_validate(drug) for drug in drugs]
-   ```
-
-   Now, I need to add the pytest tests. The prompt says "Manter conformidade total e cobertura de testes automatizados com pytest." I should provide the test file as well, or at least include it in the response. I'll create `backend/app/repositories/test_medicamentos_repo.py`.
-
-   Test structure:
-  
+       principio_ativo: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+       concentracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       forma_farmaceutica: Mapped[str] = mapped_column(String(100), nullable=False)
+       via_administracao: Mapped[str] = mapped_column(String(50), nullable=False)
+       diferenciador: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+       classificacao_therapeutica: Mapped[str] = mapped_column(String(100), nullable=False)
+       ciap2_codes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+       cid10_codes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+       created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+       updated_at: Mapped[datetime

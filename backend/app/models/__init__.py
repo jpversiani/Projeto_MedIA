@@ -1,29 +1,14 @@
-"""Registro central dos modelos ORM do PEC (SQLAlchemy 2.0).
-
-Importar este pacote garante que todas as classes estejam registradas no
-``Base.metadata`` antes de qualquer configuração de mappers (relationships
-resolvidas por nome de classe).
-"""
-
-from app.models.atendimento import AtendimentoProblema, AtendimentoSOAP
-from app.models.atendimento_offline import AtendimentoOffline, StatusSincronizacao
+# Importa explicitamente todos os modelos SQLAlchemy para registro no Base
 from app.models.cidadao import Cidadao
-from app.models.copiloto import CopilotoAuditoria
-from app.models.estabelecimento import Equipe, Estabelecimento
-from app.models.fila import FilaAcolhimento
-from app.models.prontuario import ProntuarioProblema
+from app.models.estabelecimento import Estabelecimento, Equipe
 from app.models.profissional import Profissional
-
-__all__ = [
-    "AtendimentoProblema",
-    "AtendimentoSOAP",
-    "AtendimentoOffline",
-    "StatusSincronizacao",
-    "Cidadao",
-    "CopilotoAuditoria",
-    "Equipe",
-    "Estabelecimento",
-    "FilaAcolhimento",
-    "ProntuarioProblema",
-    "Profissional",
-]
+from app.models.fila import FilaAcolhimento
+from app.models.atendimento import AtendimentoSOAP, AtendimentoProblema
+from app.models.atendimento_offline import AtendimentoOffline, StatusSincronizacao
+from app.models.prontuario import ProntuarioProblema
+from app.models.terminologia import CIAP2, CID10
+from app.models.telemedicina import SalaVirtual, Teleconsulta, DocumentoEmitido
+from app.models.farmacia import Receita, ReceitaItem, Dispensacao, DispensacaoItem
+from app.models.copiloto import CopilotoAuditoria
+from app.models.mensageria import MensagemPreventiva, AlertaBuscaAtiva
+from app.models.convenios import Operadora, Plano, GuiaTISS, LancamentoFinanceiro

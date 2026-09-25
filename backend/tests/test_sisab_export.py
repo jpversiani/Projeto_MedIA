@@ -11,66 +11,92 @@ Cobertura:
 import pytest
 from pydantic import ValidationError
 
-from backend.app.schemas.sisab import FichaAtendimento, LoteSISAB
-from backend.app.services.sisab_export import (
-    validar_ficha,
-    validar_lote,
-    gerar_payload,
+from app.services.sisab_client import (
+    FichaSISAB,
+    LoteInvalidoError,
+    LoteSISAB,
+    TipoFicha,
 )
-
-@pytest.fixture
-def ficha_valida():
-    return FichaAtendimento(
-        cns="123456789012345",  # 15 digits
-        cnes="1234567",          # 7 digits
-        ciap2="A01",
-        cid10=None,
-        data_atendimento="2024-01-01",
-        ...
-    )
-
-def validar_ficha(ficha: dict) -> bool:
-    # returns True if valid, raises ValidationError if invalid
-
-soma = sum(int(d) * (15 - i) for i, d in enumerate(cns[:14]))
-resto = soma % 11
-if resto == 0:
-    dv = 0
-else:
-    dv = 11 - resto
 
 CNS_VALIDO = "123456789012348"
 CNS_INVALIDO = "123456789012345"
 CNES_VALIDO = "1234567"
-CNES_INVALIDO = "123456"
+CIAP2_VALIDO = "A01"
+CID10_VALIDO = "I10"
+
 
 def test_ficha_sem_ciap_e_cid_é_invalida():
-    ficha = {
-        "cns": CNS_VALIDO,
-        "cnes": CNES_VALIDO,
-        # sem ciap2 e sem cid10
-    }
     with pytest.raises(ValidationError):
-        validar_ficha(ficha)
+        FichaSISAB(
+            cns=CNS_VALIDO,
+            cnes=CNES_VALIDO,
+            ciap2=None,
+            cid10=None,
+            data_atendimento="2024-01-01T00:00:00+00:00",
+        )
 
-def test_lote_com_cns_invalido_é_rejeitado():
-    lote = {
-        "fichas": [
-            {"cns": CNS_INVALIDO, "cnes": CNES_VALIDO, "ciap2": "A01"},
-        ]
-    }
+
+def test_ficha_com_cns_invalido_é_rejeitada():
     with pytest.raises(ValidationError):
-        validar_lote(lote)
+        FichaSISAB(
+            cns=CNS_INVALIDO,
+            cnes=CNES_VALIDO,
+            ciap2=CIAP2_VALIDO,
+            cid10=None,
+            data_atendimento="2024-01-01T00:00:00+00:00",
+        )
+
+
+def test_ficha_com_cnes_invalido_é_rejeitada():
+    with pytest.raises(ValidationError):
+        FichaSISAB(
+            cns=CNS_VALIDO,
+            cnes="123456",
+            ciap2=CIAP2_VALIDO,
+            cid10=None,
+            data_atendimento="2024-01-01T00:00:00+00:00",
+        )
+
+
+def test_ficha_com_ciap2_e_cid10():
+    ficha = FichaSISAB(
+        cns=CNS_VALIDO,
+        cnes=CNES_VALIDO,
+        ciap2=CIAP2_VALIDO,
+        cid10=CID10_VALIDO,
+        data_atendimento="2024-01-01T00:00:00+00:00",
+    )
+    assert ficha.ciap2 == "A01"
+    assert ficha.cid10 == "I10"
+
+
+def test_lote_com_ficha_valida():
+    lote = LoteSISAB(
+        lote_id="LOTE-001",
+        cnes_origem=CNES_VALIDO,
+        fichas=[
+            FichaSISAB(
+                cns=CNS_VALIDO,
+                cnes=CNES_VALIDO,
+                ciap2=CIAP2_VALIDO,
+                cid10=None,
+                data_atendimento="2024-01-01T00:00:00+00:00",
+            )
+        ],
+    )
+    assert lote.lote_id == "LOTE-001"
+    assert lote.total_fichas == 1
+
 
 def test_gerar_payload_consistente():
-    ficha = {
-        "cns": CNS_VALIDO,
-        "cnes": CNES_VALIDO,
-        "ciap2": "A01",
-        "cid10": None,
-        "data_atendimento": "2024-01-01",
-    }
-    payload = gerar_payload(ficha)
+    ficha = FichaSISAB(
+        cns=CNS_VALIDO,
+        cnes=CNES_VALIDO,
+        ciap2=CIAP2_VALIDO,
+        cid10=None,
+        data_atendimento="2024-01-01T00:00:00+00:00",
+    )
+    payload = ficha.model_dump(mode="json")
     assert payload["cns"] == CNS_VALIDO
     assert payload["cnes"] == CNES_VALIDO
     assert payload["ciap2"] == "A01"

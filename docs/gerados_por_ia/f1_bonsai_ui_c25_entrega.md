@@ -1,344 +1,480 @@
-# Telemedicina Sala - Interface Completa
-
-## Arquivo Principal: `backend/app/static/telemedicina_sala.html`
-
 ```html:backend/app/static/telemedicina_sala.html
 <!DOCTYPE html>
 <html lang="pt-BR" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sala de Teleconsulta - SUS/APS</title>
-    <meta name="description" content="Sala de teleconsulta com integração SUS/APS">
-    <meta name="csp" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.tailwindcss.com; img-src 'self' data: https:; font-src 'self' https:">
-
-    <!-- Tailwind CSS -->
+    <title>Sala de Teleconsulta - MedIA</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        sus: {
-                            primary: '#1a365d',
-                            secondary: '#2d5a7d',
-                            accent: '#e74c3c',
-                            light: '#f0f4f8',
-                            success: '#2ecc71',
-                            warning: '#f39c12',
-                            error: '#e74c3c',
-                            bg: '#ffffff'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'Segoe UI', 'Arial', 'sans-serif'],
-                        mono: ['Consolas', 'Monaco', 'monospace']
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'slide-in': 'slideIn 0.3s ease-out forwards',
-                        'fade-in': 'fadeIn 0.3s ease-out forwards',
-                        'bounce': 'bounce 0.5s ease-in-out infinite'
-                    },
-                    keyframes: {
-                        slideIn: {
-                            '0%': { transform: 'translateX(100%)', opacity: '0' },
-                            '100%': { transform: 'translateX(0)', opacity: '1' }
-                        },
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom styles for telemedicina_sala */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .glass-panel-dark {
-            background: rgba(26, 54, 93, 0.85);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .video-container {
-            position: relative;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
             overflow: hidden;
-            border-radius: 0.5rem;
         }
 
-        .video-container::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                180deg,
-                transparent 0%,
-                rgba(0, 0, 0, 0.1) 100%
-            );
-            pointer-events: none;
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        /* Custom animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .status-indicator.connected {
-            background: rgba(46, 204, 113, 0.15);
-            color: #2ecc71;
-            border: 1px solid rgba(46, 204, 113, 0.3);
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
-        .status-indicator.disconnected {
-            background: rgba(231, 76, 60, 0.15);
-            color: #e74c3c;
-            border: 1px solid rgba(231, 76, 60, 0.3);
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
-        .status-indicator.pending {
-            background: rgba(243, 156, 18, 0.15);
-            color: #f39c12;
-            border: 1px solid rgba(243, 156, 18, 0.3);
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
         }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 2s infinite;
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .animate-slide-left {
+            animation: slideInLeft 0.5s ease-out forwards;
         }
 
-        .chat-message {
-            animation: fadeIn 0.3s ease-out forwards;
+        .animate-slide-right {
+            animation: slideInRight 0.5s ease-out forwards;
         }
 
-        .chat-message.sent {
-            align-self: flex-end;
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
         }
 
-        .chat-message.received {
-            align-self: flex-start;
+        /* Custom cursor for video controls */
+        .video-container {
+            cursor: default;
         }
 
-        .chat-input-wrapper {
-            transition: box-shadow 0.3s ease;
+        .video-container:hover {
+            cursor: pointer;
         }
 
-        .chat-input-wrapper:focus-within {
-            box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+        /* Custom scrollbar for chat */
+        .chat-scroll {
+            overflow-y: auto;
+            max-height: 100%;
         }
 
-        .control-btn {
-            transition: all 0.2s ease;
-            position: relative;
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn:hover {
-            transform: scale(1.05);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn:active {
-            transform: scale(0.95);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn:disabled:hover {
-            transform: none;
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active {
-            background: rgba(26, 54, 93, 0.15);
-            color: #1a365d;
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar {
+            width: 4px;
         }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93, 0.2);
-        }
-
-        .control-btn.active:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover:hover {
-            background: rgba(26, 54, 93,
+        .chat-scroll::-webkit-scrollbar-track {
+            background:

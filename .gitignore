@@ -48,3 +48,6 @@ htmlcov/
 # Logs
 *.log
 *.db
+
+# Sandboxes de agentes
+sandboxes/

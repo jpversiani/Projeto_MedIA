@@ -1,238 +1,266 @@
-from __future__ import annotations
+# Arquivo: backend/app/repositories/offline_cache_repo.py
+   from __future__ import annotations
    import json
-   import uuid
-   from datetime import datetime, timezone
+   from datetime import datetime
    from enum import Enum
-   from typing import Any, Optional
+   from typing import Optional, List, Dict, Any
+   from uuid import UUID, uuid4
 
-   from pydantic import BaseModel, Field, field_validator, ConfigDict
+   from pydantic import BaseModel, Field, field_validator
    from sqlalchemy import (
        Column,
-       DateTime,
-       Enum as SAEnum,
-       ForeignKey,
-       Index,
-       JSON,
        String,
        Text,
-       UUID,
+       JSON,
+       DateTime,
+       Enum as SAEnum,
        func,
        select,
+       update,
+       delete,
    )
-   from sqlalchemy.dialects.postgresql import JSONB
-   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, relationship
+   from sqlalchemy.dialects.postgresql import ARRAY
 
-class SyncStatus(str, Enum):
+   # --- Enums ---
+   class MutationStatus(str, Enum):
        PENDENTE = "PENDENTE"
        ENVIADO = "ENVIADO"
        CONFLITO = "CONFLITO"
 
-class MutationPayload(BaseModel):
-       model_config = ConfigDict(str_strip_whitespace=True)
-       patient_cns: Optional[str] = Field(None, min_length=15, max_length=15)
-       patient_cpf: Optional[str] = Field(None, min_length=11, max_length=11)
-       mutation_type: str = Field(..., pattern=r"^(CREATE|UPDATE|DELETE)$")
-       clinical_data: dict[str, Any] = Field(default_factory=dict)
-       # SUS/APS fields
-       ciap2_codes: list[str] = Field(default_factory=list)
-       cid10_codes: list[str] = Field(default_factory=list)
-       soap_note: Optional[str] = None
+   class MutationType(str, Enum):
+       CREATE = "CREATE"
+       UPDATE = "UPDATE"
+       DELETE = "DELETE"
 
-       @field_validator("patient_cns")
+   # --- Pydantic Models ---
+   class OfflineCacheMutationPayload(BaseModel):
+       entity_type: str
+       entity_id: str
+       mutation_type: MutationType
+       payload: Dict[str, Any] = Field(default_factory=dict)
+       cns: Optional[str] = None
+       cpf: Optional[str] = None
+       cid10_codes: List[str] = Field(default_factory=list)
+       ciap2_codes: List[str] = Field(default_factory=list)
+       soap_notes: Optional[Dict[str, str]] = None
+
+       @field_validator("cns")
        @classmethod
        def validate_cns(cls, v: Optional[str]) -> Optional[str]:
-           if v is None:
-               return v
-           # Simplified CNS validation (15 digits, checksum logic omitted for brevity but noted)
-           if not v.isdigit() or len(v) != 15:
-               raise ValueError("CNS deve ter 15 dígitos numéricos")
+           if v is not None:
+               # CNS validation (15 digits, basic check)
+               if len(v) != 15 or not v.isdigit():
+                   raise ValueError("CNS deve ter exatamente 15 dígitos numéricos.")
            return v
 
-       @field_validator("patient_cpf")
+       @field_validator("cpf")
        @classmethod
        def validate_cpf(cls, v: Optional[str]) -> Optional[str]:
-           if v is None:
-               return v
-           if not v.isdigit() or len(v) != 11:
-               raise ValueError("CPF deve ter 11 dígitos numéricos")
+           if v is not None:
+               # CPF validation (11 digits, basic check)
+               if len(v) != 11 or not v.isdigit():
+                   raise ValueError("CPF deve ter exatamente 11 dígitos numéricos.")
            return v
 
-class Base(DeclarativeBase):
+   class OfflineCacheMutationResponse(BaseModel):
+       id: UUID
+       entity_type: str
+       entity_id: str
+       mutation_type: MutationType
+       payload: Dict[str, Any]
+       status: MutationStatus
+       cns: Optional[str] = None
+       cpf: Optional[str] = None
+       cid10_codes: List[str]
+       ciap2_codes: List[str]
+       soap_notes: Optional[Dict[str, str]]
+       created_at: datetime
+       updated_at: datetime
+       sync_error: Optional[str] = None
+
+       class Config:
+           from_attributes = True
+
+   # --- SQLAlchemy Model ---
+   class Base(DeclarativeBase):
        pass
 
    class OfflineCacheMutation(Base):
        __tablename__ = "offline_cache_mutations"
 
-       id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-       patient_cns: Mapped[Optional[str]] = mapped_column(String(15), index=True)
-       patient_cpf: Mapped[Optional[str]] = mapped_column(String(11), index=True)
-       mutation_type: Mapped[str] = mapped_column(String(10))
-       clinical_data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
-       ciap2_codes: Mapped[list[str]] = mapped_column(JSON, default=list)
-       cid10_codes: Mapped[list[str]] = mapped_column(JSON, default=list)
-       soap_note: Mapped[Optional[str]] = mapped_column(Text)
-       status: Mapped[SyncStatus] = mapped_column(SAEnum(SyncStatus), default=SyncStatus.PENDENTE)
-       sync_error: Mapped[Optional[str]] = mapped_column(Text)
-       version: Mapped[int] = mapped_column(default=1)
-       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-       updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+       id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+       entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+       entity_id: Mapped[str] = mapped_column(String(100), nullable=False)
+       mutation_type: Mapped[MutationType] = mapped_column(SAEnum(MutationType, name="mutation_type_enum"), nullable=False)
+       payload: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+       status: Mapped[MutationStatus] = mapped_column(SAEnum(MutationStatus, name="mutation_status_enum"), default=MutationStatus.PENDENTE)
+       cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
+       cpf: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+       cid10_codes: Mapped[List[str]] = mapped_column(ARRAY(String), default=list)
+       ciap2_codes: Mapped[List[str]] = mapped_column(ARRAY(String), default=list)
+       soap_notes: Mapped[Optional[Dict[str, str]]] = mapped_column(JSON, nullable=True)
+       sync_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       version: Mapped[int] = mapped_column(Integer, default=1) # For optimistic locking
+       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-       __table_args__ = (
-           Index("ix_offline_cache_status", "status"),
-           Index("ix_offline_cache_patient", "patient_cns", "patient_cpf"),
-       )
+       def to_pydantic(self) -> OfflineCacheMutationResponse:
+           return OfflineCacheMutationResponse(
+               id=self.id,
+               entity_type=self.entity_type,
+               entity_id=self.entity_id,
+               mutation_type=self.mutation_type,
+               payload=self.payload,
+               status=self.status,
+               cns=self.cns,
+               cpf=self.cpf,
+               cid10_codes=self.cid10_codes,
+               ciap2_codes=self.ciap2_codes,
+               soap_notes=self.soap_notes,
+               created_at=self.created_at,
+               updated_at=self.updated_at,
+               sync_error=self.sync_error,
+           )
 
-class OfflineCacheRepository:
-       def __init__(self, session: AsyncSession):
+   # --- Repository ---
+   class OfflineCacheRepository:
+       def __init__(self, session: Session):
            self.session = session
 
-       async def add_mutation(self, payload: MutationPayload) -> MutationResponse:
-           # ... implementation
-
-class MutationResponse(BaseModel):
-       id: uuid.UUID
-       patient_cns: Optional[str]
-       patient_cpf: Optional[str]
-       mutation_type: str
-       clinical_data: dict[str, Any]
-       ciap2_codes: list[str]
-       cid10_codes: list[str]
-       soap_note: Optional[str]
-       status: SyncStatus
-       sync_error: Optional[str]
-       version: int
-       created_at: datetime
-       updated_at: datetime
-
-       model_config = ConfigDict(from_attributes=True)
-
-   class SyncResult(BaseModel):
-       success_count: int = 0
-       conflict_count: int = 0
-       errors: list[str] = Field(default_factory=list)
-
-class OfflineCacheRepository:
-       def __init__(self, session: AsyncSession):
-           self.session = session
-
-       async def add_mutation(self, payload: MutationPayload) -> MutationResponse:
-           # Integrity: CNS or CPF required
-           if not payload.patient_cns and not payload.patient_cpf:
-               raise ValueError("É obrigatório informar CNS ou CPF do paciente.")
-
-           # SUS/APS: Validate SOAP/CID-10/CIAP-2 structure if present
-           if payload.soap_note:
-               # Simplified validation for SOAP structure (S, O, A, P sections)
-               soap_sections = ["S", "O", "A", "P"]
-               if not all(section in payload.soap_note.upper() for section in soap_sections):
-                   raise ValueError("SOAP note deve conter as seções S, O, A, P.")
-
+       def add_mutation(self, payload: OfflineCacheMutationPayload) -> OfflineCacheMutationResponse:
            mutation = OfflineCacheMutation(
-               patient_cns=payload.patient_cns,
-               patient_cpf=payload.patient_cpf,
+               entity_type=payload.entity_type,
+               entity_id=payload.entity_id,
                mutation_type=payload.mutation_type,
-               clinical_data=payload.clinical_data,
-               ciap2_codes=payload.ciap2_codes,
+               payload=payload.payload,
+               cns=payload.cns,
+               cpf=payload.cpf,
                cid10_codes=payload.cid10_codes,
-               soap_note=payload.soap_note,
+               ciap2_codes=payload.ciap2_codes,
+               soap_notes=payload.soap_notes,
+               status=MutationStatus.PENDENTE,
            )
            self.session.add(mutation)
-           await self.session.flush()
-           await self.session.refresh(mutation)
-           return MutationResponse.model_validate(mutation)
+           self.session.flush()
+           return mutation.to_pydantic()
 
-       async def get_pending_mutations(self, limit: int = 100) -> list[MutationResponse]:
-           stmt = (
-               select(OfflineCacheMutation)
-               .where(OfflineCacheMutation.status == SyncStatus.PENDENTE)
-               .order_by(OfflineCacheMutation.created_at.asc())
-               .limit(limit)
-           )
-           result = await self.session.execute(stmt)
-           mutations = result.scalars().all()
-           return [MutationResponse.model_validate(m) for m in mutations]
+       def get_pending_mutations(self, limit: int = 100) -> List[OfflineCacheMutationResponse]:
+           stmt = select(OfflineCacheMutation).where(
+               OfflineCacheMutation.status == MutationStatus.PENDENTE
+           ).order_by(OfflineCacheMutation.created_at.asc()).limit(limit)
+           results = self.session.execute(stmt).scalars().all()
+           return [m.to_pydantic() for m in results]
 
-       async def mark_as_sent(self, mutation_id: uuid.UUID) -> None:
+       def mark_as_sent(self, mutation_id: UUID) -> bool:
            stmt = (
                update(OfflineCacheMutation)
-               .where(OfflineCacheMutation.id == mutation_id)
-               .values(status=SyncStatus.ENVIADO, updated_at=func.now(timezone=True))
+               .where(
+                   OfflineCacheMutation.id == mutation_id,
+                   OfflineCacheMutation.status == MutationStatus.PENDENTE,
+               )
+               .values(status=MutationStatus.ENVIADO, version=OfflineCacheMutation.version + 1)
            )
-           await self.session.execute(stmt)
-           await self.session.commit()
+           result = self.session.execute(stmt)
+           self.session.flush()
+           return result.rowcount > 0
 
-       async def mark_as_conflict(self, mutation_id: uuid.UUID, error: str) -> None:
+       def mark_as_conflict(self, mutation_id: UUID, error: str) -> bool:
            stmt = (
                update(OfflineCacheMutation)
-               .where(OfflineCacheMutation.id == mutation_id)
-               .values(status=SyncStatus.CONFLITO, sync_error=error, updated_at=func.now(timezone=True))
+               .where(
+                   OfflineCacheMutation.id == mutation_id,
+                   OfflineCacheMutation.status == MutationStatus.PENDENTE,
+               )
+               .values(status=MutationStatus.CONFLITO, sync_error=error, version=OfflineCacheMutation.version + 1)
            )
-           await self.session.execute(stmt)
-           await self.session.commit()
+           result = self.session.execute(stmt)
+           self.session.flush()
+           return result.rowcount > 0
 
-       async def sync_batch(self, mutations: list[MutationResponse]) -> SyncResult:
-           result = SyncResult()
-           for mutation in mutations:
-               try:
-                   # Simulate sync logic (in real app, this would call remote API)
-                   # For now, just mark as sent
-                   await self.mark_as_sent(mutation.id)
-                   result.success_count += 1
-               except Exception as e:
-                   await self.mark_as_conflict(mutation.id, str(e))
-                   result.conflict_count += 1
-                   result.errors.append(f"Mutation {mutation.id}: {str(e)}")
-           return result
+       def get_by_id(self, mutation_id: UUID) -> Optional[OfflineCacheMutationResponse]:
+           stmt = select(OfflineCacheMutation).where(OfflineCacheMutation.id == mutation_id)
+           result = self.session.execute(stmt).scalar_one_or_none()
+           return result.to_pydantic() if result else None
 
-       async def get_by_patient(self, cns: Optional[str] = None, cpf: Optional[str] = None) -> list[MutationResponse]:
-           conditions = [OfflineCacheMutation.status == SyncStatus.PENDENTE]
-           if cns:
-               conditions.append(OfflineCacheMutation.patient_cns == cns)
-           if cpf:
-               conditions.append(OfflineCacheMutation.patient_cpf == cpf)
+       def cleanup_sent(self, older_than_days: int = 30) -> int:
+           cutoff = datetime.utcnow().replace(tzinfo=None) if datetime.utcnow().tzinfo is None else datetime.utcnow()
+           cutoff = cutoff.replace(tzinfo=None) # Simplified for demo, but better to use timezone-aware
+           # Actually, let's use proper timezone handling
+           from datetime import timedelta
+           cutoff = datetime.now().astimezone().replace(tzinfo=None) # This is messy. Let's stick to server_default and simple comparison
+           # Better: use func.now() in DB or pass cutoff as param. I'll simplify for repo:
+           cutoff = datetime.utcnow()
+           stmt = delete(OfflineCacheMutation).where(
+               OfflineCacheMutation.status == MutationStatus.ENVIADO,
+               OfflineCacheMutation.updated_at < cutoff - timedelta(days=older_than_days)
+           )
+           result = self.session.execute(stmt)
+           self.session.flush()
+           return result.rowcount
 
-           stmt = select(OfflineCacheMutation).where(*conditions).order_by(OfflineCacheMutation.created_at.desc())
-           res = await self.session.execute(stmt)
-           mutations = res.scalars().all()
-           return [MutationResponse.model_validate(m) for m in mutations]
+       def verify_integrity(self, mutation_id: UUID) -> bool:
+           mutation = self.get_by_id(mutation_id)
+           if not mutation:
+               return False
+           # Check if payload matches expected schema or if required SUS fields are present
+           if mutation.entity_type in ("CONSULTA", "PROCEDIMENTO") and not mutation.cns and not mutation.cpf:
+               return False
+           return True
 
-from sqlalchemy import update, func, select
+# Arquivo: backend/app/repositories/offline_cache_repo.py
+   from __future__ import annotations
+   import json
+   from datetime import datetime, timedelta, timezone
+   from enum import Enum
+   from typing import Optional, List, Dict, Any
+   from uuid import UUID, uuid4
 
-import pytest
-   import asyncio
-   from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+   from pydantic import BaseModel, Field, field_validator
+   from sqlalchemy import (
+       Column,
+       String,
+       Text,
+       JSON,
+       DateTime,
+       Enum as SAEnum,
+       Integer,
+       func,
+       select,
+       update,
+       delete,
+   )
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+
+   # ... (rest of the code)
+
+# Arquivo: tests/test_offline_cache_repo.py
+   import pytest
+   from sqlalchemy import create_engine
    from sqlalchemy.orm import sessionmaker
+   from datetime import datetime, timedelta, timezone
    from backend.app.repositories.offline_cache_repo import (
-       OfflineCacheRepository,
-       MutationPayload,
-       SyncStatus,
-       OfflineCacheMutation,
        Base,
+       OfflineCacheRepository,
+       OfflineCacheMutationPayload,
+       MutationType,
+       MutationStatus,
    )
 
-   @pytest.fixture(scope="module")
-   def event_loop():
-       loop = asyncio.new_event_loop()
-       yield loop
-       loop.close()
-
-   @pytest.fixture(scope="module")
-   async def engine():
-       engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-       async with engine.begin() as conn:
-           await conn.run_sync(Base.metadata.create_all)
-       yield engine
-       async with engine.begin() as conn:
-           await conn.run_sync(Base.metadata.drop_all)
-       await engine.dispose()
+   @pytest.fixture
+   def engine():
+       return create_engine("sqlite:///:memory:", echo=False)
 
    @pytest.fixture
-   async def session(engine):
-       async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-       async with async_session() as sess:
-           yield sess
+   def session(engine):
+       Base.metadata.create_all(engine)
+       SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+       sess = SessionLocal()
+       yield sess
+       sess.close()
 
    @pytest.fixture
    def repo(session):
        return OfflineCacheRepository(session)
+
+   # ... test functions ...

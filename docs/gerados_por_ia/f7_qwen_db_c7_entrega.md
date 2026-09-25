@@ -2,330 +2,390 @@ Here's a thinking process:
 
 1.  **Understand User Request:**
    - **Role:** Software Engineer (Tester)
-   - **Task:** Create `backend/app/repositories/analytics_repo.py` for the MedIA project.
-   - **Purpose:** Optimized analytical queries using SQLAlchemy 2.0 (group by, extract hour/dow, window functions) for Previne Brasil/APS indicators.
-   - **Architecture Guidelines:**
+   - **Task:** Create `backend/app/repositories/analytics_repo.py` for a project called "MedIA".
+   - **Purpose:** Optimized analytical queries using SQLAlchemy 2.0 (group by, extract hour/day of week, window functions) for health metrics/aggregations (Previne Brasil/APS indicators).
+   - **Guidelines:**
      - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
      - SUS/APS standards (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
-     - Full compliance and automated test coverage with pytest.
-   - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
+     - Full compliance and coverage with automated pytest tests.
+     - Provide complete, executable code.
+     - Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
    - **File:** `backend/app/repositories/analytics_repo.py`
-   - **Database/ORM:** SQLAlchemy 2.0 (async/sync? I'll assume sync for simplicity unless specified, but I'll make it compatible with both or explicitly use `sqlalchemy.orm` and `sqlalchemy.ext.asyncio` if needed. I'll stick to sync for straightforward repository pattern, but I'll note it's compatible with async if needed. Actually, I'll use standard SQLAlchemy 2.0 ORM syntax with `sessionmaker` or `AsyncSession` pattern. I'll go with sync for simplicity but structure it cleanly.)
-   - **Key Features:**
-     - Group by queries
-     - Extract hour/day of week (DOW)
-     - Window functions
-     - Previne Brasil/APS indicators (e.g., prenatal visits, vaccination coverage, chronic disease follow-up, SOAP notes frequency, CIAP-2/CID-10 distribution, CNS/CPF identification rates)
-   - **Typing:** Pydantic v2 for response models, SQLAlchemy 2.0 for queries, Python 3.12 type hints.
-   - **Testing:** Provide pytest tests covering the repository functions.
-   - **Standards:** SUS/APS terminology (CIAP-2, CID-10, SOAP, CNS/CPF).
+   - **Database/ORM:** SQLAlchemy 2.0 (async or sync? I'll assume async as it's common in modern Python backends, but I'll make it compatible with both or specify. I'll use `sqlalchemy.orm` and `sqlalchemy.ext.asyncio` if needed, but stick to standard SQLAlchemy 2.0 syntax with `select`, `func`, `extract`, `window`, etc.)
+   - **Pydantic v2:** For data models/DTOs.
+   - **Health Domain:** Previne Brasil/APS indicators. This typically involves:
+     - Patient visits/encounters
+     - Clinical events (CIAP-2, CID-10)
+     - SOAP notes
+     - Time-based analysis (hour, day of week)
+     - Window functions (e.g., running totals, moving averages, ranking)
+     - Grouping by patient (CNS/CPF), date, time, etc.
+   - **Testing:** Need to provide pytest tests that cover the repository.
 
 3.  **Design the Repository (`analytics_repo.py`):**
-   - Need models for the relevant tables. I'll assume a simplified schema for context:
-     - `consultas` (consultations): id, cns, cpf, data_hora, metodo_atendimento (SOAP), ciap2, cid10, ...
-     - `indicadores_previne` (previne indicators): id, cns, cpf, mes_referencia, indicador, valor, status
-     - `usuarios` (users/patients): cns, cpf, nome, dt_nascimento, ...
-   - I'll create SQLAlchemy 2.0 mapped classes for these.
-   - Repository functions will use `select`, `func`, `extract`, `over`, `group_by`, etc.
-   - Pydantic v2 models for DTOs/responses.
-   - Functions:
-     - `get_consultas_por_hora_dia_da_semana(session, start_date, end_date)` -> group by hour, DOW
-     - `get_cobertura_previne_brasil(session, mes_referencia)` -> aggregation of indicators
-     - `get_distribuicao_ciap2_cid10(session, start_date, end_date)` -> window function for ranking/top categories
-     - `get_identificacao_cns_cpf(session, start_date, end_date)` -> identification rates
-     - `get_atendimentos_soap(session, start_date, end_date)` -> SOAP method frequency
-   - I'll implement these with proper SQLAlchemy 2.0 syntax.
+   - **Models/Tables (Mental Schema):**
+     - `patient`: cns, cpf, name, etc.
+     - `encounter`: id, patient_id, date_time, status, soap_data, etc.
+     - `clinical_event`: id, encounter_id, diagnosis_code (CID-10), ciap_code, description, etc.
+     - `vital_signs` or similar (optional, but focus on core indicators)
+   - **Indicators to Implement:**
+     1. `get_encounters_by_hour_and_dow`: Group encounters by hour and day of week.
+     2. `get_ciap2_distribution`: Count CIAP-2 codes per encounter/patient.
+     3. `get_cid10_distribution`: Count CID-10 codes.
+     4. `get_patient_visit_frequency`: Window function to calculate moving average or rank of visits per patient over time.
+     5. `get_soap_compliance`: Check SOAP method adherence per provider/patient.
+   - **SQLAlchemy 2.0 Features:**
+     - `extract('hour', table.column)`
+     - `extract('dow', table.column)` (0=Sunday, 6=Saturday in PostgreSQL, but I'll note it's DB-specific; I'll use `func.extract` or `sqlalchemy.extract`)
+     - `func.row_number().over(partition_by=..., order_by=...)`
+     - `func.lag()`, `func.lead()`, `func.avg().over()`
+     - `select`, `func.count`, `func.sum`, `group_by`, `having`
+   - **Pydantic Models:**
+     - `EncounterHourDowStats`
+     - `DiagnosisStats`
+     - `PatientVisitRank`
+     - `SoapComplianceStats`
+   - **Repository Class:** `AnalyticsRepository` with async methods (I'll use `async` for modern stack, but ensure it's clear). I'll use `Session` from `sqlalchemy.orm`.
 
 4.  **Draft `analytics_repo.py` (Mental Refinement):**
    ```python
    # Arquivo: backend/app/repositories/analytics_repo.py
    from __future__ import annotations
-   from datetime import date, datetime
    from typing import Sequence
-   from sqlalchemy import select, func, extract, over, case
-   from sqlalchemy.orm import Session, MappedAsDataclass
+   from datetime import date
    from pydantic import BaseModel, Field
-   from backend.app.models import Consulta, IndicadorPrevine, Usuario # Assumed models
-   # I'll define minimal models inline or assume they exist. Better to define them for completeness.
+   from sqlalchemy import (
+       select,
+       func,
+       extract,
+       window,
+       case,
+       text,
+   )
+   from sqlalchemy.orm import Session, selectinload
+   from sqlalchemy.ext.asyncio import AsyncSession
+   import asyncio
+
+   # Pydantic v2 Models
+   class EncounterHourDowStats(BaseModel):
+       hour: int = Field(..., ge=0, le=23)
+       dow: int = Field(..., ge=0, le=6) # 0=Sun, 6=Sat (PostgreSQL default)
+       count: int
+       avg_duration_minutes: float
+
+   class DiagnosisStats(BaseModel):
+       code: str
+       description: str
+       count: int
+       percentage: float
+
+   class PatientVisitRank(BaseModel):
+       cns: str
+       cpf: str
+       visit_date: date
+       visit_rank: int
+       moving_avg_visits_30d: float
+
+   class SoapComplianceStats(BaseModel):
+       provider_id: str
+       total_encounters: int
+       soap_compliant: int
+       compliance_rate: float
+
+   class AnalyticsRepository:
+       def __init__(self, session: Session | AsyncSession):
+           self.session = session
+
+       async def get_encounters_by_hour_and_dow(
+           self,
+           start_date: date,
+           end_date: date,
+       ) -> Sequence[EncounterHourDowStats]:
+           # Query using extract hour and dow, group by, avg duration
+           ...
    ```
-   Wait, the prompt says "crie backend/app/repositories/analytics_repo.py". I should provide the repository code, but I also need to define the necessary SQLAlchemy models and Pydantic schemas for it to be executable. I'll include them in the same file or clearly separate them. I'll put models and schemas in the same file for self-containment, or just define the repository assuming models exist but provide them for completeness. I'll add them as comments or define them inline for the code to run.
+   Wait, I need to define the models/tables first or assume they exist. I'll create a minimal schema definition in the same file or assume standard names. For completeness, I'll define the SQLAlchemy 2.0 declarative models at the top, then the repository.
 
    Let's structure it properly:
    - Imports
-   - Pydantic v2 response models
-   - SQLAlchemy 2.0 mapped classes (minimal for context)
-   - Repository functions with type hints
-   - I'll use `sqlalchemy.orm.Session` for sync. I'll make it compatible with standard patterns.
+   - Pydantic DTOs
+   - SQLAlchemy 2.0 Models (for context/testing)
+   - AnalyticsRepository class with methods
+   - I'll use `sqlalchemy` core/orm syntax carefully.
 
-   Key SQLAlchemy 2.0 features to use:
-   - `extract('hour', Consulta.data_hora)`
-   - `extract('dow', Consulta.data_hora)` (0=Sunday, 1=Monday, etc. in PostgreSQL, but SQLAlchemy abstracts it. I'll use `extract('dow', ...)` and note it's DB-specific or use `func.extract`)
-   - `over(partition_by=..., order_by=...)` for window functions
-   - `group_by`
-   - Strict typing: `Sequence[PydanticModel]`, `Session`, `datetime`, etc.
+   Key SQLAlchemy 2.0 syntax:
+   - `extract('hour', Encounter.encounter_datetime)`
+   - `extract('dow', Encounter.encounter_datetime)`
+   - `func.row_number().over(partition_by=Patient.cns, order_by=Encounter.encounter_datetime)`
+   - `func.avg().over(partition_by=..., order_by=..., rows=(..., ...))`
 
-   Let's draft the repository functions carefully:
+   I'll implement 4 key analytical queries:
+   1. `get_encounters_by_hour_and_dow` (Time distribution)
+   2. `get_ciap2_and_cid10_distribution` (Diagnostic codes)
+   3. `get_patient_visit_frequency_with_window` (Window functions)
+   4. `get_soap_method_compliance` (SOAP adherence)
 
-   1. `get_consultas_por_periodo_horario(session: Session, inicio: datetime, fim: datetime) -> Sequence[ConsultaHorariaDTO]`
-      - Groups by hour and day of week
-      - Counts consultations
-      - Uses `extract`
+   I'll make sure to use strict typing, Pydantic v2, and SQLAlchemy 2.0 features.
 
-   2. `get_cobertura_previne_brasil(session: Session, mes_ref: int, ano_ref: int) -> Sequence[IndicadorPrevineDTO]`
-      - Aggregates Previne indicators by month/year
-      - Calculates coverage rates
+5.  **Draft Code (Mental to Text):**
+   I'll write the complete file with proper structure, comments, and type hints.
 
-   3. `get_ranking_ciap2_cid10(session: Session, inicio: datetime, fim: datetime) -> Sequence[ClassificacaoDTO]`
-      - Uses window function `rank()` or `row_number()` to get top CIAP-2/CID-10
-      - Groups by classification
-
-   4. `get_identificacao_cns_cpf(session: Session, inicio: datetime, fim: datetime) -> IdentificacaoDTO`
-      - Calculates CNS/CPF identification rates
-      - Uses conditional aggregation
-
-   5. `get_distribuicao_metodo_soap(session: Session, inicio: datetime, fim: datetime) -> Sequence[MetodoSOAPDTO]`
-      - Groups by SOAP method
-
-   I'll implement these with proper SQLAlchemy 2.0 syntax.
-
-5.  **Write Code (Mental to Text):**
-   I'll create the file content step by step, ensuring it's complete and executable. I'll include necessary models and schemas for it to run standalone if needed, but focus on the repository.
-
-   Structure:
    ```python
    # Arquivo: backend/app/repositories/analytics_repo.py
    from __future__ import annotations
-   from datetime import datetime, date
    from typing import Sequence
-   from sqlalchemy import select, func, extract, over, case, String
-   from sqlalchemy.orm import Session, Mapped, mapped_column, DeclarativeBase
-   from pydantic import BaseModel, Field, ConfigDict
-   import enum
+   from datetime import date, datetime
+   from pydantic import BaseModel, Field, computed_field
+   from sqlalchemy import (
+       select,
+       func,
+       extract,
+       case,
+       text,
+       literal_column,
+   )
+   from sqlalchemy.orm import Session, MappedAsDataclass
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from sqlalchemy import Column, Integer, String, Date, DateTime, Float, ForeignKey, Text
+   from sqlalchemy.orm import DeclarativeBase
 
-   # --- Models & Schemas (for completeness & executability) ---
+   # --- SQLAlchemy 2.0 Models (Context for Repository) ---
    class Base(DeclarativeBase):
        pass
 
-   class MetodoAtendimento(str, enum.Enum):
-       SOAP = "SOAP"
-       OUTRO = "OUTRO"
+   class Patient(Base):
+       __tablename__ = "patient"
+       cns = Column(String, primary_key=True)
+       cpf = Column(String, unique=True, nullable=True)
+       name = Column(String)
 
-   class Consulta(Base):
-       __tablename__ = "consultas"
-       id: Mapped[int] = mapped_column(primary_key=True)
-       cns: Mapped[str | None] = mapped_column(String(15))
-       cpf: Mapped[str | None] = mapped_column(String(14))
-       data_hora: Mapped[datetime] = mapped_column()
-       ciap2: Mapped[str | None] = mapped_column(String(4))
-       cid10: Mapped[str | None] = mapped_column(String(7))
-       metodo: Mapped[str] = mapped_column(String(20))
+   class Encounter(Base):
+       __tablename__ = "encounter"
+       id = Column(Integer, primary_key=True)
+       patient_cns = Column(String, ForeignKey("patient.cns"))
+       encounter_datetime = Column(DateTime, nullable=False)
+       provider_id = Column(String, nullable=False)
+       soap_data = Column(Text, nullable=True)
+       duration_minutes = Column(Float, nullable=True)
 
-   class IndicadorPrevine(Base):
-       __tablename__ = "indicadores_previne"
-       id: Mapped[int] = mapped_column(primary_key=True)
-       cns: Mapped[str | None] = mapped_column(String(15))
-       cpf: Mapped[str | None] = mapped_column(String(14))
-       mes_referencia: Mapped[int] = mapped_column()
-       ano_referencia: Mapped[int] = mapped_column()
-       indicador: Mapped[str] = mapped_column(String(50))
-       valor: Mapped[float] = mapped_column()
-       status: Mapped[str] = mapped_column(String(20))
+   class ClinicalEvent(Base):
+       __tablename__ = "clinical_event"
+       id = Column(Integer, primary_key=True)
+       encounter_id = Column(Integer, ForeignKey("encounter.id"))
+       ciap2_code = Column(String, nullable=True)
+       cid10_code = Column(String, nullable=True)
+       description = Column(String, nullable=True)
 
-   # Pydantic v2 DTOs
-   class ConsultaHorariaDTO(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       hora: int
-       dia_semana: int
-       total_consultas: int
+   # --- Pydantic v2 DTOs ---
+   class EncounterTimeStats(BaseModel):
+       hour: int = Field(ge=0, le=23)
+       dow: int = Field(ge=0, le=6)  # 0=Sunday, 6=Saturday (PostgreSQL)
+       encounter_count: int
+       avg_duration: float
 
-   class IndicadorPrevineDTO(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       mes_referencia: int
-       ano_referencia: int
-       indicador: str
-       cobertura: float
-       populacao_alvo: int
+       class Config:
+       from_config = {"arbitrary_types_allowed": True}
 
-   class ClassificacaoDTO(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       codigo: str
-       descricao: str
-       total: int
-       rank: int
+   class DiagnosisStats(BaseModel):
+       code: str
+       description: str
+       count: int
+       percentage: float
 
-   class IdentificacaoDTO(BaseModel):
-       cns_identificado: int
-       cpf_identificado: int
-       total_registros: int
-       taxa_cns: float
-       taxa_cpf: float
+   class PatientVisitWindow(BaseModel):
+       cns: str
+       cpf: str | None
+       visit_date: date
+       visit_rank: int
+       moving_avg_30d: float
 
-   class MetodoSOAPDTO(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       metodo: str
-       total: int
-       percentual: float
+   class SoapCompliance(BaseModel):
+       provider_id: str
+       total_encounters: int
+       soap_compliant: int
+       compliance_rate: float
 
    # --- Repository ---
    class AnalyticsRepository:
-       @staticmethod
-       def get_consultas_por_hora_dow(session: Session, inicio: datetime, fim: datetime) -> Sequence[ConsultaHorariaDTO]:
-           stmt = (
-               select(
-                   extract('hour', Consulta.data_hora).label('hora'),
-                   extract('dow', Consulta.data_hora).label('dia_semana'),
-                   func.count().label('total_consultas')
-               )
-               .where(Consulta.data_hora.between(inicio, fim))
-               .group_by('hora', 'dia_semana')
-               .order_by('dia_semana', 'hora')
-           )
-           rows = session.execute(stmt).all()
-           return [ConsultaHorariaDTO(hora=int(r.hora), dia_semana=int(r.dia_semana), total_consultas=int(r.total_consultas)) for r in rows]
+       def __init__(self, session: Session | AsyncSession):
+           self.session = session
 
-       @staticmethod
-       def get_cobertura_previne_brasil(session: Session, mes_ref: int, ano_ref: int) -> Sequence[IndicadorPrevineDTO]:
-           # Simulating Previne Brasil logic: coverage = valor / populacao_alvo (assuming populacao_alvo is aggregated)
-           # In reality, we'd join with population tables, but for this repo, we aggregate indicators
+       async def get_encounters_by_hour_and_dow(
+           self, start_date: date, end_date: date
+       ) -> Sequence[EncounterTimeStats]:
            stmt = (
                select(
-                   IndicadorPrevine.mes_referencia,
-                   IndicadorPrevine.ano_referencia,
-                   IndicadorPrevine.indicador,
-                   func.sum(IndicadorPrevine.valor).label('cobertura'),
-                   func.count(IndicadorPrevine.cns).label('populacao_alvo')
+                   extract("hour", Encounter.encounter_datetime).label("hour"),
+                   extract("dow", Encounter.encounter_datetime).label("dow"),
+                   func.count(Encounter.id).label("encounter_count"),
+                   func.avg(Encounter.duration_minutes).label("avg_duration"),
                )
                .where(
-                   IndicadorPrevine.mes_referencia == mes_ref,
-                   IndicadorPrevine.ano_referencia == ano_ref
+                   Encounter.encounter_datetime >= datetime.combine(start_date, datetime.min.time()),
+                   Encounter.encounter_datetime < datetime.combine(end_date, datetime.max.time()),
                )
                .group_by(
-                   IndicadorPrevine.mes_referencia,
-                   IndicadorPrevine.ano_referencia,
-                   IndicadorPrevine.indicador
+                   extract("hour", Encounter.encounter_datetime),
+                   extract("dow", Encounter.encounter_datetime),
                )
+               .order_by("dow", "hour")
            )
-           rows = session.execute(stmt).all()
-           return [
-               IndicadorPrevineDTO(
-                   mes_referencia=int(r.mes_referencia),
-                   ano_referencia=int(r.ano_referencia),
-                   indicador=str(r.indicador),
-                   cobertura=float(r.cobertura),
-                   populacao_alvo=int(r.populacao_alvo)
-               ) for r in rows
-           ]
+           result = await self.session.execute(stmt)
+           return [EncounterTimeStats(**row._mapping) for row in result]
 
-       @staticmethod
-       def get_ranking_ciap2_cid10(session: Session, inicio: datetime, fim: datetime) -> Sequence[ClassificacaoDTO]:
-           # Window function to rank top CIAP-2/CID-10 by frequency
+       async def get_diagnosis_distribution(
+           self, start_date: date, end_date: date, code_type: str = "ciap2"
+       ) -> Sequence[DiagnosisStats]:
+           code_col = getattr(ClinicalEvent, f"{code_type}_code")
+           desc_col = ClinicalEvent.description
+
            subq = (
                select(
-                   case(
-                       (Consulta.ciap2.isnot(None), Consulta.ciap2),
-                       (Consulta.cid10.isnot(None), Consulta.cid10),
-                       else_="DESCONHECIDO"
-                   ).label('codigo'),
-                   func.count().label('total'),
-                   over(func.rank().over(partition_by=None, order_by=func.count().desc())).label('rank')
+                   code_col.label("code"),
+                   desc_col.label("description"),
+                   func.count().label("count"),
                )
-               .where(Consulta.data_hora.between(inicio, fim))
-               .group_by('codigo')
+               .join(Encounter, ClinicalEvent.encounter_id == Encounter.id)
+               .where(
+                   Encounter.encounter_datetime >= datetime.combine(start_date, datetime.min.time()),
+                   Encounter.encounter_datetime < datetime.combine(end_date, datetime.max.time()),
+               )
+               .group_by(code_col, desc_col)
                .subquery()
            )
-           # Actually, SQLAlchemy 2.0 window functions are better done differently:
-           # Let's rewrite properly using func.rank().over()
-           stmt = (
-               select(
-                   case(
-                       (Consulta.ciap2.isnot(None), Consulta.ciap2),
-                       (Consulta.cid10.isnot(None), Consulta.cid10),
-                       else_="DESCONHECIDO"
-                   ).label('codigo'),
-                   func.count().label('total'),
-                   func.rank().over(order_by=func.count().desc()).label('rank')
-               )
-               .where(Consulta.data_hora.between(inicio, fim))
-               .group_by('codigo')
-           )
-           rows = session.execute(stmt).all()
-           return [
-               ClassificacaoDTO(
-                   codigo=str(r.codigo),
-                   descricao=f"CIAP-2/CID-10: {r.codigo}",
-                   total=int(r.total),
-                   rank=int(r.rank)
-               ) for r in rows
-           ]
 
-       @staticmethod
-       def get_identificacao_cns_cpf(session: Session, inicio: datetime, fim: datetime) -> IdentificacaoDTO:
+           total_stmt = select(func.sum(subq.c.count))
+           total = (await self.session.execute(total_stmt)).scalar_one() or 0
+
            stmt = select(
-               func.count(Consulta.cns).label('cns_identificado'),
-               func.count(Consulta.cpf).label('cpf_identificado'),
-               func.count(Consulta.id).label('total_registros')
-           ).where(Consulta.data_hora.between(inicio, fim))
-           row = session.execute(stmt).one()
-           total = int(row.total_registros)
-           return IdentificacaoDTO(
-               cns_identificado=int(row.cns_identificado),
-               cpf_identificado=int(row.cpf_identificado),
-               total_registros=total,
-               taxa_cns=float(row.cns_identificado) / total if total > 0 else 0.0,
-               taxa_cpf=float(row.cpf_identificado) / total if total > 0 else 0.0
-           )
+               subq.c.code,
+               subq.c.description,
+               subq.c.count,
+               (subq.c.count * 100 / total).label("percentage"),
+           ).order_by(subq.c.count.desc())
 
-       @staticmethod
-       def get_distribuicao_metodo_soap(session: Session, inicio: datetime, fim: datetime) -> Sequence[MetodoSOAPDTO]:
+           result = await self.session.execute(stmt)
+           return [DiagnosisStats(**row._mapping) for row in result]
+
+       async def get_patient_visit_frequency_with_window(
+           self, start_date: date, end_date: date
+       ) -> Sequence[PatientVisitWindow]:
+           # Window function: rank visits per patient, and moving average over 30 days
            stmt = (
                select(
-                   Consulta.metodo,
-                   func.count().label('total'),
-                   func.count().over(partition_by=None) / func.count().label('percentual')
+                   Patient.cns,
+                   Patient.cpf,
+                   func.date(Encounter.encounter_datetime).label("visit_date"),
+                   func.row_number().over(
+                       partition_by=Patient.cns,
+                       order_by=Encounter.encounter_datetime
+                   ).label("visit_rank"),
+                   func.avg(func.date(Encounter.encounter_datetime)).over(
+                       partition_by=Patient.cns,
+                       order_by=Encounter.encounter_datetime,
+                       rows=(func.row_number().over(partition_by=Patient.cns, order_by=Encounter.encounter_datetime) - 30, func.row_number().over(partition_by=Patient.cns, order_by=Encounter.encounter_datetime))
+                   ).label("moving_avg_30d"),
                )
-               .where(Consulta.data_hora.between(inicio, fim))
-               .group_by(Consulta.metodo)
-           )
-           # Actually, percentual calculation in SQL is better: func.count() * 100.0 / func.count().over()
-           # Let's fix it properly:
-           total_count = func.count().over(partition_by=None).label('total_global')
-           stmt = (
-               select(
-                   Consulta.metodo,
-                   func.count().label('total'),
-                   (func.count() * 100.0 / total_count).label('percentual')
+               .join(Encounter, Patient.cns == Encounter.patient_cns)
+               .where(
+                   Encounter.encounter_datetime >= datetime.combine(start_date, datetime.min.time()),
+                   Encounter.encounter_datetime < datetime.combine(end_date, datetime.max.time()),
                )
-               .where(Consulta.data_hora.between(inicio, fim))
-               .group_by(Consulta.metodo)
+               .group_by(Patient.cns, Patient.cpf, func.date(Encounter.encounter_datetime))
+               .order_by(Patient.cns, func.date(Encounter.encounter_datetime))
            )
-           rows = session.execute(stmt).all()
-           return [
-               MetodoSOAPDTO(
-                   metodo=str(r.metodo),
-                   total=int(r.total),
-                   percentual=float(r.percentual)
-               ) for r in rows
-           ]
+           # Note: The window function with dynamic rows is tricky in SQLAlchemy.
+           # I'll simplify to a standard range-based window or use explicit SQL for correctness.
+           # Let's use a cleaner approach with explicit window definition.
+           ...
    ```
 
-   Wait, I need to be careful with SQLAlchemy 2.0 syntax. `extract` returns a numeric type, but in some DBs it's float. I'll cast or handle it. Also, `over` syntax needs to be correct. Let's refine the window function and extract usage to be strictly SQLAlchemy 2.0 compliant.
+   Wait, the window function syntax in SQLAlchemy 2.0 for range-based windows is:
+   `func.avg(...).over(partition_by=..., order_by=..., rows=(-30, 0))` but it works on the order column. Actually, `rows=(func.row_number()... - 30, func.row_number()...)` is not standard. Better to use `range` or explicit integer bounds if ordering by date. Since I'm grouping by date, I'll use `range` or just keep it simple with `rows=(-30, 0)` assuming the order is by date. Actually, SQLAlchemy supports `rows=(-30, 0)` for moving averages.
 
-   Correct SQLAlchemy 2.0 patterns:
-   - `extract('hour', Consulta.data_hora)` works.
-   - `func.rank().over(order_by=func.count().desc())` works.
-   - For percentual: `func.count() * 100.0 / func.count().over(partition_by=None)` works.
-   - I'll add proper type hints and ensure it's Python 3.12 compatible (using `|` for union, `Sequence` from `typing`).
+   Let's refine the window function part to be strictly SQLAlchemy 2.0 compliant and correct:
+   ```python
+   from sqlalchemy import func, extract, select, case, text
+   from sqlalchemy.orm import Session
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from pydantic import BaseModel, Field
+   from typing import Sequence
+   from datetime import date, datetime
 
-   I'll also add a `__init__.py` or note dependencies, but the prompt just asks for the file. I'll make it self-contained with models and DTOs for executability.
+   # ... models ...
 
-   Now, the prompt requires: "Manter conformidade total e cobertura de testes automatizados com pytest."
-   I need to provide the pytest tests as well. I'll create `tests/test_analytics_repo.py` (or include it in the response). The prompt says "Para cada arquivo criado ou modificado, especifique no início do bloco de código o caminho do arquivo". So I'll provide both `backend/app/repositories/analytics_repo.py` and `tests/test_analytics_repo.py`.
+   class AnalyticsRepository:
+       def __init__(self, session: Session | AsyncSession):
+           self.session = session
 
-   Let's draft the test file:
-   - Use `pytest`, `unittest.mock` or `sqlalchemy` testing utilities.
-   - Create an in-memory SQLite database for testing.
-   - Mock or create fixtures for `Session`.
-   - Test each repository method.
-   - Use `pytest-asyncio`? I'll stick to sync
+       async def get_encounters_by_hour_and_dow(self, start_date: date, end_date: date) -> Sequence[EncounterTimeStats]:
+           stmt = (
+               select(
+                   extract("hour", Encounter.encounter_datetime).label("hour"),
+                   extract("dow", Encounter.encounter_datetime).label("dow"),
+                   func.count(Encounter.id).label("encounter_count"),
+                   func.avg(Encounter.duration_minutes).label("avg_duration"),
+               )
+               .where(
+                   Encounter.encounter_datetime >= datetime.combine(start_date, datetime.min.time()),
+                   Encounter.encounter_datetime < datetime.combine(end_date, datetime.max.time()),
+               )
+               .group_by(
+                   extract("hour", Encounter.encounter_datetime),
+                   extract("dow", Encounter.encounter_datetime),
+               )
+               .order_by("dow", "hour")
+           )
+           result = await self.session.execute(stmt)
+           return [EncounterTimeStats(**row._mapping) for row in result]
+
+       async def get_diagnosis_distribution(self, start_date: date, end_date: date, code_type: str = "ciap2") -> Sequence[DiagnosisStats]:
+           code_col = getattr(ClinicalEvent, f"{code_type}_code")
+           desc_col = ClinicalEvent.description
+
+           subq = (
+               select(
+                   code_col.label("code"),
+                   desc_col.label("description"),
+                   func.count().label("count"),
+               )
+               .join(Encounter, ClinicalEvent.encounter_id == Encounter.id)
+               .where(
+                   Encounter.encounter_datetime >= datetime.combine(start_date, datetime.min.time()),
+                   Encounter.encounter_datetime < datetime.combine(end_date, datetime.max.time()),
+               )
+               .group_by(code_col, desc_col)
+               .subquery()
+           )
+
+           total_stmt = select(func.sum(subq.c.count))
+           total = (await self.session.execute(total_stmt)).scalar_one() or 0
+
+           stmt = select(
+               subq.c.code,
+               subq.c.description,
+               subq.c.count,
+               (subq.c.count * 100 / total).label("percentage"),
+           ).order_by(subq.c.count.desc())
+
+           result = await self.session.execute(stmt)
+           return [DiagnosisStats(**row._mapping) for row in result]
+
+       async def get_patient_visit_frequency_with_window(self, start_date: date, end_date: date) -> Sequence[PatientVisitWindow]:
+           # Using window functions for ranking and moving average
+           visit_date_expr = func.date(Encounter.encounter_datetime)
+           rn_expr = func.row_number().over(partition_by=Patient.cns, order_by=visit_date_expr)
+
+           stmt = (
+               select(
+                   Patient.cns,
+                   Patient.cpf,
+                   visit_date_expr.label("visit_date"),
+                   rn_expr.label("visit_rank"),
+                   func.avg(visit_date_expr).over(
+                       partition_by=Patient.cns,
+                       order_by=visit_date_expr,
+                       rows=(-30, 0)
+                   ).label("moving_avg_30

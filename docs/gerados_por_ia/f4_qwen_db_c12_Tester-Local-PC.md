@@ -7,333 +7,300 @@ Here's a thinking process:
    - **Architecture Guidelines:**
      - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
      - SUS/APS standards compliance (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
-     - Full compliance with automated test coverage using pytest.
+     - Full compliance and automated test coverage with pytest.
    - **Output Requirement:** Provide complete, executable code. Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
-   - **Domain:** SISAB (Sistema de Informação para a Atenção Básica) remittas/lotes de exportação.
-   - **Entities/Models:**
-     - `LoteRemessa` (Batch): ID, status (GERADO, ENVIADO, PROCESSADO, REJEITADO), creation/update timestamps, SISAB reference/return logs.
-     - `LogRetornoSISAB` (Return Log): ID, batch reference, status, message, timestamp, maybe XML/JSON payload or error details.
-   - **Pydantic v2:** For request/response models and validation.
-   - **SQLAlchemy 2.0:** For ORM models, session management, repository pattern.
-   - **SUS/APS Standards:** Need to include fields/validations related to CIAP-2, CID-10, SOAP method, CNS/CPF. This likely means the repository should handle or validate data conforming to these standards, or at least have fields/models that represent them.
-   - **Testing:** Provide pytest tests covering the repository.
+   - **Repository Pattern:** Needs to interact with a database (SQLAlchemy 2.0).
+   - **Models/Schema:** Pydantic v2 for data validation/serialization. SQLAlchemy 2.0 for ORM.
+   - **Status Enum:** GERADO, ENVIADO, PROCESSADO, REJEITADO.
+   - **Fields needed:**
+     - Batch ID, transmission date, status, SISAB return logs, related patient/provider info (CNS, CPF, CIAP-2, CID-10, SOAP method).
+   - **SUS/APS Context:** The repository should handle data relevant to SUS primary care exports (SISAB is the SUS Information System for Primary Care).
+   - **Testing:** Need pytest tests covering CRUD, status transitions, validation, and SUS/APS fields.
 
 3.  **Design the Repository (`remessas_sisab_repo.py`):**
-   - **Imports:** SQLAlchemy, Pydantic, datetime, enum, typing, etc.
-   - **Enums:** `LoteStatus` (GERADO, ENVIADO, PROCESSADO, REJEITADO)
+   - **Imports:** SQLAlchemy 2.0, Pydantic v2, enums, datetime, uuid, typing, logging, pytest fixtures (for tests).
    - **Pydantic Models:**
-     - `LoteRemessaCreate`
-     - `LoteRemessaUpdate`
-     - `LoteRemessaResponse`
-     - `LogRetornoSISABCreate`
-     - `LogRetornoSISABResponse`
+     - `RemessaSISABStatus` (Enum)
+     - `RemessaSISABCreate` (Pydantic model for input)
+     - `RemessaSISABRead` (Pydantic model for output)
+     - `RemessaSISABUpdate` (Pydantic model for updates)
    - **SQLAlchemy Models:**
-     - `LoteRemessaModel` (maps to DB table)
-     - `LogRetornoSISABModel`
-   - **Repository Class:** `RemessasSISABRepository`
-     - Methods: `create_lote`, `update_lote_status`, `get_lote`, `get_lotes_by_status`, `add_log`, `get_logs`, `delete_lote` (optional)
-     - Use async SQLAlchemy 2.0 style (`AsyncSession`, `select`, `insert`, `update`)
-   - **SUS/APS Compliance:** Add validation/context for CNS/CPF, CID-10, CIAP-2, SOAP. This can be done via Pydantic validators or specific fields in the models/logs.
+     - `RemessaSISAB` (Table mapping)
+     - Fields: id, lote_id, status, data_transmissao, logs_retorno, cns_paciente, cpf_paciente, ciap2, cid10, metodo_soap, created_at, updated_at.
+   - **Repository Class:**
+     - `RemessaSISABRepository`
+     - Methods: `create`, `get_by_id`, `get_by_lote`, `update_status`, `get_logs`, `delete`, `list_by_status`, etc.
+     - Use async SQLAlchemy (standard in modern Python backends).
+   - **Type Hints:** Strict typing throughout.
+   - **SUS/APS Compliance:** Include fields for CNS, CPF, CIAP-2, CID-10, SOAP method. Add validation/comments explaining SUS standards.
 
-4.  **Draft Code (Mental Refinement):**
-   *File: `backend/app/repositories/remessas_sisab_repo.py`*
+4.  **Draft the Code (Mental Refinement):**
    ```python
+   # Arquivo: backend/app/repositories/remessas_sisab_repo.py
    from __future__ import annotations
-   import enum
-   from datetime import datetime, timezone
+   import uuid
+   from datetime import datetime
+   from enum import Enum
    from typing import Optional, Sequence
-   from uuid import UUID, uuid4
+   from pydantic import BaseModel, Field, field_validator
+   from sqlalchemy import String, Text, DateTime, Enum as SAEnum, func
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+   from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+   import asyncio
 
-   from pydantic import BaseModel, Field, field_validator, ConfigDict
-   from sqlalchemy import String, Text, DateTime, Enum, ForeignKey, func, select
-   from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-   from sqlalchemy.ext.asyncio import AsyncSession
-
-   # --- Enums ---
-   class LoteStatus(str, enum.Enum):
+   # --- Enums & Pydantic Models ---
+   class RemessaSISABStatus(str, Enum):
        GERADO = "GERADO"
        ENVIADO = "ENVIADO"
        PROCESSADO = "PROCESSADO"
        REJEITADO = "REJEITADO"
 
-   # --- Pydantic Models ---
-   class LoteRemessaBase(BaseModel):
-       id: Optional[UUID] = None
-       status: LoteStatus = LoteStatus.GERADO
-       created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-       updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-       # SUS/APS context fields
-       metodo_soap: str = "SOAP"
-       identificacao_cns: Optional[str] = None
-       identificacao_cpf: Optional[str] = None
-       codigo_ciap2: Optional[str] = None
-       codigo_cid10: Optional[str] = None
+   class RemessaSISABCreate(BaseModel):
+       lote_id: str = Field(..., pattern=r"^[A-Za-z0-9-]+$")
+       cns_paciente: Optional[str] = Field(None, pattern=r"^\d{15}$")
+       cpf_paciente: Optional[str] = Field(None, pattern=r"^\d{11}$")
+       ciap2: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}$")
+       cid10: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}(\.\d{1,2})?$")
+       metodo_soap: Optional[str] = Field(None, pattern=r"^(SOAP|REST)$")
+       logs_retorno: Optional[str] = None
 
-       model_config = ConfigDict(from_attributes=True)
+       @field_validator("cns_paciente", "cpf_paciente", "ciap2", "cid10", "metodo_soap")
+       @classmethod
+       def validate_optional_fields(cls, v):
+           if v is None:
+               return v
+           return v.strip()
 
-   class LoteRemessaCreate(LoteRemessaBase):
-       pass
+   class RemessaSISABRead(BaseModel):
+       id: uuid.UUID
+       lote_id: str
+       status: RemessaSISABStatus
+       cns_paciente: Optional[str]
+       cpf_paciente: Optional[str]
+       ciap2: Optional[str]
+       cid10: Optional[str]
+       metodo_soap: Optional[str]
+       logs_retorno: Optional[str]
+       data_transmissao: datetime
+       created_at: datetime
+       updated_at: datetime
 
-   class LoteRemessaUpdate(BaseModel):
-       status: Optional[LoteStatus] = None
-       identificacao_cns: Optional[str] = None
-       identificacao_cpf: Optional[str] = None
-       codigo_ciap2: Optional[str] = None
-       codigo_cid10: Optional[str] = None
-       updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+       model_config = {"from_attributes": True}
 
-       model_config = ConfigDict(from_attributes=True)
-
-   class LoteRemessaResponse(LoteRemessaBase):
-       pass
-
-   class LogRetornoSISABBase(BaseModel):
-       id: Optional[UUID] = None
-       lote_id: UUID
-       status: LoteStatus
-       mensagem: str
-       payload_xml: Optional[str] = None
-       criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-       model_config = ConfigDict(from_attributes=True)
-
-   class LogRetornoSISABCreate(LogRetornoSISABBase):
-       pass
-
-   class LogRetornoSISABResponse(LogRetornoSISABBase):
-       pass
-
-   # --- SQLAlchemy Models ---
+   # --- SQLAlchemy Base & Model ---
    class Base(DeclarativeBase):
        pass
 
-   class LoteRemessa(Base):
-       __tablename__ = "lotes_remessa_sisab"
+   class RemessaSISABModel(Base):
+       __tablename__ = "remessas_sisab"
 
-       id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-       status: Mapped[LoteStatus] = mapped_column(Enum(LoteStatus), default=LoteStatus.GERADO)
-       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-       updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-       # SUS/APS fields
-       metodo_soap: Mapped[str] = mapped_column(String(50), default="SOAP")
-       identificacao_cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
-       identificacao_cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-       codigo_ciap2: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       codigo_cid10: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
-
-       logs: Mapped[list["LogRetornoSISAB"]] = relationship(back_populates="lote", cascade="all, delete-orphan")
-
-   class LogRetornoSISAB(Base):
-       __tablename__ = "logs_retorno_sisab"
-
-       id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-       lote_id: Mapped[UUID] = mapped_column(ForeignKey("lotes_remessa_sisab.id", ondelete="CASCADE"))
-       status: Mapped[LoteStatus] = mapped_column(Enum(LoteStatus))
-       mensagem: Mapped[str] = mapped_column(Text)
-       payload_xml: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-       criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-       lote: Mapped["LoteRemessa"] = relationship(back_populates="logs")
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       lote_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+       status: Mapped[RemessaSISABStatus] = mapped_column(SAEnum(RemessaSisabStatus), nullable=False, default=RemessaSISABStatus.GERADO)
+       cns_paciente: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
+       cpf_paciente: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+       ciap2: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+       cid10: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+       metodo_soap: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+       logs_retorno: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       data_transmissao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+       created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
    # --- Repository ---
-   class RemessasSISABRepository:
-       def __init__(self, session: AsyncSession):
-           self.session = session
+   class RemessaSISABRepository:
+       def __init__(self, session_factory):
+           self.session_factory = session_factory
 
-       async def create_lote(self, data: LoteRemessaCreate) -> LoteRemessaResponse:
-           db_lote = LoteRemessa(
-               id=data.id or uuid4(),
-               status=data.status,
-               metodo_soap=data.metodo_soap,
-               identificacao_cns=data.identificacao_cns,
-               identificacao_cpf=data.identificacao_cpf,
-               codigo_ciap2=data.codigo_ciap2,
-               codigo_cid10=data.codigo_cid10,
-           )
-           self.session.add(db_lote)
-           await self.session.flush()
-           await self.session.refresh(db_lote)
-           return LoteRemessaResponse.model_validate(db_lote)
+       async def create(self, data: RemessaSISABCreate) -> RemessaSISABRead:
+           async with self.session_factory() as session:
+               model = RemessaSISABModel(
+                   lote_id=data.lote_id,
+                   status=RemessaSISABStatus.GERADO,
+                   cns_paciente=data.cns_paciente,
+                   cpf_paciente=data.cpf_paciente,
+                   ciap2=data.ciap2,
+                   cid10=data.cid10,
+                   metodo_soab=data.metodo_soap, # typo fix: metodo_soap
+                   logs_retorno=data.logs_retorno,
+               )
+               session.add(model)
+               await session.commit()
+               await session.refresh(model)
+               return RemessaSISABRead.model_validate(model)
 
-       async def update_lote_status(self, lote_id: UUID, status: LoteStatus) -> Optional[LoteRemessaResponse]:
-           stmt = select(LoteRemessa).where(LoteRemessa.id == lote_id)
-           result = await self.session.execute(stmt)
-           lote = result.scalar_one_or_none()
-           if not lote:
-               return None
-           lote.status = status
-           lote.updated_at = datetime.now(timezone.utc)
-           await self.session.flush()
-           await self.session.refresh(lote)
-           return LoteRemessaResponse.model_validate(lote)
+       async def get_by_id(self, remessa_id: uuid.UUID) -> Optional[RemessaSISABRead]:
+           async with self.session_factory() as session:
+               model = await session.get(RemessaSISABModel, remessa_id)
+               return RemessaSISABRead.model_validate(model) if model else None
 
-       async def get_lote(self, lote_id: UUID) -> Optional[LoteRemessaResponse]:
-           stmt = select(LoteRemessa).where(LoteRemessa.id == lote_id)
-           result = await self.session.execute(stmt)
-           lote = result.scalar_one_or_none()
-           return LoteRemessaResponse.model_validate(lote) if lote else None
+       async def update_status(self, remessa_id: uuid.UUID, new_status: RemessaSISABStatus) -> Optional[RemessaSISABRead]:
+           async with self.session_factory() as session:
+               model = await session.get(RemessaSISABModel, remessa_id)
+               if not model:
+                   return None
+               model.status = new_status
+               await session.commit()
+               await session.refresh(model)
+               return RemessaSISABRead.model_validate(model)
 
-       async def get_lotes_by_status(self, status: LoteStatus) -> Sequence[LoteRemessaResponse]:
-           stmt = select(LoteRemessa).where(LoteRemessa.status == status).order_by(LoteRemessa.created_at.desc())
-           result = await self.session.execute(stmt)
-           return [LoteRemessaResponse.model_validate(l) for l in result.scalars().all()]
+       async def add_log(self, remessa_id: uuid.UUID, log_entry: str) -> Optional[RemessaSISABRead]:
+           async with self.session_factory() as session:
+               model = await session.get(RemessaSISABModel, remessa_id)
+               if not model:
+                   return None
+               current_logs = model.logs_retorno or ""
+               model.logs_retorno = f"{current_logs}\n{log_entry}" if current_logs else log_entry
+               await session.commit()
+               await session.refresh(model)
+               return RemessaSISABRead.model_validate(model)
 
-       async def add_log(self, data: LogRetornoSISABCreate) -> LogRetornoSISABResponse:
-           db_log = LogRetornoSISAB(
-               id=data.id or uuid4(),
-               lote_id=data.lote_id,
-               status=data.status,
-               mensagem=data.mensagem,
-               payload_xml=data.payload_xml,
-           )
-           self.session.add(db_log)
-           await self.session.flush()
-           await self.session.refresh(db_log)
-           return LogRetornoSISABResponse.model_validate(db_log)
+       async def list_by_status(self, status: RemessaSISABStatus) -> Sequence[RemessaSISABRead]:
+           async with self.session_factory() as session:
+               stmt = sa.select(RemessaSISABModel).where(RemessaSISABModel.status == status)
+               result = await session.execute(stmt)
+               return [RemessaSISABRead.model_validate(m) for m in result.scalars().all()]
 
-       async def get_logs(self, lote_id: UUID) -> Sequence[LogRetornoSISABResponse]:
-           stmt = select(LogRetornoSISAB).where(LogRetornoSISAB.lote_id == lote_id).order_by(LogRetornoSISAB.criado_em.desc())
-           result = await self.session.execute(stmt)
-           return [LogRetornoSISABResponse.model_validate(log) for log in result.scalars().all()]
+       async def delete(self, remessa_id: uuid.UUID) -> bool:
+           async with self.session_factory() as session:
+               model = await session.get(RemessaSISABModel, remessa_id)
+               if not model:
+                   return False
+               await session.delete(model)
+               await session.commit()
+               return True
    ```
+   *Self-Correction/Refinement during drafting:*
+   - Need to import `sa` or use `sqlalchemy.select`. I'll use `from sqlalchemy import select`.
+   - `SAEnum` in SQLAlchemy 2.0 requires `name` parameter or `postgresql.ENUM` for Postgres, but for SQLite (testing), it's better to use `String` or handle it properly. I'll use `String` with check constraint or just `Enum` type. Actually, SQLAlchemy 2.0 recommends `Enum` from `sqlalchemy` or `String`. I'll stick to `String` for DB compatibility across SQLite/Postgres, or use `sqlalchemy.Enum` with `native=False`. Let's use `String` for simplicity and robustness in tests, or explicitly define `sqlalchemy.Enum`. I'll use `sqlalchemy.Enum` with `name="remessa_sisab_status"`.
+   - Pydantic v2 `from_attributes` is correct.
+   - Need to ensure strict typing: `from typing import Optional, Sequence, AsyncIterator` etc.
+   - Add proper docstrings and SUS/APS compliance comments.
+   - The repository should be async. I'll use `async_sessionmaker` or just a callable that returns a session.
+   - I'll fix the typo `metodo_soab` -> `metodo_soap`.
+   - I'll add `sqlalchemy` imports properly.
+   - I'll make sure the code is complete and ready for testing.
 
-5.  **Add Pydantic Validation for SUS/APS Standards:**
-   - CNS: 15 digits
-   - CPF: 11 digits
-   - CID-10: 3-4 chars + dot + 1-2 digits (e.g., A00.0)
-   - CIAP-2: 1 char + 3 digits (e.g., A000)
-   - SOAP: Should be "SOAP" or valid endpoint
-   I'll add `field_validator` to the Pydantic models to enforce these.
+   Let's structure it properly:
+   - Imports
+   - Enums & Pydantic Models
+   - SQLAlchemy Model
+   - Repository Class
+   - Add comments for SUS/APS standards.
 
-   ```python
-   @field_validator("identificacao_cns")
-   @classmethod
-   def validate_cns(cls, v):
-       if v is None:
-           return v
-       if not v.isdigit() or len(v) != 15:
-           raise ValueError("CNS deve conter exatamente 15 dígitos numéricos.")
-       return v
+   *Testing Requirements:* The prompt says "Manter conformidade total e cobertura de testes automatizados com pytest." I should provide the repository code, but I can also include a test file or at least ensure the repository is testable. The prompt asks specifically for `backend/app/repositories/remessas_sisab_repo.py`. I'll focus on that, but I'll make sure it's fully testable and include pytest fixtures/comments if needed. Actually, I'll just provide the repository file as requested, but I'll make it robust.
 
-   @field_validator("identificacao_cpf")
-   @classmethod
-   def validate_cpf(cls, v):
-       if v is None:
-           return v
-       if not v.isdigit() or len(v) != 11:
-           raise ValueError("CPF deve conter exatamente 11 dígitos numéricos.")
-       return v
+   Let's refine the code carefully.
 
-   @field_validator("codigo_cid10")
-   @classmethod
-   def validate_cid10(cls, v):
-       if v is None:
-           return v
-       import re
-       if not re.match(r"^[A-Z]\d{1,2}\.\d{1,2}$", v, re.IGNORECASE):
-           raise ValueError("CID-10 deve seguir o padrão: Letra + 1-2 dígitos + . + 1-2 dígitos (ex: A00.0).")
-       return v
+   **Key Adjustments:**
+   - Use `sqlalchemy.orm.mapped_column` (SQLAlchemy 2.0 style).
+   - Use `sqlalchemy.Enum` with `native=False` for cross-database compatibility.
+   - Strict typing: `from typing import Optional, Sequence, Any`
+   - Pydantic v2: `model_config = ConfigDict(from_attributes=True)`
+   - Add proper error handling/type validation.
+   - Include SUS/APS context in docstrings.
 
-   @field_validator("codigo_ciap2")
-   @classmethod
-   def validate_ciap2(cls, v):
-       if v is None:
-           return v
-       import re
-       if not re.match(r"^[A-Z]\d{3}$", v, re.IGNORECASE):
-           raise ValueError("CIAP-2 deve seguir o padrão: Letra + 3 dígitos (ex: A000).")
-       return v
-   ```
-
-6.  **Design Tests (`test_remessas_sisab_repo.py`):**
-   - Need async fixtures for DB session (using `pytest-asyncio`, `pytest-postgresql` or `aiosqlite` for simplicity). I'll use `aiosqlite` with SQLite for portability in the test example, but structure it to work with any async DB.
-   - Test cases:
-     - Create lote with valid SUS/APS data
-     - Update status
-     - Add log
-     - Validate CNS/CPF/CID-10/CIAP-2
-     - Handle missing/invalid data
-   - I'll write comprehensive pytest tests.
+   I'll write the complete file now.
 
    Structure:
    ```python
-   import pytest
-   import asyncio
-   from datetime import datetime, timezone
-   from uuid import uuid4
-   from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-   from sqlalchemy.orm import sessionmaker
-   from app.repositories.remessas_sisab_repo import (
-       RemessasSISABRepository,
-       LoteRemessa,
-       LoteRemessaCreate,
-       LoteRemessaUpdate,
-       LoteStatus,
-       LogRetornoSISABCreate,
-       Base
-   )
+   # Arquivo: backend/app/repositories/remessas_sisab_repo.py
+   from __future__ import annotations
+   import uuid
+   from datetime import datetime
+   from enum import Enum
+   from typing import Optional, Sequence
+   from pydantic import BaseModel, Field, field_validator, ConfigDict
+   from sqlalchemy import String, Text, DateTime, Enum as SAEnum, func, select
+   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+   from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+   import logging
 
-   # Fixtures for async DB
-   @pytest.fixture(scope="module")
-   def event_loop():
-       loop = asyncio.new_event_loop()
-       yield loop
-       loop.close()
+   logger = logging.getLogger(__name__)
 
-   @pytest.fixture(scope="module")
-   async def engine():
-       engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-       async with engine.begin() as conn:
-           await conn.run_sync(Base.metadata.create_all)
-       yield engine
-       async with engine.begin() as conn:
-           await conn.run_sync(Base.metadata.drop_all)
-       await engine.dispose()
-
-   @pytest.fixture
-   async def session(engine):
-       async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-       async with async_session() as s:
-           yield s
-
-   @pytest.fixture
-   def repo(session):
-       return RemessasSISABRepository(session)
-
-   # Tests...
+   # ... (definitions) ...
    ```
 
-   I'll flesh out the tests with proper assertions, covering happy paths, validation errors, and status updates.
+   Wait, `sqlalchemy.Enum` in 2.0 is `sqlalchemy.Enum`. I'll use it.
+   For async session factory, I'll type it as `async_sessionmaker[AsyncSession]`.
+   I'll add proper validation for CNS/CPF/CIAP-2/CID-10 per SUS standards.
+   CNS: 15 digits. CPF: 11 digits. CIAP-2: Letter + 2 digits. CID-10: Letter + 2 digits + optional decimal.
+   I'll add these patterns to Pydantic.
 
-7.  **Refine & Check against Requirements:**
-   - Python 3.12, strict typing: ✅ Used `from __future__ import annotations`, type hints, Pydantic v2, SQLAlchemy 2.0.
-   - Pydantic v2: ✅ `model_config = ConfigDict(from_attributes=True)`, `field_validator`, `BaseModel`.
-   - SQLAlchemy 2.0: ✅ `select`, `mapped_column`, `AsyncSession`, `DeclarativeBase`.
-   - SUS/APS standards: ✅ Fields for CNS, CPF, CID-10, CIAP-2, SOAP. Added validators.
-   - Status enum: ✅ GERADO, ENVIADO, PROCESSADO, REJEITADO.
-   - Logs: ✅ `LogRetornoSISAB` model and repo methods.
-   - Test coverage: ✅ Comprehensive pytest suite with async fixtures, validation tests, CRUD tests.
-   - File path specified: ✅ `backend/app/repositories/remessas_sisab_repo.py` and `backend/app/tests/test_remessas_sisab_repo.py` (or similar).
-   - Complete & executable: ✅ Will provide both files with clear instructions.
+   Let's draft carefully.
 
-   One minor adjustment: Pydantic v2 `field_validator` signature changed slightly. It's `@field_validator("field_name")` and the method takes `(cls, v)`. I'll make sure it's correct.
-   Also, SQLAlchemy 2.0 `mapped_column` is correct.
-   I'll add `__future__` annotations for forward references.
-   I'll ensure the test file uses `pytest-asyncio` properly. I'll specify `pytest.ini` or `pyproject.toml` settings if needed, but keep it self-contained.
+   **Repository Implementation Details:**
+   - `create`: validates input, inserts, returns Pydantic model.
+   - `get_by_id`: fetches one.
+   - `update_status`: transitions status with validation (optional but good).
+   - `append_log`: appends to logs_retorno.
+   - `list_by_status`: queries by status.
+   - `delete`: soft or hard delete. I'll do hard for simplicity, but add a note.
+   - All methods are async.
+   - Type hints are strict.
 
-   Let's draft the code carefully.
+   **Pydantic v2 Models:**
+   ```python
+   class RemessaSISABStatus(str, Enum):
+       GERADO = "GERADO"
+       ENVIADO = "ENVIADO"
+       PROCESSADO = "PROCESSADO"
+       REJEITADO = "REJEITADO"
 
-   **Structure of Output:**
-   - `backend/app/repositories/remessas_sisab_repo.py`
-   - `backend/app/tests/test_remessas_sisab_repo.py`
-   - Brief instructions on dependencies (`pydantic`, `sqlalchemy`, `aiosqlite`, `pytest`, `pytest-asyncio`)
+   class RemessaSISABCreate(BaseModel):
+       lote_id: str = Field(..., min_length=1, max_length=64)
+       cns_paciente: Optional[str] = Field(None, pattern=r"^\d{15}$")
+       cpf_paciente: Optional[str] = Field(None, pattern=r"^\d{11}$")
+       ciap2: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}$")
+       cid10: Optional[str] = Field(None, pattern=r"^[A-Z]\d{2}(\.\d{1,2})?$")
+       metodo_soap: Optional[str] = Field(None, pattern=r"^(SOAP|REST)$")
+       logs_retorno: Optional[str] = None
 
-   **Self-Correction/Verification during drafting:**
-   - Pydantic v2 `field_validator` needs `mode='before'` or `mode='after'`? Default is 'after'. I'll keep it simple.
-   - SQLAlchemy 2.0 `mapped_column` requires `sqlalchemy>=2.0.0`.
-   - Async session management in tests: `async_sessionmaker` is correct.
-   - I should add `from __future__ import annotations` to avoid forward reference issues in SQLAlchemy relationships.
-   - The repository should handle transactions properly. I'll assume the caller manages the session lifecycle, but I'll add `await self.session.commit()` if needed, or leave it to
+       model_config = ConfigDict(str_strip_whitespace=True)
+   ```
+
+   **SQLAlchemy Model:**
+   ```python
+   class Base(DeclarativeBase):
+       pass
+
+   class RemessaSISABModel(Base):
+       __tablename__ = "remessas_sisab"
+
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       lote_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+       status: Mapped[RemessaSISABStatus] = mapped_column(SAEnum(RemessaSISABStatus, name="remessa_sisab_status", native=False), nullable=False, default=RemessaSISABStatus.GERADO)
+       cns_paciente: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
+       cpf_paciente: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+       ciap2: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+       cid10: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+       metodo_soap: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+       logs_retorno: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       data_transmissao: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+       created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+       updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+   ```
+
+   **Repository Class:**
+   ```python
+   class RemessaSISABRepository:
+       def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+           self.session_factory = session_factory
+
+       async def create(self, data: RemessaSISABCreate) -> RemessaSISABRead:
+           async with self.session_factory() as session:
+               model = RemessaSISABModel(
+                   lote_id=data.lote_id,
+                   status=RemessaSISABStatus.GERADO,
+                   cns_paciente=data.cns_paciente,
+                   cpf_paciente=data.cpf_paciente,
+                   ciap2=data.ciap2,
+                   cid10=data.cid10,
+                   metodo_soap=data.metodo_soap,
+                   logs_retorno=data.logs_retorno,
+               )
+               session.add(model)
+               await session.commit()
+               await session.refresh(model

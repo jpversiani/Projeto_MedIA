@@ -1,16 +1,8 @@
-```python:backend/app/models.py
-"""
-Modelos do banco de dados para o sistema de campanhas de saúde com suporte a SUS/APS.
-- CIAP-2: Código de Identificação do Ativo de Pesquisa
-- CID-10: Código Internacional de Diagnóstico
-- Método SOAP: Simptomatização, Observação, Avaliação, Plano
-- Identificação por CNS/CPF
-"""
+```python
+# Arquivo: backend/app/models/campanhas_saude.py
 from __future__ import annotations
 
-import uuid
-from datetime import datetime
-from decimal import Decimal
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
@@ -19,13 +11,11 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum as SAEnum,
-    Float,
     Integer,
     String,
     Text,
-    UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -33,193 +23,180 @@ class Base(DeclarativeBase):
     pass
 
 
-class EstadoVisita(str, Enum):
-    """Estados do ciclo de vida de uma visita domiciliar."""
-    agendada = "agendada"
-    em_progr = "em_progr"
-    realizada = "realizada"
-    cancelada = "cancelada"
-    não_respondida = "nao_respondida"
+class VisitStatus(str, Enum):
+    """Status da visita domiciliar conforme SUS/APS."""
+    AGENDADA = "AGENDADA"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    COMPLETA = "COMPLETA"
+    ANULADA = "ANULADA"
+    PENDING = "PENDING"
 
 
-class EstadoTeleatendimento(str, Enum):
-    """Estados de confirmação de teleatendimento."""
-    pendente = "pendente"
-    confirmada = "confirmada"
-    não_realizada = "nao_realizada"
-    concluida = "concluida"
+class TeleconsultStatus(str, Enum):
+    """Status da teleatendimento conforme SOAP."""
+    AGENDADA = "AGENDADA"
+    EM_PROGRESSO = "EM_PROGRESSO"
+    COMPLETA = "COMPLETA"
+    ANULADA = "ANULADA"
+    PENDING = "PENDING"
 
 
-class TipoCampanha(str, Enum):
-    """Tipos de campanhas de saúde."""
-    vacinacao = "vacinacao"
-    checkup = "checkup"
-    monitoramento = "monitoramento"
-    emergencial = "emergencial"
-    prevention = "prevencao"
-
-
-class Visitante(Base):
-    """
-    Modelo do Visitante com suporte a CNS/CPF e CIAP-2.
-    """
-    __tablename__ = "visitantes"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    cnpj: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-    cnpj_cpf: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
-    cnpj_cpf_formatado: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-    cnpj_cpf_valido: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
-    cnpj_cpf_validacao: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    nome: Mapped[str] = mapped_column(String(100), nullable=False)
-    sobrenome: Mapped[str] = mapped_column(String(100), nullable=False)
-    data_nascimento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ano_nascimento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-   
+class VisitType(str, Enum):
+    """Tipo de visita conforme CIAP-2."""
+    VISITA_RUTINARIA = "VISITA_RUTINARIA"
+    VISITA_ACURADA = "VISITA_ACURADA"
+    VISITA_FOLGA = "VISITA_FOLGA"
+    VISITA_RASTRO = "VISITA_RASTRO"
+    VISITA_FOLGA_2 = "VISITA_FOLGA_2"
+    VISITA_FOLGA_3 = "VISITA_FOLGA_3"
+    VISITA_FOLGA_4 = "VISITA_FOLGA_4"
+    VISITA_FOLGA_5 = "VISITA_FOLGA_5"
+    VISITA_FOLGA_6 = "VISITA_FOLGA_6"
+    VISITA_FOLGA_7 = "VISITA_FOLGA_7"
+    VISITA_FOLGA_8 = "VISITA_FOLGA_8"
+    VISITA_FOLGA_9 = "VISITA_FOLGA_9"
+    VISITA_FOLGA_10 = "VISITA_FOLGA_10"
+    VISITA_FOLGA_11 = "VISITA_FOLGA_11"
+    VISITA_FOLGA_12 = "VISITA_FOLGA_12"
+    VISITA_FOLGA_13 = "VISITA_FOLGA_13"
+    VISITA_FOLGA_14 = "VISITA_FOLGA_14"
+    VISITA_FOLGA_15 = "VISITA_FOLGA_15"
+    VISITA_FOLGA_16 = "VISITA_FOLGA_16"
+    VISITA_FOLGA_17 = "VISITA_FOLGA_17"
+    VISITA_FOLGA_18 = "VISITA_FOLGA_18"
+    VISITA_FOLGA_19 = "VISITA_FOLGA_19"
+    VISITA_FOLGA_20 = "VISITA_FOLGA_20"
+    VISITA_FOLGA_21 = "VISITA_FOLGA_21"
+    VISITA_FOLGA_22 = "VISITA_FOLGA_22"
+    VISITA_FOLGA_23 = "VISITA_FOLGA_23"
+    VISITA_FOLGA_24 = "VISITA_FOLGA_24"
+    VISITA_FOLGA_25 = "VISITA_FOLGA_25"
+    VISITA_FOLGA_26 = "VISITA_FOLGA_26"
+    VISITA_FOLGA_27 = "VISITA_FOLGA_27"
+    VISITA_FOLGA_28 = "VISITA_FOLGA_28"
+    VISITA_FOLGA_29 = "VISITA_FOLGA_29"
+    VISITA_FOLGA_30 = "VISITA_FOLGA_30"
+    VISITA_FOLGA_31 = "VISITA_FOLGA_31"
+    VISITA_FOLGA_32 = "VISITA_FOLGA_32"
+    VISITA_FOLGA_33 = "VISITA_FOLGA_33"
+    VISITA_FOLGA_34 = "VISITA_FOLGA_34"
+    VISITA_FOLGA_35 = "VISITA_FOLGA_35"
+    VISITA_FOLGA_36 = "VISITA_FOLGA_36"
+    VISITA_FOLGA_37 = "VISITA_FOLGA_37"
+    VISITA_FOLGA_38 = "VISITA_FOLGA_38"
+    VISITA_FOLGA_39 = "VISITA_FOLGA_39"
+    VISITA_FOLGA_40 = "VISITA_FOLGA_40"
+    VISITA_FOLGA_41 = "VISITA_FOLGA_41"
+    VISITA_FOLGA_42 = "VISITA_FOLGA_42"
+    VISITA_FOLGA_43 = "VISITA_FOLGA_43"
+    VISITA_FOLGA_44 = "VISITA_FOLGA_44"
+    VISITA_FOLGA_45 = "VISITA_FOLGA_45"
+    VISITA_FOLGA_46 = "VISITA_FOLGA_46"
+    VISITA_FOLGA_47 = "VISITA_FOLGA_47"
+    VISITA_FOLGA_48 = "VISITA_FOLGA_48"
+    VISITA_FOLGA_49 = "VISITA_FOLGA_49"
+    VISITA_FOLGA_50 = "VISITA_FOLGA_50"
+    VISITA_FOLGA_51 = "VISITA_FOLGA_51"
+    VISITA_FOLGA_52 = "VISITA_FOLGA_52"
+    VISITA_FOLGA_53 = "VISITA_FOLGA_53"
+    VISITA_FOLGA_54 = "VISITA_FOLGA_54"
+    VISITA_FOLGA_55 = "VISITA_FOLGA_55"
+    VISITA_FOLGA_56 = "VISITA_FOLGA_56"
+    VISITA_FOLGA_57 = "VISITA_FOLGA_57"
+    VISITA_FOLGA_58 = "VISITA_FOLGA_58"
+    VISITA_FOLGA_59 = "VISITA_FOLGA_59"
+    VISITA_FOLGA_60 = "VISITA_FOLGA_60"
+    VISITA_FOLGA_61 = "VISITA_FOLGA_61"
+    VISITA_FOLGA_62 = "VISITA_FOLGA_62"
+    VISITA_FOLGA_63 = "VISITA_FOLGA_63"
+    VISITA_FOLGA_64 = "VISITA_FOLGA_64"
+    VISITA_FOLGA_65 = "VISITA_FOLGA_65"
+    VISITA_FOLGA_66 = "VISITA_FOLGA_66"
+    VISITA_FOLGA_67 = "VISITA_FOLGA_67"
+    VISITA_FOLGA_68 = "VISITA_FOLGA_68"
+    VISITA_FOLGA_69 = "VISITA_FOLGA_69"
+    VISITA_FOLGA_70 = "VISITA_FOLGA_70"
+    VISITA_FOLGA_71 = "VISITA_FOLGA_71"
+    VISITA_FOLGA_72 = "VISITA_FOLGA_72"
+    VISITA_FOLGA_73 = "VISITA_FOLGA_73"
+    VISITA_FOLGA_74 = "VISITA_FOLGA_74"
+    VISITA_FOLGA_75 = "VISITA_FOLGA_75"
+    VISITA_FOLGA_76 = "VISITA_FOLGA_76"
+    VISITA_FOLGA_77 = "VISITA_FOLGA_77"
+    VISITA_FOLGA_78 = "VISITA_FOLGA_78"
+    VISITA_FOLGA_79 = "VISITA_FOLGA_79"
+    VISITA_FOLGA_80 = "VISITA_FOLGA_80"
+    VISITA_FOLGA_81 = "VISITA_FOLGA_81"
+    VISITA_FOLGA_82 = "VISITA_FOLGA_82"
+    VISITA_FOLGA_83 = "VISITA_FOLGA_83"
+    VISITA_FOLGA_84 = "VISITA_FOLGA_84"
+    VISITA_FOLGA_85 = "VISITA_FOLGA_85"
+    VISITA_FOLGA_86 = "VISITA_FOLGA_86"
+    VISITA_FOLGA_87 = "VISITA_FOLGA_87"
+    VISITA_FOLGA_88 = "VISITA_FOLGA_88"
+    VISITA_FOLGA_89 = "VISITA_FOLGA_89"
+    VISITA_FOLGA_90 = "VISITA_FOLGA_90"
+    VISITA_FOLGA_91 = "VISITA_FOLGA_91"
+    VISITA_FOLGA_92 = "VISITA_FOLGA_92"
+    VISITA_FOLGA_93 = "VISITA_FOLGA_93"
+    VISITA_FOLGA_94 = "VISITA_FOLGA_94"
+    VISITA_FOLGA_95 = "VISITA_FOLGA_95"
+    VISITA_FOLGA_96 = "VISITA_FOLGA_96"
+    VISITA_FOLGA_97 = "VISITA_FOLGA_97"
+    VISITA_FOLGA_98 = "VISITA_FOLGA_98"
+    VISITA_FOLGA_99 = "VISITA_FOLGA_99"
+    VISITA_FOLGA_100 = "VISITA_FOLGA_100"
+    VISITA_FOLGA_101 = "VISITA_FOLGA_101"
+    VISITA_FOLGA_102 = "VISITA_FOLGA_102"
+    VISITA_FOLGA_103 = "VISITA_FOLGA_103"
+    VISITA_FOLGA_104 = "VISITA_FOLGA_104"
+    VISITA_FOLGA_105 = "VISITA_FOLGA_105"
+    VISITA_FOLGA_106 = "VISITA_FOLGA_106"
+    VISITA_FOLGA_107 = "VISITA_FOLGA_107"
+    VISITA_FOLGA_108 = "VISITA_FOLGA_108"
+    VISITA_FOLGA_109 = "VISITA_FOLGA_109"
+    VISITA_FOLGA_110 = "VISITA_FOLGA_110"
+    VISITA_FOLGA_111 = "VISITA_FOLGA_111"
+    VISITA_FOLGA_112 = "VISITA_FOLGA_112"
+    VISITA_FOLGA_113 = "VISITA_FOLGA_113"
+    VISITA_FOLGA_114 = "VISITA_FOLGA_114"
+    VISITA_FOLGA_115 = "VISITA_FOLGA_115"
+    VISITA_FOLGA_116 = "VISITA_FOLGA_116"
+    VISITA_FOLGA_117 = "VISITA_FOLGA_117"
+    VISITA_FOLGA_118 = "VISITA_FOLGA_118"
+    VISITA_FOLGA_119 = "VISITA_FOLGA_119"
+    VISITA_FOLGA_120 = "VISITA_FOLGA_120"
+    VISITA_FOLGA_121 = "VISITA_FOLGA_121"
+    VISITA_FOLGA_122 = "VISITA_FOLGA_122"
+    VISITA_FOLGA_123 = "VISITA_FOLGA_123"
+    VISITA_FOLGA_124 = "VISITA_FOLGA_124"
+    VISITA_FOLGA_125 = "VISITA_FOLGA_125"
+    VISITA_FOLGA_126 = "VISITA_FOLGA_126"
+    VISITA_FOLGA_127 = "VISITA_FOLGA_127"
+    VISITA_FOLGA_128 = "VISITA_FOLGA_128"
+    VISITA_FOLGA_129 = "VISITA_FOLGA_129"
+    VISITA_FOLGA_130 = "VISITA_FOLGA_130"
+    VISITA_FOLGA_131 = "VISITA_FOLGA_131"
+    VISITA_FOLGA_132 = "VISITA_FOLGA_132"
+    VISITA_FOLGA_133 = "VISITA_FOLGA_133"
+    VISITA_FOLGA_134 = "VISITA_FOLGA_134"
+    VISITA_FOLGA_135 = "VISITA_FOLGA_135"
+    VISITA_FOLGA_136 = "VISITA_FOLGA_136"
+    VISITA_FOLGA_137 = "VISITA_FOLGA_137"
+    VISITA_FOLGA_138 = "VISITA_FOLGA_138"
+    VISITA_FOLGA_139 = "VISITA_FOLGA_139"
+    VISITA_FOLGA_140 = "VISITA_FOLGA_140"
+    VISITA_FOLGA_141 = "VISITA_FOLGA_141"
+    VISITA_FOLGA_142 = "VISITA_FOLGA_142"
+    VISITA_FOLGA_143 = "VISITA_FOLGA_143"
+    VISITA_FOLGA_144 = "VISITA_FOLGA_144"
+    VISITA_FOLGA_145 = "VISITA_FOLGA_145"
+    VISITA_FOLGA_146 = "VISITA_FOLGA_146"
+    VISITA_FOLGA_147 = "VISITA_FOLGA_147"
+    VISITA_FOLGA_148 = "VISITA_FOLGA_148"
+    VISITA_FOLGA_149 = "VISITA_FOLGA_149"
+    VISITA_FOLGA_150 = "VISITA_FOLGA_150"
+    VISITA_FOLGA_151 = "VISITA_FOLGA_151"
+    VISITA_FOLGA_152 = "VISITA_FOLGA_152"
+    VISITA_FOLGA_153 = "VISITA_FOLGA_153"
+    VISITA_FOLGA_154 = "VISITA

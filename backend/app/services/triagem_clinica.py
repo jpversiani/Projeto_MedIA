@@ -414,6 +414,11 @@ class PacienteTriagem(BaseModel):
         return NivelRisco.AZUL
 
     @property
+    def ciap2_recomendado(self) -> list[str]:
+        """Retorna os códigos CIAP-2 recomendados com base na avaliação."""
+        return self.cidap2_recomendado
+
+    @property
     def cidap2_recomendado(self) -> list[str]:
         """Retorna os códigos CIAP-2 recomendados com base na avaliação."""
         codigos: set[str] = set()

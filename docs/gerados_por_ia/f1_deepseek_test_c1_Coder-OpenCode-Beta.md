@@ -1,575 +1,1260 @@
-Vamos criar o arquivo de testes conforme solicitado. Precisamos entender o projeto MedIA. O arquivo é backend/tests/test_telemedicina_lifecycle.py. Vamos supor que o Projeto MedIA tem uma aplicação FastAPI com rotas de telemedicina. Precisamos escrever testes para:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"We","reasoning_details":[{"type":"reasoning.text","text":"We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-1) criação de sala com expiração;
-2) rejeição de salas duplicadas;
-3) ciclo de status da consulta (AGENDADA -> EM_ANDAMENTO -> CONCLUIDA).
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" need to create a test file for the","reasoning_details":[{"type":"reasoning.text","text":" need to create a test file for the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos verificar a estrutura existente? Não temos acesso. Precisamos criar testes que sejam plausíveis. Mas o usuário pede para criar testes pytest validando esses comportamentos. Devemos fornecer código completo. Provavelmente precisamos importar os módulos do backend. Mas como não temos o código, podemos criar testes que utilizem a API via TestClient do FastAPI, ou testar diretamente as funções de serviço.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" MedIA project. The task","reasoning_details":[{"type":"reasoning.text","text":" MedIA project. The task","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Precisamos usar boas práticas: Pydantic v2, SQLAlchemy 2.0. Como são testes, podemos usar um banco de dados SQLite em memória, talvez. Vamos supor que existe um app FastAPI em backend/app/main.py, com rotas em backend/app/api/v1/telemedicina.py. Vamos criar testes que:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":": \"backend/tests/test_telemed","reasoning_details":[{"type":"reasoning.text","text":": \"backend/tests/test_telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-- Usam TestClient para chamar endpoints.
-- Criam uma sala (POST /telemedicina/salas) e verificam expiração.
-- Tentam criar duplicata e verificam rejeição.
-- Atualizam status da consulta.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina_lifecycle.py","reasoning_details":[{"type":"reasoning.text","text":"icina_lifecycle.py","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos verificar se existem endpoints específicos. Como não temos, podemos fazer testes em nível de serviço, mas o pedido diz "testes de conexão WebSocket e ciclo de vida da sala". No título: "Testes de Conexão WebSocket e Ciclo de Vida da Sala (C1)". Portanto, deve incluir WebSocket? A tarefa apenas lista 3 itens: criação com expiração, duplicatas, ciclo de status. Não menciona WebSocket diretamente, mas o título fala. Talvez o teste 1 envolva criação de sala e expiração; 2 rejeição; 3 ciclo de status. Não há WebSocket. Mas o título pode ser genérico. Vou focar nos 3 itens.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\" with pytest tests validating: ","reasoning_details":[{"type":"reasoning.text","text":"\" with pytest tests validating: ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos criar um arquivo de teste com fixtures, talvez um banco de testes. Precisamos garantir que é executável. Como não conhecemos o modelo, podemos definir schemas e serviços fictícios? Mas seria melhor usar a estrutura real. No entanto, a instrução diz "crie backend/tests/test_telemedicina_lifecycle.py com testes pytest validando..." Então devemos fornecer código que provavelmente será executado no contexto do projeto. Precisamos fazer suposições razoáveis.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"1) creation of room","reasoning_details":[{"type":"reasoning.text","text":"1) creation of room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou supor que o projeto tem:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" with expiration; 2) rejection of duplicate","reasoning_details":[{"type":"reasoning.text","text":" with expiration; 2) rejection of duplicate","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-- Um modelo SQLAlchemy `Consulta` com campos: id, paciente_id, medico_id, status (enum com AGENDADA, EM_ANDAMENTO, CONCLUIDA), data_hora_inicio, data_hora_fim, etc.
-- Uma sala de telemedicina é uma entidade com `token`, `expira_em`, `consulta_id` etc.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" rooms; 3) consultation","reasoning_details":[{"type":"reasoning.text","text":" rooms; 3) consultation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas não temos detalhes. Vamos criar testes que interagem com a API via TestClient, usando um banco de testes. Para isso, precisamos da aplicação FastAPI. Vamos importar `from fastapi.testclient import TestClient` e `from backend.app.main import app`. Mas isso pode falhar se o caminho não estiver correto. No projeto, geralmente a raiz é backend/, então `from app.main import app` pode funcionar se estiver no diretório raiz. Para robustez, vamos usar imports relativos ao contexto do teste: `from app.database import SessionLocal, Base, engine` etc. Mas como não temos o arquivo, é arriscado.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" status cycle (AGENDADA -> EM","reasoning_details":[{"type":"reasoning.text","text":" status cycle (AGENDADA -> EM","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Uma alternativa é projetar os testes para serem executados com o pytest diretamente, sem depender de implementação existente, mas isso não valida nada. O objetivo é validar funcionalidades reais. Portanto, precisamos escrever testes que acessem funções/classes que existem no projeto.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_ANDAMENTO -> CONCLUID","reasoning_details":[{"type":"reasoning.text","text":"_ANDAMENTO -> CONCLUID","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Como não temos o código, não posso gerar testes fiéis. Talvez eu possa fornecer um esqueleto com mocks, mas o usuário pede para executar com precisão. Vou assumir que o projeto segue padrões comuns: há um CRUD de salas em `backend/app/services/telemedicina_service.py` com funções `criar_sala`, `obter_sala`, etc. Vou criar testes que usam essas funções com um banco de teste.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"A).\n\nWe need to understand","reasoning_details":[{"type":"reasoning.text","text":"A).\n\nWe need to understand","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Ou, melhor, posso fornecer um arquivo de teste que define as funcionalidades de teste usando `pytest` juntamente com `unittest.mock`. Mas seria artificial.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the project structure. Since we are","reasoning_details":[{"type":"reasoning.text","text":" the project structure. Since we are","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou reler a tarefa: "TAREFA: Testes de Conexão WebSocket e Ciclo de Vida da Sala (C1)" e os itens não mencionam WebSocket. Talvez "Conexão WebSocket" esteja implícito na criação de sala? Não sei.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" given a task to create tests, we need to","reasoning_details":[{"type":"reasoning.text","text":" given a task to create tests, we need to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Como agente, devo fornecer código que atenda às diretrizes. Vou escrever um arquivo de teste completo, mas comentarei que assume a existência de determinados módulos. Posso usar uma estrutura de teste com fixture de banco de dados, usando SQLAlchemy com SQLite em memória. Crio modelos fictícios? Mas isso não testaria a aplicação real.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" infer the models and services. We should","reasoning_details":[{"type":"reasoning.text","text":" infer the models and services. We should","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-A melhor abordagem é escrever testes que usem a API via TestClient, e configurar o banco de dados para testes. Vou incluir instruções de como rodar. No arquivo, importo `from backend.app.main import app`? Se a estrutura é `backend/` como raiz do projeto, `backend/app/main.py` teria `app`. Em `backend/tests/` os imports podiam ser `from app.main import app` (se `backend` for o projeto). Normalmente, quando se executa `pytest` de dentro de `backend/`, o diretório atual é `backend`, então `app` é um pacote.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" probably create a test file","reasoning_details":[{"type":"reasoning.text","text":" probably create a test file","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Então:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that tests the lifecycle of a telemedicine","reasoning_details":[{"type":"reasoning.text","text":" that tests the lifecycle of a telemedicine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-from app.main import app
-from fastapi.testclient import TestClient
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room. We need to ensure","reasoning_details":[{"type":"reasoning.text","text":" room. We need to ensure","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas cuidado: `app` pode ser uma instância de FastAPI. Vamos assumir.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" it's consistent with the architecture","reasoning_details":[{"type":"reasoning.text","text":" it's consistent with the architecture","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Precisamos de um banco de dados de teste. Podemos usar `dependency_overrides` para substituir a dependência do banco. Ou criar uma fixture que cria as tabelas em SQLite.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":": Python 3.","reasoning_details":[{"type":"reasoning.text","text":": Python 3.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou fazer algo assim:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"12, Pydantic v","reasoning_details":[{"type":"reasoning.text","text":"12, Pydantic v","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"2, SQLAlchemy ","reasoning_details":[{"type":"reasoning.text","text":"2, SQLAlchemy ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-from app.main import app
-from app.database import Base, get_db
-from app.models import Consulta, Sala  # assumindo que existem
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"2.0, SUS","reasoning_details":[{"type":"reasoning.text","text":"2.0, SUS","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas precisamos conhecer os modelos. Talvez não existam. Vou criar modelos minimalistas no próprio teste? Isso não ajudaria.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/APS patterns.\n\nWe need to produce","reasoning_details":[{"type":"reasoning.text","text":"/APS patterns.\n\nWe need to produce","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Outra ideia: escrever testes de integração que usam chamadas HTTP para a API, e para o banco usar um SQLite temporário. Mas se o app não estiver configurado para aceitar override, precisa de hooks.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the code. Since we don","reasoning_details":[{"type":"reasoning.text","text":" the code. Since we don","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou fornecer um código que define a fixture `client` usando `TestClient` e usando um banco PostgreSQL ou SQLite real? Usar SQLite em memória é fácil. Mas o app pode ter configurações que exigem PostgreSQL. Para testes, muitos projetos usam SQLite.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'t have the actual project code","reasoning_details":[{"type":"reasoning.text","text":"'t have the actual project code","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou criar um arquivo que faz o seguinte:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", we need to make","reasoning_details":[{"type":"reasoning.text","text":", we need to make","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-- Define `engine` e `TestingSessionLocal` para SQLite em memoria.
-- Cria as tabelas `Base.metadata.create_all`.
-- Override da dependência `get_db`.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" reasonable assumptions. We can create","reasoning_details":[{"type":"reasoning.text","text":" reasonable assumptions. We can create","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Assim, os testes podem acessar os modelos diretamente ou via API.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests that mock or use in","reasoning_details":[{"type":"reasoning.text","text":" tests that mock or use in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou precisar dos modelos e schemas. Como não os conheço, vou definir modelos baseados nas suposições. Mas o teste deve ser executado no projeto MedIA real; se os modelos não baterem, falhará. Talvez o ideal seja criar um teste que use os modelos existentes, assumindo nomes. Vou fazer suposições e documentar.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"-memory SQLite,","reasoning_details":[{"type":"reasoning.text","text":"-memory SQLite,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou criar um arquivo de teste que:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and define minimal models/s","reasoning_details":[{"type":"reasoning.text","text":" and define minimal models/s","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-1. Testa criação de sala com expiração:
-   - Envia POST para `/api/v1/telemedicina/salas` com dados de consulta.
-   - Verifica que retorna `token` e `expira_em` no futuro.
-   - Verifica que a sala foi criada no banco com expiração correta.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"chemas to test the","reasoning_details":[{"type":"reasoning.text","text":"chemas to test the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-2. Rejeição de salas duplicadas:
-   - Tenta criar outra sala para a mesma consulta, esperando 409.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" logic. But the instruction","reasoning_details":[{"type":"reasoning.text","text":" logic. But the instruction","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-3. Ciclo de status da consulta:
-   - Cria consulta com status AGENDADA.
-   - Atualiza para EM_ANDAMENTO.
-   - Atualiza para CONCLUIDA.
-   - Verifica cada transição.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" says \"crie backend","reasoning_details":[{"type":"reasoning.text","text":" says \"crie backend","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou supor endpoints:
-- POST /telemedicina/salas (criar sala)
-- GET /telemedicina/salas/{id} (obter sala)
-- PATCH /telemedicina/consultas/{id}/status (atualizar status)
-- GET /telemedicina/consultas/{id}
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/tests/test_telemed","reasoning_details":[{"type":"reasoning.text","text":"/tests/test_telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas não sei. Vou definir rotas comuns.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina_lifecycle.py","reasoning_details":[{"type":"reasoning.text","text":"icina_lifecycle.py","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Na falta de código real, vou fornecer testes que podem ser adaptados. O usuário pede "Execute com precisão conforme as diretrizes." Acho que ele quer que eu escreva o código da melhor forma possível, assumindo a estrutura típica.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\" - we are to","reasoning_details":[{"type":"reasoning.text","text":"\" - we are to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou incluir no arquivo um comentário explicando que ele deve ser adaptado se necessário.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" create the test file. It","reasoning_details":[{"type":"reasoning.text","text":" create the test file. It","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos escrever o código.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" should be runnable. We need to","reasoning_details":[{"type":"reasoning.text","text":" should be runnable. We need to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Estrutura do arquivo:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" provide the full code.\n\nWe should design","reasoning_details":[{"type":"reasoning.text","text":" provide the full code.\n\nWe should design","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-"""
-Testes de ciclo de vida da sala de telemedicina.
-Cobre criação com expiração, rejeição de duplicidade e ciclo de status.
-"""
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the test file to be self-contained,","reasoning_details":[{"type":"reasoning.text","text":" the test file to be self-contained,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" perhaps using fixtures that create","reasoning_details":[{"type":"reasoning.text","text":" perhaps using fixtures that create","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# Importar app e modelos reais
-from app.main import app
-from app.core.database import Base, get_db
-from app.models.telemedicina import Consulta, SalaTelemedicina
-from app.schemas.telemedicina import ...
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a test database and define","reasoning_details":[{"type":"reasoning.text","text":" a test database and define","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Isso pode falhar. Para evitar, vou usar um approach que não dependa de importações de módulos que podem não existir, mas sim de um mock da camada de serviço. Mas o pedido é criar testes para validar funcionalidades reais. Hmm.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the necessary models. But ideally","reasoning_details":[{"type":"reasoning.text","text":" the necessary models. But ideally","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Talvez eu possa criar testes unitários dos serviços, mockando a sessão de banco. Mas seria menos integrado.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", the test should import","reasoning_details":[{"type":"reasoning.text","text":", the test should import","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou optar por uma abordagem de testes de integração usando TestClient e um banco fictício criado via models definidos no próprio teste? Não.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from the actual backend modules. Since","reasoning_details":[{"type":"reasoning.text","text":" from the actual backend modules. Since","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou escrever um arquivo que define fixtures e testes, mas usando `pytest-mock` para mockar as funções de serviço, e assim não precisar de banco real. Mas isso não testaria integração.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we don't have them","reasoning_details":[{"type":"reasoning.text","text":" we don't have them","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-A tarefa diz "crie backend/tests/test_telemedicina_lifecycle.py com testes pytest validando: 1) criação de sala com expiração; ...". Isso deve ser um arquivo de teste que será executado pelo pytest. Deve ser robusto.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", we need to either create a minimal implementation","reasoning_details":[{"type":"reasoning.text","text":", we need to either create a minimal implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos supor que o projeto MedIA tem uma estrutura semelhante a:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" within the test file or assume","reasoning_details":[{"type":"reasoning.text","text":" within the test file or assume","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```
-backend/
-  app/
-    main.py
-    api/
-      v1/
-        telemedicina.py
-    models/
-    schemas/
-    services/
-    core/
-  tests/
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the existence of certain modules. The","reasoning_details":[{"type":"reasoning.text","text":" the existence of certain modules. The","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Então faz sentido escrever:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" task is to create tests, not","reasoning_details":[{"type":"reasoning.text","text":" task is to create tests, not","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.database import Base
-from app.main import app
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the implementation. However, to","reasoning_details":[{"type":"reasoning.text","text":" the implementation. However, to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas não conheço `app.database`. Talvez seja `app.core.database`. Vou usar `app.database` como padrão.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" make tests pass, we need to have","reasoning_details":[{"type":"reasoning.text","text":" make tests pass, we need to have","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Preciso de um banco de teste. Vou fazer:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the implementation. But as","reasoning_details":[{"type":"reasoning.text","text":" the implementation. But as","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" an AI, we are to","reasoning_details":[{"type":"reasoning.text","text":" an AI, we are to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Base.metadata.create_all(bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" generate the test file only","reasoning_details":[{"type":"reasoning.text","text":" generate the test file only","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". The user expects a complete","reasoning_details":[{"type":"reasoning.text","text":". The user expects a complete","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-app.dependency_overrides[get_db] = override_get_db
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file. We can write","reasoning_details":[{"type":"reasoning.text","text":" file. We can write","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Preciso importar `get_db` de onde? De `app.database`. Se não existir, falha.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests that use mocks or that","reasoning_details":[{"type":"reasoning.text","text":" tests that use mocks or that","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Outra abordagem: não usar banco, apenas testar via HTTP mockando o serviço. Mas é menos valioso.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" define the models inline. But that","reasoning_details":[{"type":"reasoning.text","text":" define the models inline. But that","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Acho que o mais seguro é escrever um teste que usa a API real, mas com um banco SQLite. Vou assumir que o app está configurado para usar PostgreSQL, mas podemos sobrescrever. Vou incluir no código `from app.db.session import Base, get_db` ou algo assim.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" would be weird.\n\nLet's read","reasoning_details":[{"type":"reasoning.text","text":" would be weird.\n\nLet's read","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Como não tenho certeza, vou fornecer um código com imports flexíveis? Não existe isso em Python.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the task carefully: \"T","reasoning_details":[{"type":"reasoning.text","text":" the task carefully: \"T","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Talvez o usuário espera que eu procure a estrutura do projeto e crie o teste de acordo. Como não tenho acesso, devo fornecer um template que provavelmente precisa de ajustes. Mas a instrução pede para "Execute com precisão", então devo fazer o melhor possível.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"AREFA: Testes de Conexão Web","reasoning_details":[{"type":"reasoning.text","text":"AREFA: Testes de Conexão Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou criar um arquivo de teste que não depende de nenhum código específico além de `pytest`, e testa as lógicas usando mocks e testes unitários de funções que eu mesmo defino? Mas não valida o projeto.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket e Ciclo de Vida","reasoning_details":[{"type":"reasoning.text","text":"Socket e Ciclo de Vida","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Decisão: Vou escrever um arquivo de teste que usa `pytest` e `unittest.mock` para testar funções de serviço `criar_sala`, `rejeitar_duplicada`, `transicionar_status`. Vou importá-los de `app.services.telemedicina`. Se não existirem, o teste falhará na importação, mas o usuário pode ajustar. Vou dar exemplos com a estrutura esperada.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" da Sala (C1)\"","reasoning_details":[{"type":"reasoning.text","text":" da Sala (C1)\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou fazer um arquivo:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" - It's about WebSocket connection","reasoning_details":[{"type":"reasoning.text","text":" - It's about WebSocket connection","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-from datetime import datetime, timedelta
-import pytest
-from unittest.mock import MagicMock, patch
-from app.services.telemedicina import criar_sala, atualizar_status_consulta
-from app.models.enums import StatusConsulta
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and room lifecycle. The tests","reasoning_details":[{"type":"reasoning.text","text":" and room lifecycle. The tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas novamente, dependo de imports.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" should validate: 1) creation of","reasoning_details":[{"type":"reasoning.text","text":" should validate: 1) creation of","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Talvez seja melhor criar um teste que valide os endpoints da API, pois são mais estáveis.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room with expiration; 2","reasoning_details":[{"type":"reasoning.text","text":" room with expiration; 2","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou escolher criar testes de integração com FastAPI TestClient, e usar `dependency_overrides` com um banco simulado. Para isso, preciso saber o nome da função de dependência. Em FastAPI, é comum:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":") rejection of duplicate rooms; 3) consultation","reasoning_details":[{"type":"reasoning.text","text":") rejection of duplicate rooms; 3) consultation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-from app.database import SessionLocal, engine, Base, get_db
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" status cycle. So we","reasoning_details":[{"type":"reasoning.text","text":" status cycle. So we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou assumir que está assim.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" need to test a service that manages tele","reasoning_details":[{"type":"reasoning.text","text":" need to test a service that manages tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Agora, vou precisar definir os models para o teste? Não, a tabela será criada a partir dos models existentes. Se os models existirem, funcionará. Mas se o banco SQLite não suportar os tipos específicos do PostgreSQL, pode falhar. Mas podemos usar `sqlite://` com `StaticPool` para resolver.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicine rooms.\n\nGiven the context","reasoning_details":[{"type":"reasoning.text","text":"medicine rooms.\n\nGiven the context","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou incluir no código:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", we should create a test file that tests","reasoning_details":[{"type":"reasoning.text","text":", we should create a test file that tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-import os
-os.environ["DATABASE_URL"] = "sqlite://"
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a \"TelemedicinaService","reasoning_details":[{"type":"reasoning.text","text":" a \"TelemedicinaService","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Antes de importar o app, para que a configuração use SQLite. Mas o app pode ler de `.env`. Complicated.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\" or similar. We","reasoning_details":[{"type":"reasoning.text","text":"\" or similar. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou escrever um código mais genérico:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'ll need to define fixtures","reasoning_details":[{"type":"reasoning.text","text":"'ll need to define fixtures","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" for the database and maybe","reasoning_details":[{"type":"reasoning.text","text":" for the database and maybe","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# Configuração do banco de teste
-engine = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" use a fake repository. But","reasoning_details":[{"type":"reasoning.text","text":" use a fake repository. But","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# Importar app e Base após config
-import app.main
-from app.database import Base, get_db  # Ajuste conforme estrutura real
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to be precise, we can write tests","reasoning_details":[{"type":"reasoning.text","text":" to be precise, we can write tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Isso é razoável.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that use a real SQL","reasoning_details":[{"type":"reasoning.text","text":" that use a real SQL","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Agora, vamos definir os testes.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Alchemy in-memory SQL","reasoning_details":[{"type":"reasoning.text","text":"Alchemy in-memory SQL","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Para testar criação de sala com expiração:
-- Precisamos ter uma consulta existente. Vamos criar um paciente e médico? Sim, mas isso pode complicar. Podemos simplesmente criar uma consulta diretamente via ORM.
-- Vamos usar `TestingSessionLocal` para inserir dados no banco antes de chamar a API.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ite database and define the OR","reasoning_details":[{"type":"reasoning.text","text":"ite database and define the OR","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas o teste deve ser isolado. Vamos usar fixtures que criam os dados.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"M models inside the test file. That","reasoning_details":[{"type":"reasoning.text","text":"M models inside the test file. That","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou criar uma fixture `db_session` que cria as tabelas e fornece uma sessão.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" way the tests are self-contained and","reasoning_details":[{"type":"reasoning.text","text":" way the tests are self-contained and","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-@pytest.fixture
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(bind=engine)
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" runnable. However,","reasoning_details":[{"type":"reasoning.text","text":" runnable. However,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas se usarmos `dependency_overrides` global, o banco será recriado a cada teste? Pode ser melhor criar em fixture.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the instruction says \"C","reasoning_details":[{"type":"reasoning.text","text":" the instruction says \"C","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou fazer assim:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ódigo em Python 3.12,","reasoning_details":[{"type":"reasoning.text","text":"ódigo em Python 3.12,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-@pytest.fixture(scope="function")
-def client(db_session):
-    # Override da dependência
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tipagem estrita com P","reasoning_details":[{"type":"reasoning.text","text":" tipagem estrita com P","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-No entanto, `db_session` precisa ser uma sessão com escopo. Vou criar uma função que cria uma nova sessão por teste.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ydantic v2 e SQL","reasoning_details":[{"type":"reasoning.text","text":"ydantic v2 e SQL","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vamos estruturar:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Alchemy 2.0","reasoning_details":[{"type":"reasoning.text","text":"Alchemy 2.0","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-@pytest.fixture()
-def db_engine():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\" So we should use those","reasoning_details":[{"type":"reasoning.text","text":".\" So we should use those","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-@pytest.fixture()
-def db_session(db_engine):
-    TestSession = sessionmaker(bind=db_engine)
-    session = TestSession()
-    yield session
-    session.close()
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\n\nWe can create a test file","reasoning_details":[{"type":"reasoning.text","text":".\n\nWe can create a test file","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas o override deve usar essa sessão. Vamos criar uma factory:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that defines a minimal model","reasoning_details":[{"type":"reasoning.text","text":" that defines a minimal model","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-@pytest.fixture()
-def client(db_session):
-    def override_get_db():
-        yield db_session
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" for a telemedicine room (S","reasoning_details":[{"type":"reasoning.text","text":" for a telemedicine room (S","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Ok.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"alaTelemedicina) with","reasoning_details":[{"type":"reasoning.text","text":"alaTelemedicina) with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Agora, precisamos inserir dados de paciente, médico, consulta. Vou supor models: `Paciente`, `Medico`, `Consulta`. Vou criar esses registros.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" fields: id, status (","reasoning_details":[{"type":"reasoning.text","text":" fields: id, status (","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou usar `db_session` para adicionar.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"enum), expires_at, etc. Then","reasoning_details":[{"type":"reasoning.text","text":"enum), expires_at, etc. Then","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou escrever helpers:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we can test a service class","reasoning_details":[{"type":"reasoning.text","text":" we can test a service class","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-from app.models.paciente import Paciente
-from app.models.medico import Medico
-from app.models.consulta import Consulta
-from app.models.sala import SalaTelemedicina
-from app.models.enums import StatusConsulta
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that handles creation, duplicate rejection","reasoning_details":[{"type":"reasoning.text","text":" that handles creation, duplicate rejection","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou usar essas importações. Se os modelos forem diferentes, ajuste.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", and status transitions.\n\n","reasoning_details":[{"type":"reasoning.text","text":", and status transitions.\n\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou criar um fixture para criar uma consulta com status AGENDADA:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"But the task specifically says","reasoning_details":[{"type":"reasoning.text","text":"But the task specifically says","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-```python
-@pytest.fixture()
-def consulta_agendada(db_session):
-    paciente = Paciente(nome="João", cpf="12345678900", ...)
-    medico = Medico(nome="Dr. Ana", crm="12345", ...)
-    db_session.add(paciente)
-    db_session.add(medico)
-    db_session.flush()
-    consulta = Consulta(
-        paciente_id=paciente.id,
-        medico_id=medico.id,
-        status=StatusConsulta.AGENDADA,
-        data_inicio=datetime.now(timezone.utc) + timedelta(hours=1),
-        data_fim=None,
-    )
-    db_session.add(consulta)
-    db_session.commit()
-    db_session.refresh(consulta)
-    return consulta
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" \"Testes de Conexão Web","reasoning_details":[{"type":"reasoning.text","text":" \"Testes de Conexão Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas isso pode falhar se os campos não forem esses. Vou simplificar: em vez de criar entidades, usar sempre o mesmo `consulta_id` que já existe? Não, precisamos de dados consistentes.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket e Ciclo de Vida","reasoning_details":[{"type":"reasoning.text","text":"Socket e Ciclo de Vida","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Talvez os endpoints de sala recebam `consulta_id` e criem a sala. Para testar duplicata, precisamos que a consulta exista. Podemos criar a consulta diretamente via API também. Mas seria mais simples se o endpoint de sala criar a consulta? Não, geralmente a consulta é criada antes.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" da Sala\" - maybe there","reasoning_details":[{"type":"reasoning.text","text":" da Sala\" - maybe there","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou supor que o endpoint de criação de sala recebe `consulta_id` e que a consulta já existe. Então no teste, criamos a consulta via banco.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" is a WebSocket connection aspect","reasoning_details":[{"type":"reasoning.text","text":" is a WebSocket connection aspect","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou fazer assim.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". However, the three","reasoning_details":[{"type":"reasoning.text","text":". However, the three","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Precisamos dos schemas de entrada/saída. Vou usar os schemas reais se existirem, mas como não sei, vou usar dicionários diretamente.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" points are about room lifecycle.","reasoning_details":[{"type":"reasoning.text","text":" points are about room lifecycle.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Criação de sala:
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We can also test Web","reasoning_details":[{"type":"reasoning.text","text":" We can also test Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-POST `/telemedicina/salas` com JSON `{"consulta_id": consulta.id, "validade_minutos": 30}` (ou similar). Verificar resposta 201 com `token`, `expira_em`, `consulta_id`.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket connection? The title includes","reasoning_details":[{"type":"reasoning.text","text":"Socket connection? The title includes","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Duplicada: chamar novamente com mesmo `consulta_id`, esperar 409.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" \"Conexão WebSocket","reasoning_details":[{"type":"reasoning.text","text":" \"Conexão WebSocket","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Ciclo de status: PATCH `/telemedicina/consultas/{id}/status` com `{"status": "EM_ANDAMENTO"}` e depois `{"status": "CONCLUIDA"}`. Verificar resposta 200 e que status atualizou.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\", but the bullet points don","reasoning_details":[{"type":"reasoning.text","text":"\", but the bullet points don","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Mas não sei se os endpoints existem. Vou criar os testes assumindo que existem.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'t mention WebSocket. Maybe","reasoning_details":[{"type":"reasoning.text","text":"'t mention WebSocket. Maybe","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou incluir no arquivo uma seção de "Configuração" que ajusta os imports de acordo com a estrutura real do projeto.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we need to test that a","reasoning_details":[{"type":"reasoning.text","text":" we need to test that a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Ok, vou produzir o código. Vou colocar comentários para ajudar na adaptação.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" WebSocket connection can be established","reasoning_details":[{"type":"reasoning.text","text":" WebSocket connection can be established","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-No final, o arquivo deve ser completo e executável se o projeto tiver a estrutura esperada.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"? But the tests listed","reasoning_details":[{"type":"reasoning.text","text":"? But the tests listed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Vou escrever o arquivo agora.```python
-# Arquivo: backend/tests/test_telemedicina_lifecycle.py
-"""
-Testes de ciclo de vida da sala de telemedicina e consulta.
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" are about room creation and","reasoning_details":[{"type":"reasoning.text","text":" are about room creation and","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-Cobre:
-  1. Criação de sala com expiração
-  2. Rejeição de salas duplicadas
-  3. Ciclo de status da consulta (AGENDADA → EM_ANDAMENTO → CONCLUIDA)
-"""
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" status. We'll focus on","reasoning_details":[{"type":"reasoning.text","text":" status. We'll focus on","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-import os
-from datetime import datetime, timedelta, timezone
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" those.\n\nLet's plan","reasoning_details":[{"type":"reasoning.text","text":" those.\n\nLet's plan","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-os.environ["DATABASE_URL"] = "sqlite://"  # Força SQLite para testes antes de importar o app
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the test file:\n\n- Use","reasoning_details":[{"type":"reasoning.text","text":" the test file:\n\n- Use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" pytest.\n- Use SQLAlchemy ","reasoning_details":[{"type":"reasoning.text","text":" pytest.\n- Use SQLAlchemy ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# Ajuste os imports abaixo conforme a estrutura real do projeto MedIA
-from app.main import app
-from app.core.database import Base, get_db  # Ex.: app.database, app.db, app.core.database
-from app.models.telemedicina import Consulta, SalaTelemedicina  # Modelos reais
-from app.models.enums import StatusConsulta  # Enum com AGENDADA, EM_ANDAMENTO, CONCLUIDA
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"2.0 with in","reasoning_details":[{"type":"reasoning.text","text":"2.0 with in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"-memory SQLite.\n-","reasoning_details":[{"type":"reasoning.text","text":"-memory SQLite.\n-","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# -----------------------------------------------------------------------------
-# Configuração do banco de testes
-# -----------------------------------------------------------------------------
-engine = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Use Pydantic v2","reasoning_details":[{"type":"reasoning.text","text":" Use Pydantic v2","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" for schemas.\n- Define","reasoning_details":[{"type":"reasoning.text","text":" for schemas.\n- Define","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a Base class, a","reasoning_details":[{"type":"reasoning.text","text":" a Base class, a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-@pytest.fixture(scope="function")
-def db_session():
-    """Cria as tabelas e fornece uma sessão isolada para cada teste."""
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    yield session
-    session.rollback()
-    session.close()
-    Base.metadata.drop_all(bind=engine)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" model `TelemedicineRoom` with fields: id","reasoning_details":[{"type":"reasoning.text","text":" model `TelemedicineRoom` with fields: id","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" (UUID or int), status","reasoning_details":[{"type":"reasoning.text","text":" (UUID or int), status","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-@pytest.fixture(scope="function")
-def client(db_session):
-    """Cliente de teste com dependência de banco sobrescrita."""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" (enum: AGENDADA, EM_","reasoning_details":[{"type":"reasoning.text","text":" (enum: AGENDADA, EM_","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.pop(get_db, None)
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ANDAMENTO, CONCL","reasoning_details":[{"type":"reasoning.text","text":"ANDAMENTO, CONCL","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"UIDA, CANCELADA?),","reasoning_details":[{"type":"reasoning.text","text":"UIDA, CANCELADA?),","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
 
-# -----------------------------------------------------------------------------
-# Helpers para criar dados de apoio
-# -----------------------------------------------------------------------------
-def _criar_consulta_agendada(db_session) -> Consulta:
-    """Cria uma consulta no banco com status AGENDADA (existente)."""
-    consulta = Consulta(
-        paciente_nome="Paciente Teste",
-        paciente_cns="12345678901234",  # exemplo de CNS
-        paciente_cpf="12345678900",
-        medico_nome="Dr. Teste",
-        medico_crm="12345",
-        data_inicio=datetime.now(timezone.utc) + timedelta(hours=1),
-        data_fim=None,
-        status=StatusConsulta.AGENDADA,
-    )
-    db_session.add(consulta)
-    db_session.commit()
-    db_session.refresh(consulta)
-    return consulta
-
-
-# -----------------------------------------------------------------------------
-# 1) Criação de sala com expiração
-# -----------------------------------------------------------------------------
-def test_criar_sala_com_expiracao(client, db_session):
-    consulta = _criar_consulta_agendada(db_session)
-
-    payload = {
-        "consulta_id": consulta.id,
-        "validade_minutos": 30,
-    }
-
-    response = client.post("/api/v1/telemedicina/salas", json=payload)
-
-    assert response.status_code == 201, f"Erro ao criar sala: {response.text}"
-    data = response.json()
-
-    assert "token" in data
-    assert "expira_em" in data
-    assert data["consulta_id"] == consulta.id
-
-    # Verifica expiração: deve estar no futuro, próximo de validade_minutos
-    expira_em = datetime.fromisoformat(data["expira_em"])
-    agora = datetime.now(timezone.utc)
-    assert expira_em > agora, "A expiração deve estar no futuro"
-
-    limite = agora + timedelta(minutes=31)
-    assert expira_em <= limite, "A expiração não respeita o tempo de validade informado"
-
-    # Verifica se a sala foi persistida corretamente
-    sala_db = db_session.query(SalaTelemedicina).filter_by(consulta_id=consulta.id).first()
-    assert sala_db is not None
-    assert sala_db.token == data["token"]
-    assert sala_db.expira_em == expira_em
-
-
-# -----------------------------------------------------------------------------
-# 2) Rejeição de salas duplicadas
-# -----------------------------------------------------------------------------
-def test_rejeitar_sala_duplicada(client, db_session):
-    consulta = _criar_consulta_agendada(db_session)
-
-    payload = {
-        "consulta_id": consulta.id,
-        "validade_minutos": 30,
-    }
-
-    # Primeira criação: deve funcionar
-    response = client.post("/api/v1/telemedicina/salas", json=payload)
-    assert response.status_code == 201
-
-    # Segunda criação para a mesma consulta: deve ser rejeitada
-    response = client.post("/api/v1/telemedicina/salas", json=payload)
-    assert response.status_code == 409, f"Esperado status 409, obtido {response.status_code}"
-    assert "já existe" in response.json().get("detail", "").lower() or "duplic" in response.json().get("detail", "").lower()
-
-
-# -----------------------------------------------------------------------------
-# 3) Ciclo de status da consulta (AGENDADA → EM_ANDAMENTO → CONCLUIDA)
-# -----------------------------------------------------------------------------
-def test_ciclo_status_consulta(client, db_session):
-    consulta = _criar_consulta_agendada(db_session)
-    consulta_id = consulta.id
-
-    # Estado inicial
-    assert consulta.status == StatusConsulta.AGENDADA
-
-    # Transição para EM_ANDAMENTO
-    response = client.patch(
-        f"/api/v1/telemedicina/consultas/{consulta_id}/status",
-        json={"status": "EM_ANDAMENTO"},
-    )
-    assert response.status_code == 200, f"Falha ao iniciar consulta: {response.text}"
-    assert response.json()["status"] == "EM_ANDAMENTO"
-
-    db_session.refresh(consulta)
-    assert consulta.status == StatusConsulta.EM_ANDAMENTO
-
-    # Transição para CONCLUIDA
-    response = client.patch(
-        f"/api/v1/telemedicina/consultas/{consulta_id}/status",
-        json={"status": "CONCLUIDA"},
-    )
-    assert response.status_code == 200, f"Falha ao concluir consulta: {response.text}"
-    assert response.json()["status"] == "CONCLUIDA"
-
-    db_session.refresh(consulta)
-    assert consulta.status == StatusConsulta.CONCLUIDA
-
-    # Verifica que data_fim é preenchida
-    assert consulta.data_fim is not None
-```
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" expires_at (datetime), created_at, etc","reasoning_details":[{"type":"reasoning.text","text":" expires_at (datetime), created_at, etc","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\n- Define a service class","reasoning_details":[{"type":"reasoning.text","text":".\n- Define a service class","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `TelemedicineRoomService` with methods:\n ","reasoning_details":[{"type":"reasoning.text","text":" `TelemedicineRoomService` with methods:\n ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" - `create_room(","reasoning_details":[{"type":"reasoning.text","text":" - `create_room(","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"patient_cns, doctor","reasoning_details":[{"type":"reasoning.text","text":"patient_cns, doctor","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_cns, expires_in","reasoning_details":[{"type":"reasoning.text","text":"_cns, expires_in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_minutes)` -> creates a","reasoning_details":[{"type":"reasoning.text","text":"_minutes)` -> creates a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room with expiration.\n  - `get","reasoning_details":[{"type":"reasoning.text","text":" room with expiration.\n  - `get","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_room(room_id)`.\n","reasoning_details":[{"type":"reasoning.text","text":"_room(room_id)`.\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"  - `update_status(room_id, new","reasoning_details":[{"type":"reasoning.text","text":"  - `update_status(room_id, new","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_status)` with validation of","reasoning_details":[{"type":"reasoning.text","text":"_status)` with validation of","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" allowed transitions.\n  - `is","reasoning_details":[{"type":"reasoning.text","text":" allowed transitions.\n  - `is","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_duplicate(room_id)`","reasoning_details":[{"type":"reasoning.text","text":"_duplicate(room_id)`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" or `create_room` raises","reasoning_details":[{"type":"reasoning.text","text":" or `create_room` raises","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" an exception if duplicate.\n","reasoning_details":[{"type":"reasoning.text","text":" an exception if duplicate.\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"- The tests will use the service and the","reasoning_details":[{"type":"reasoning.text","text":"- The tests will use the service and the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" database.\n\nBut we need to ensure","reasoning_details":[{"type":"reasoning.text","text":" database.\n\nBut we need to ensure","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the tests are for the actual project","reasoning_details":[{"type":"reasoning.text","text":" the tests are for the actual project","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". Since we don't have the","reasoning_details":[{"type":"reasoning.text","text":". Since we don't have the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" project, we can write tests","reasoning_details":[{"type":"reasoning.text","text":" project, we can write tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that import from `backend.app.services","reasoning_details":[{"type":"reasoning.text","text":" that import from `backend.app.services","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".telemedicina` etc","reasoning_details":[{"type":"reasoning.text","text":".telemedicina` etc","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". But that would fail if","reasoning_details":[{"type":"reasoning.text","text":". But that would fail if","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the module doesn't exist.","reasoning_details":[{"type":"reasoning.text","text":" the module doesn't exist.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" The user likely expects us to create","reasoning_details":[{"type":"reasoning.text","text":" The user likely expects us to create","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the test file as part of","reasoning_details":[{"type":"reasoning.text","text":" the test file as part of","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the project, assuming the implementation","reasoning_details":[{"type":"reasoning.text","text":" the project, assuming the implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" exists. We can write tests that import","reasoning_details":[{"type":"reasoning.text","text":" exists. We can write tests that import","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from the actual modules, and the user","reasoning_details":[{"type":"reasoning.text","text":" from the actual modules, and the user","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" will run them against their implementation","reasoning_details":[{"type":"reasoning.text","text":" will run them against their implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". That is the typical approach: we","reasoning_details":[{"type":"reasoning.text","text":". That is the typical approach: we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" write tests that define expected","reasoning_details":[{"type":"reasoning.text","text":" write tests that define expected","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" behavior, and the implementation","reasoning_details":[{"type":"reasoning.text","text":" behavior, and the implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" must satisfy them. So we should write","reasoning_details":[{"type":"reasoning.text","text":" must satisfy them. So we should write","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests that use the actual","reasoning_details":[{"type":"reasoning.text","text":" tests that use the actual","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" project's modules, but we don","reasoning_details":[{"type":"reasoning.text","text":" project's modules, but we don","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'t know their exact names. We","reasoning_details":[{"type":"reasoning.text","text":"'t know their exact names. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" can infer from the project name","reasoning_details":[{"type":"reasoning.text","text":" can infer from the project name","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" \"MedIA\" and the","reasoning_details":[{"type":"reasoning.text","text":" \"MedIA\" and the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file path \"backend/tests/test_tele","reasoning_details":[{"type":"reasoning.text","text":" file path \"backend/tests/test_tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicina_lifecycle","reasoning_details":[{"type":"reasoning.text","text":"medicina_lifecycle","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".py\". The backend likely has an","reasoning_details":[{"type":"reasoning.text","text":".py\". The backend likely has an","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" app structure. We can make","reasoning_details":[{"type":"reasoning.text","text":" app structure. We can make","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" reasonable assumptions:\n\n- There","reasoning_details":[{"type":"reasoning.text","text":" reasonable assumptions:\n\n- There","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" is a module `backend.app.models","reasoning_details":[{"type":"reasoning.text","text":" is a module `backend.app.models","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".telemedicina","reasoning_details":[{"type":"reasoning.text","text":".telemedicina","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"` with `Telemedicine","reasoning_details":[{"type":"reasoning.text","text":"` with `Telemedicine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Room` model.\n- There","reasoning_details":[{"type":"reasoning.text","text":"Room` model.\n- There","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" is a module `backend.app","reasoning_details":[{"type":"reasoning.text","text":" is a module `backend.app","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".schemas.telemed","reasoning_details":[{"type":"reasoning.text","text":".schemas.telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina` with P","reasoning_details":[{"type":"reasoning.text","text":"icina` with P","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ydantic schemas.\n-","reasoning_details":[{"type":"reasoning.text","text":"ydantic schemas.\n-","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" There is a module `backend","reasoning_details":[{"type":"reasoning.text","text":" There is a module `backend","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".app.services.telemedic","reasoning_details":[{"type":"reasoning.text","text":".app.services.telemedic","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ina` with `TelemedicineService`.\n- There","reasoning_details":[{"type":"reasoning.text","text":"ina` with `TelemedicineService`.\n- There","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" is a module `backend.app.core","reasoning_details":[{"type":"reasoning.text","text":" is a module `backend.app.core","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".database` with `Session","reasoning_details":[{"type":"reasoning.text","text":".database` with `Session","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Local`, `Base`, `","reasoning_details":[{"type":"reasoning.text","text":"Local`, `Base`, `","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"get_db`.\n\nBut to avoid","reasoning_details":[{"type":"reasoning.text","text":"get_db`.\n\nBut to avoid","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" import errors, we can write tests","reasoning_details":[{"type":"reasoning.text","text":" import errors, we can write tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that use dependency injection and mock","reasoning_details":[{"type":"reasoning.text","text":" that use dependency injection and mock","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the database session. However, the task","reasoning_details":[{"type":"reasoning.text","text":" the database session. However, the task","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" says \"crie backend","reasoning_details":[{"type":"reasoning.text","text":" says \"crie backend","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/tests/test_telemed","reasoning_details":[{"type":"reasoning.text","text":"/tests/test_telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina_lifecycle.py","reasoning_details":[{"type":"reasoning.text","text":"icina_lifecycle.py","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\" - we need to provide","reasoning_details":[{"type":"reasoning.text","text":"\" - we need to provide","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the file. We can write","reasoning_details":[{"type":"reasoning.text","text":" the file. We can write","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests that are self-contained,","reasoning_details":[{"type":"reasoning.text","text":" tests that are self-contained,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" using a fixture that creates an","reasoning_details":[{"type":"reasoning.text","text":" using a fixture that creates an","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" in-memory SQLite database","reasoning_details":[{"type":"reasoning.text","text":" in-memory SQLite database","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and defines the models locally","reasoning_details":[{"type":"reasoning.text","text":" and defines the models locally","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". That way the tests are runnable without","reasoning_details":[{"type":"reasoning.text","text":". That way the tests are runnable without","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the rest of the project. But then","reasoning_details":[{"type":"reasoning.text","text":" the rest of the project. But then","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" they wouldn't test the actual implementation","reasoning_details":[{"type":"reasoning.text","text":" they wouldn't test the actual implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". The user might want","reasoning_details":[{"type":"reasoning.text","text":". The user might want","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests that validate the behavior","reasoning_details":[{"type":"reasoning.text","text":" tests that validate the behavior","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" of the actual code. Since we","reasoning_details":[{"type":"reasoning.text","text":" of the actual code. Since we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" are an AI, we need","reasoning_details":[{"type":"reasoning.text","text":" are an AI, we need","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to produce something that is plausible","reasoning_details":[{"type":"reasoning.text","text":" to produce something that is plausible","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and useful.\n\nGiven the ambiguity","reasoning_details":[{"type":"reasoning.text","text":" and useful.\n\nGiven the ambiguity","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", I'll create a test","reasoning_details":[{"type":"reasoning.text","text":", I'll create a test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file that is self-contained, with","reasoning_details":[{"type":"reasoning.text","text":" file that is self-contained, with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a minimal implementation of the model","reasoning_details":[{"type":"reasoning.text","text":" a minimal implementation of the model","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and service inside the test file, and then","reasoning_details":[{"type":"reasoning.text","text":" and service inside the test file, and then","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" test that implementation. This demonstrates","reasoning_details":[{"type":"reasoning.text","text":" test that implementation. This demonstrates","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the tests and can be","reasoning_details":[{"type":"reasoning.text","text":" the tests and can be","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" adapted. But the instruction says \"C","reasoning_details":[{"type":"reasoning.text","text":" adapted. But the instruction says \"C","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"rie backend/tests/test_telemed","reasoning_details":[{"type":"reasoning.text","text":"rie backend/tests/test_telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina_lifecycle.py","reasoning_details":[{"type":"reasoning.text","text":"icina_lifecycle.py","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\" - it's a test","reasoning_details":[{"type":"reasoning.text","text":"\" - it's a test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file, not an implementation. So we should","reasoning_details":[{"type":"reasoning.text","text":" file, not an implementation. So we should","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" not include implementation code in the test file,","reasoning_details":[{"type":"reasoning.text","text":" not include implementation code in the test file,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" except for fixtures and m","reasoning_details":[{"type":"reasoning.text","text":" except for fixtures and m","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ocks. But to test the lifecycle","reasoning_details":[{"type":"reasoning.text","text":"ocks. But to test the lifecycle","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", we need to have something","reasoning_details":[{"type":"reasoning.text","text":", we need to have something","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to test. We can use","reasoning_details":[{"type":"reasoning.text","text":" to test. We can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" mocks to simulate the service.","reasoning_details":[{"type":"reasoning.text","text":" mocks to simulate the service.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" However, that would be less","reasoning_details":[{"type":"reasoning.text","text":" However, that would be less","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" useful.\n\nMaybe the best approach is to write tests","reasoning_details":[{"type":"reasoning.text","text":" useful.\n\nMaybe the best approach is to write tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that import from the actual","reasoning_details":[{"type":"reasoning.text","text":" that import from the actual","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" project modules, and we provide","reasoning_details":[{"type":"reasoning.text","text":" project modules, and we provide","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the expected interfaces. We","reasoning_details":[{"type":"reasoning.text","text":" the expected interfaces. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" can use `pytest.","reasoning_details":[{"type":"reasoning.text","text":" can use `pytest.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"importorskip` to skip","reasoning_details":[{"type":"reasoning.text","text":"importorskip` to skip","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" if modules not found. But that would","reasoning_details":[{"type":"reasoning.text","text":" if modules not found. But that would","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" make the tests not runnable if","reasoning_details":[{"type":"reasoning.text","text":" make the tests not runnable if","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the modules don't exist. The user likely","reasoning_details":[{"type":"reasoning.text","text":" the modules don't exist. The user likely","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" has the project and wants us","reasoning_details":[{"type":"reasoning.text","text":" has the project and wants us","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to add tests. So we should","reasoning_details":[{"type":"reasoning.text","text":" to add tests. So we should","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" write tests that import from","reasoning_details":[{"type":"reasoning.text","text":" write tests that import from","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the project's modules. We need","reasoning_details":[{"type":"reasoning.text","text":" the project's modules. We need","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to guess the module names.","reasoning_details":[{"type":"reasoning.text","text":" to guess the module names.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Let's think about a","reasoning_details":[{"type":"reasoning.text","text":" Let's think about a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" typical FastAPI project structure:\n\n```\n","reasoning_details":[{"type":"reasoning.text","text":" typical FastAPI project structure:\n\n```\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"backend/\n  app/\n    __init__.","reasoning_details":[{"type":"reasoning.text","text":"backend/\n  app/\n    __init__.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"py\n    main.py\n    api/\n     ","reasoning_details":[{"type":"reasoning.text","text":"py\n    main.py\n    api/\n     ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" v1/\n        endpoints/\n","reasoning_details":[{"type":"reasoning.text","text":" v1/\n        endpoints/\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"          telemedicina.py","reasoning_details":[{"type":"reasoning.text","text":"          telemedicina.py","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\n    core/\n      config","reasoning_details":[{"type":"reasoning.text","text":"\n    core/\n      config","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".py\n      database.py\n","reasoning_details":[{"type":"reasoning.text","text":".py\n      database.py\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"    models/\n      tele","reasoning_details":[{"type":"reasoning.text","text":"    models/\n      tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicina.py\n   ","reasoning_details":[{"type":"reasoning.text","text":"medicina.py\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" schemas/\n      telemed","reasoning_details":[{"type":"reasoning.text","text":" schemas/\n      telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina.py\n    services","reasoning_details":[{"type":"reasoning.text","text":"icina.py\n    services","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/\n      telemedicina","reasoning_details":[{"type":"reasoning.text","text":"/\n      telemedicina","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".py\n  tests/\n   ","reasoning_details":[{"type":"reasoning.text","text":".py\n  tests/\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" conftest.py\n    test","reasoning_details":[{"type":"reasoning.text","text":" conftest.py\n    test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_telemedicina_l","reasoning_details":[{"type":"reasoning.text","text":"_telemedicina_l","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ifecycle.py\n```\n\nWe","reasoning_details":[{"type":"reasoning.text","text":"ifecycle.py\n```\n\nWe","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" can write tests that import","reasoning_details":[{"type":"reasoning.text","text":" can write tests that import","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from `app.models.telemedicina","reasoning_details":[{"type":"reasoning.text","text":" from `app.models.telemedicina","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"`, `app.schemas","reasoning_details":[{"type":"reasoning.text","text":"`, `app.schemas","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".telemedicina`,","reasoning_details":[{"type":"reasoning.text","text":".telemedicina`,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `app.services.telemed","reasoning_details":[{"type":"reasoning.text","text":" `app.services.telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina`. But we need to know the exact","reasoning_details":[{"type":"reasoning.text","text":"icina`. But we need to know the exact","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" class names. We can","reasoning_details":[{"type":"reasoning.text","text":" class names. We can","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" define them in the test file as","reasoning_details":[{"type":"reasoning.text","text":" define them in the test file as","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" imports, and the user can adjust if","reasoning_details":[{"type":"reasoning.text","text":" imports, and the user can adjust if","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" needed. However, the instruction","reasoning_details":[{"type":"reasoning.text","text":" needed. However, the instruction","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" says \"Execute com precisão conforme","reasoning_details":[{"type":"reasoning.text","text":" says \"Execute com precisão conforme","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" as diretrizes.\" So","reasoning_details":[{"type":"reasoning.text","text":" as diretrizes.\" So","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we need to be precise.\n\nAlternatively","reasoning_details":[{"type":"reasoning.text","text":" we need to be precise.\n\nAlternatively","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", we can create a test file that uses a","reasoning_details":[{"type":"reasoning.text","text":", we can create a test file that uses a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" fixture to set up a test database and then","reasoning_details":[{"type":"reasoning.text","text":" fixture to set up a test database and then","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" uses the actual service.","reasoning_details":[{"type":"reasoning.text","text":" uses the actual service.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We can use `pytest` fixtures","reasoning_details":[{"type":"reasoning.text","text":" We can use `pytest` fixtures","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to create a session and call","reasoning_details":[{"type":"reasoning.text","text":" to create a session and call","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the service. We'll assume the service is","reasoning_details":[{"type":"reasoning.text","text":" the service. We'll assume the service is","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a class with methods.","reasoning_details":[{"type":"reasoning.text","text":" a class with methods.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Let's design the tests","reasoning_details":[{"type":"reasoning.text","text":" Let's design the tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" based on the requirements:\n\n1","reasoning_details":[{"type":"reasoning.text","text":" based on the requirements:\n\n1","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". \"criação de sala com","reasoning_details":[{"type":"reasoning.text","text":". \"criação de sala com","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" expiração\" - test","reasoning_details":[{"type":"reasoning.text","text":" expiração\" - test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that when creating a room, it","reasoning_details":[{"type":"reasoning.text","text":" that when creating a room, it","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" has an expiration time (","reasoning_details":[{"type":"reasoning.text","text":" has an expiration time (","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"e.g., now + ","reasoning_details":[{"type":"reasoning.text","text":"e.g., now + ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"30 minutes). We can check","reasoning_details":[{"type":"reasoning.text","text":"30 minutes). We can check","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that `expires_at` is set","reasoning_details":[{"type":"reasoning.text","text":" that `expires_at` is set","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and is in the future.\n\n2","reasoning_details":[{"type":"reasoning.text","text":" and is in the future.\n\n2","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". \"rejeição de salas duplic","reasoning_details":[{"type":"reasoning.text","text":". \"rejeição de salas duplic","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"adas\" - test that creating","reasoning_details":[{"type":"reasoning.text","text":"adas\" - test that creating","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a room with the same identifier","reasoning_details":[{"type":"reasoning.text","text":" a room with the same identifier","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" (e.g., same","reasoning_details":[{"type":"reasoning.text","text":" (e.g., same","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" patient and doctor? or same room ID","reasoning_details":[{"type":"reasoning.text","text":" patient and doctor? or same room ID","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"?) raises an error. We","reasoning_details":[{"type":"reasoning.text","text":"?) raises an error. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" need to define what \"duplicate\" means.","reasoning_details":[{"type":"reasoning.text","text":" need to define what \"duplicate\" means.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Probably a room for the same consultation","reasoning_details":[{"type":"reasoning.text","text":" Probably a room for the same consultation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" or same patient/doctor pair","reasoning_details":[{"type":"reasoning.text","text":" or same patient/doctor pair","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that is still active. We'll assume","reasoning_details":[{"type":"reasoning.text","text":" that is still active. We'll assume","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a unique constraint on `room_id`","reasoning_details":[{"type":"reasoning.text","text":" a unique constraint on `room_id`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" or on `appointment_id`.","reasoning_details":[{"type":"reasoning.text","text":" or on `appointment_id`.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We'll test that creating a second","reasoning_details":[{"type":"reasoning.text","text":" We'll test that creating a second","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room with the same `","reasoning_details":[{"type":"reasoning.text","text":" room with the same `","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room_id` raises an exception","reasoning_details":[{"type":"reasoning.text","text":"room_id` raises an exception","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\n\n3. \"cic","reasoning_details":[{"type":"reasoning.text","text":".\n\n3. \"cic","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"lo de status da consult","reasoning_details":[{"type":"reasoning.text","text":"lo de status da consult","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"a (AGENDADA","reasoning_details":[{"type":"reasoning.text","text":"a (AGENDADA","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" -> EM_ANDAMENTO -> CONCL","reasoning_details":[{"type":"reasoning.text","text":" -> EM_ANDAMENTO -> CONCL","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"UIDA)\" - test that","reasoning_details":[{"type":"reasoning.text","text":"UIDA)\" - test that","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the status transitions are allowed and","reasoning_details":[{"type":"reasoning.text","text":" the status transitions are allowed and","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" invalid transitions are rejected. We'll test","reasoning_details":[{"type":"reasoning.text","text":" invalid transitions are rejected. We'll test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that a room starts as AGENDADA, can","reasoning_details":[{"type":"reasoning.text","text":" that a room starts as AGENDADA, can","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" be moved to EM_ANDAMENTO","reasoning_details":[{"type":"reasoning.text","text":" be moved to EM_ANDAMENTO","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", then to CONCLUID","reasoning_details":[{"type":"reasoning.text","text":", then to CONCLUID","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"A. Also test that moving","reasoning_details":[{"type":"reasoning.text","text":"A. Also test that moving","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from AGENDADA to CONCLUIDA","reasoning_details":[{"type":"reasoning.text","text":" from AGENDADA to CONCLUIDA","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" directly is not allowed.\n\nWe also","reasoning_details":[{"type":"reasoning.text","text":" directly is not allowed.\n\nWe also","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" need to test WebSocket connection? The title","reasoning_details":[{"type":"reasoning.text","text":" need to test WebSocket connection? The title","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" says \"Conexão Web","reasoning_details":[{"type":"reasoning.text","text":" says \"Conexão Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket\", but the bullet","reasoning_details":[{"type":"reasoning.text","text":"Socket\", but the bullet","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" points don't mention it.","reasoning_details":[{"type":"reasoning.text","text":" points don't mention it.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Maybe we should include a test for WebSocket","reasoning_details":[{"type":"reasoning.text","text":" Maybe we should include a test for WebSocket","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" connection as well. But the three points","reasoning_details":[{"type":"reasoning.text","text":" connection as well. But the three points","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" are explicit. I'll stick","reasoning_details":[{"type":"reasoning.text","text":" are explicit. I'll stick","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to those.\n\nNow, to","reasoning_details":[{"type":"reasoning.text","text":" to those.\n\nNow, to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" write the tests, we need to decide on","reasoning_details":[{"type":"reasoning.text","text":" write the tests, we need to decide on","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the service interface. Let's define a","reasoning_details":[{"type":"reasoning.text","text":" the service interface. Let's define a","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `TelemedicineRoomService` with","reasoning_details":[{"type":"reasoning.text","text":" `TelemedicineRoomService` with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" methods:\n\n- `create_room(","reasoning_details":[{"type":"reasoning.text","text":" methods:\n\n- `create_room(","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room_id: str, patient","reasoning_details":[{"type":"reasoning.text","text":"room_id: str, patient","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_cns: str, doctor_cns","reasoning_details":[{"type":"reasoning.text","text":"_cns: str, doctor_cns","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":": str, expires_in","reasoning_details":[{"type":"reasoning.text","text":": str, expires_in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_minutes: int = ","reasoning_details":[{"type":"reasoning.text","text":"_minutes: int = ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"30) -> TelemedicineRoom","reasoning_details":[{"type":"reasoning.text","text":"30) -> TelemedicineRoom","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"`\n- `get_room(room_id:","reasoning_details":[{"type":"reasoning.text","text":"`\n- `get_room(room_id:","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" str) -> TelemedicineRoom`\n- `update","reasoning_details":[{"type":"reasoning.text","text":" str) -> TelemedicineRoom`\n- `update","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_status(room_id: str","reasoning_details":[{"type":"reasoning.text","text":"_status(room_id: str","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", new_status: Room","reasoning_details":[{"type":"reasoning.text","text":", new_status: Room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Status) -> TelemedicineRoom","reasoning_details":[{"type":"reasoning.text","text":"Status) -> TelemedicineRoom","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"`\n\nWe'll use an","reasoning_details":[{"type":"reasoning.text","text":"`\n\nWe'll use an","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" enum `RoomStatus` with","reasoning_details":[{"type":"reasoning.text","text":" enum `RoomStatus` with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" values: `AGENDADA","reasoning_details":[{"type":"reasoning.text","text":" values: `AGENDADA","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"`, `EM_ANDAMENTO`, `CON","reasoning_details":[{"type":"reasoning.text","text":"`, `EM_ANDAMENTO`, `CON","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"CLUIDA`.\n\nWe'll","reasoning_details":[{"type":"reasoning.text","text":"CLUIDA`.\n\nWe'll","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" use SQLAlchemy model `","reasoning_details":[{"type":"reasoning.text","text":" use SQLAlchemy model `","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"TelemedicineRoom` with fields","reasoning_details":[{"type":"reasoning.text","text":"TelemedicineRoom` with fields","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":": `id` (primary key,","reasoning_details":[{"type":"reasoning.text","text":": `id` (primary key,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" string), `patient_cns`, `doctor_c","reasoning_details":[{"type":"reasoning.text","text":" string), `patient_cns`, `doctor_c","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ns`, `status`","reasoning_details":[{"type":"reasoning.text","text":"ns`, `status`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" (enum), `expires","reasoning_details":[{"type":"reasoning.text","text":" (enum), `expires","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_at` (datetime), `created_at`.\n\n","reasoning_details":[{"type":"reasoning.text","text":"_at` (datetime), `created_at`.\n\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"We'll use Pydantic sche","reasoning_details":[{"type":"reasoning.text","text":"We'll use Pydantic sche","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"mas for validation, but in","reasoning_details":[{"type":"reasoning.text","text":"mas for validation, but in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests we can just use the model.\n\nNow,","reasoning_details":[{"type":"reasoning.text","text":" tests we can just use the model.\n\nNow,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to make the tests runnable, we need","reasoning_details":[{"type":"reasoning.text","text":" to make the tests runnable, we need","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to set up a database. We can use","reasoning_details":[{"type":"reasoning.text","text":" to set up a database. We can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" SQLAlchemy's `create_engine` with","reasoning_details":[{"type":"reasoning.text","text":" SQLAlchemy's `create_engine` with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" SQLite in-memory, and","reasoning_details":[{"type":"reasoning.text","text":" SQLite in-memory, and","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a `sessionmaker`.","reasoning_details":[{"type":"reasoning.text","text":" a `sessionmaker`.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We'll define the Base","reasoning_details":[{"type":"reasoning.text","text":" We'll define the Base","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and model in the test file. But","reasoning_details":[{"type":"reasoning.text","text":" and model in the test file. But","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that would be duplicating the model","reasoning_details":[{"type":"reasoning.text","text":" that would be duplicating the model","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". Instead, we can use","reasoning_details":[{"type":"reasoning.text","text":". Instead, we can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the actual model if it","reasoning_details":[{"type":"reasoning.text","text":" the actual model if it","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" exists. Since we don't know, we","reasoning_details":[{"type":"reasoning.text","text":" exists. Since we don't know, we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" can write the tests to","reasoning_details":[{"type":"reasoning.text","text":" can write the tests to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" use a fixture that creates the","reasoning_details":[{"type":"reasoning.text","text":" use a fixture that creates the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tables from the actual model. We","reasoning_details":[{"type":"reasoning.text","text":" tables from the actual model. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'ll import the model from the app","reasoning_details":[{"type":"reasoning.text","text":"'ll import the model from the app","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". If the import fails,","reasoning_details":[{"type":"reasoning.text","text":". If the import fails,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the tests will error. But the user asked","reasoning_details":[{"type":"reasoning.text","text":" the tests will error. But the user asked","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" us to create the test","reasoning_details":[{"type":"reasoning.text","text":" us to create the test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file, so we should assume","reasoning_details":[{"type":"reasoning.text","text":" file, so we should assume","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the project exists.\n\nLet's try","reasoning_details":[{"type":"reasoning.text","text":" the project exists.\n\nLet's try","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to write the test file with imports","reasoning_details":[{"type":"reasoning.text","text":" to write the test file with imports","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from the actual project. We'll use relative","reasoning_details":[{"type":"reasoning.text","text":" from the actual project. We'll use relative","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" imports? The test file is in `backend","reasoning_details":[{"type":"reasoning.text","text":" imports? The test file is in `backend","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/tests/`, so we","reasoning_details":[{"type":"reasoning.text","text":"/tests/`, so we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" can import from `app`","reasoning_details":[{"type":"reasoning.text","text":" can import from `app`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" if the backend directory is in","reasoning_details":[{"type":"reasoning.text","text":" if the backend directory is in","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the Python path. Usually","reasoning_details":[{"type":"reasoning.text","text":" the Python path. Usually","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", tests are run from","reasoning_details":[{"type":"reasoning.text","text":", tests are run from","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the backend directory, so `app","reasoning_details":[{"type":"reasoning.text","text":" the backend directory, so `app","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"` is a package. We'll use `","reasoning_details":[{"type":"reasoning.text","text":"` is a package. We'll use `","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"from app.models.telemedicina import Tele","reasoning_details":[{"type":"reasoning.text","text":"from app.models.telemedicina import Tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicineRoom, RoomStatus` etc.\n\n","reasoning_details":[{"type":"reasoning.text","text":"medicineRoom, RoomStatus` etc.\n\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"But to be safe, we can use","reasoning_details":[{"type":"reasoning.text","text":"But to be safe, we can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `pytest.importorskip` to","reasoning_details":[{"type":"reasoning.text","text":" `pytest.importorskip` to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" skip if not available. However, that would","reasoning_details":[{"type":"reasoning.text","text":" skip if not available. However, that would","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" not be \"precisão","reasoning_details":[{"type":"reasoning.text","text":" not be \"precisão","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\". I think we should write the","reasoning_details":[{"type":"reasoning.text","text":"\". I think we should write the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests assuming the project structure.\n\n","reasoning_details":[{"type":"reasoning.text","text":" tests assuming the project structure.\n\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Let's create a test file with the following","reasoning_details":[{"type":"reasoning.text","text":"Let's create a test file with the following","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" content:\n\n- Imports: pytest","reasoning_details":[{"type":"reasoning.text","text":" content:\n\n- Imports: pytest","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", datetime, sqlalchemy, etc.\n-","reasoning_details":[{"type":"reasoning.text","text":", datetime, sqlalchemy, etc.\n-","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Import from app: `from app.models.","reasoning_details":[{"type":"reasoning.text","text":" Import from app: `from app.models.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"telemedicina import Tele","reasoning_details":[{"type":"reasoning.text","text":"telemedicina import Tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicineRoom, RoomStatus`,","reasoning_details":[{"type":"reasoning.text","text":"medicineRoom, RoomStatus`,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `from app.services.tele","reasoning_details":[{"type":"reasoning.text","text":" `from app.services.tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicina import Telemedicine","reasoning_details":[{"type":"reasoning.text","text":"medicina import Telemedicine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"RoomService`, `from app","reasoning_details":[{"type":"reasoning.text","text":"RoomService`, `from app","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".core.database import Base,","reasoning_details":[{"type":"reasoning.text","text":".core.database import Base,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" get_db` (or `SessionLocal","reasoning_details":[{"type":"reasoning.text","text":" get_db` (or `SessionLocal","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"`).\n- Define a fixture","reasoning_details":[{"type":"reasoning.text","text":"`).\n- Define a fixture","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `db_session` that creates an","reasoning_details":[{"type":"reasoning.text","text":" `db_session` that creates an","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" in-memory SQLite database","reasoning_details":[{"type":"reasoning.text","text":" in-memory SQLite database","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", creates tables, and yields","reasoning_details":[{"type":"reasoning.text","text":", creates tables, and yields","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a session.\n- Define","reasoning_details":[{"type":"reasoning.text","text":" a session.\n- Define","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a fixture `service` that creates an","reasoning_details":[{"type":"reasoning.text","text":" a fixture `service` that creates an","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" instance of `TelemedicineRoomService` with","reasoning_details":[{"type":"reasoning.text","text":" instance of `TelemedicineRoomService` with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the session.\n- Write","reasoning_details":[{"type":"reasoning.text","text":" the session.\n- Write","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests.\n\nBut we need to know","reasoning_details":[{"type":"reasoning.text","text":" tests.\n\nBut we need to know","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the exact constructor of the service. It","reasoning_details":[{"type":"reasoning.text","text":" the exact constructor of the service. It","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" might take a `db","reasoning_details":[{"type":"reasoning.text","text":" might take a `db","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_session` or a `Session`. We'll","reasoning_details":[{"type":"reasoning.text","text":"_session` or a `Session`. We'll","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" assume it takes a `Session","reasoning_details":[{"type":"reasoning.text","text":" assume it takes a `Session","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"` as argument.\n\nLet's write","reasoning_details":[{"type":"reasoning.text","text":"` as argument.\n\nLet's write","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the tests:\n\n```python\n","reasoning_details":[{"type":"reasoning.text","text":" the tests:\n\n```python\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"import pytest\nfrom datetime import datetime","reasoning_details":[{"type":"reasoning.text","text":"import pytest\nfrom datetime import datetime","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", timedelta, timezone","reasoning_details":[{"type":"reasoning.text","text":", timedelta, timezone","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\nfrom sqlalchemy import","reasoning_details":[{"type":"reasoning.text","text":"\nfrom sqlalchemy import","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" create_engine\nfrom sql","reasoning_details":[{"type":"reasoning.text","text":" create_engine\nfrom sql","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"alchemy.orm import session","reasoning_details":[{"type":"reasoning.text","text":"alchemy.orm import session","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"maker\nfrom app.core","reasoning_details":[{"type":"reasoning.text","text":"maker\nfrom app.core","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".database import Base\nfrom","reasoning_details":[{"type":"reasoning.text","text":".database import Base\nfrom","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" app.models.telemed","reasoning_details":[{"type":"reasoning.text","text":" app.models.telemed","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"icina import Telemedicine","reasoning_details":[{"type":"reasoning.text","text":"icina import Telemedicine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Room, RoomStatus\nfrom","reasoning_details":[{"type":"reasoning.text","text":"Room, RoomStatus\nfrom","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" app.services.telemedic","reasoning_details":[{"type":"reasoning.text","text":" app.services.telemedic","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ina import TelemedicineRoomService","reasoning_details":[{"type":"reasoning.text","text":"ina import TelemedicineRoomService","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", DuplicateRoomError","reasoning_details":[{"type":"reasoning.text","text":", DuplicateRoomError","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", InvalidStatusTransitionError\n\n@pytest.fi","reasoning_details":[{"type":"reasoning.text","text":", InvalidStatusTransitionError\n\n@pytest.fi","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"xture\ndef db_session():\n","reasoning_details":[{"type":"reasoning.text","text":"xture\ndef db_session():\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"    engine = create_engine","reasoning_details":[{"type":"reasoning.text","text":"    engine = create_engine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"(\"sqlite:///:memory","reasoning_details":[{"type":"reasoning.text","text":"(\"sqlite:///:memory","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":":\", connect_args={\"check_s","reasoning_details":[{"type":"reasoning.text","text":":\", connect_args={\"check_s","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ame_thread\": False})\n   ","reasoning_details":[{"type":"reasoning.text","text":"ame_thread\": False})\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Base.metadata.create_all(bind","reasoning_details":[{"type":"reasoning.text","text":" Base.metadata.create_all(bind","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"=engine)\n    Testing","reasoning_details":[{"type":"reasoning.text","text":"=engine)\n    Testing","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Session = sessionmaker(bind=engine","reasoning_details":[{"type":"reasoning.text","text":"Session = sessionmaker(bind=engine","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", autoflush=False, aut","reasoning_details":[{"type":"reasoning.text","text":", autoflush=False, aut","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ocommit=False)\n    session","reasoning_details":[{"type":"reasoning.text","text":"ocommit=False)\n    session","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" = TestingSession()\n    try","reasoning_details":[{"type":"reasoning.text","text":" = TestingSession()\n    try","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":":\n        yield session\n   ","reasoning_details":[{"type":"reasoning.text","text":":\n        yield session\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" finally:\n        session.close()\n","reasoning_details":[{"type":"reasoning.text","text":" finally:\n        session.close()\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"        Base.metadata.drop_all","reasoning_details":[{"type":"reasoning.text","text":"        Base.metadata.drop_all","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"(bind=engine)\n\n@p","reasoning_details":[{"type":"reasoning.text","text":"(bind=engine)\n\n@p","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ytest.fixture\ndef service","reasoning_details":[{"type":"reasoning.text","text":"ytest.fixture\ndef service","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"(db_session):\n    return Tele","reasoning_details":[{"type":"reasoning.text","text":"(db_session):\n    return Tele","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"medicineRoomService(db_session)\n\n","reasoning_details":[{"type":"reasoning.text","text":"medicineRoomService(db_session)\n\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"def test_create_room_with","reasoning_details":[{"type":"reasoning.text","text":"def test_create_room_with","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_expiration(service):\n   ","reasoning_details":[{"type":"reasoning.text","text":"_expiration(service):\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room = service.create_","reasoning_details":[{"type":"reasoning.text","text":" room = service.create_","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room(\n        room_id=\"","reasoning_details":[{"type":"reasoning.text","text":"room(\n        room_id=\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room-1\",\n        patient","reasoning_details":[{"type":"reasoning.text","text":"room-1\",\n        patient","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_cns=\"123456789012345","reasoning_details":[{"type":"reasoning.text","text":"_cns=\"123456789012345","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\",\n        doctor_cns=\"","reasoning_details":[{"type":"reasoning.text","text":"\",\n        doctor_cns=\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"987654321098765","reasoning_details":[{"type":"reasoning.text","text":"987654321098765","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\",\n        expires_in_minutes=30\n   ","reasoning_details":[{"type":"reasoning.text","text":"\",\n        expires_in_minutes=30\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" )\n    assert room.id","reasoning_details":[{"type":"reasoning.text","text":" )\n    assert room.id","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" == \"room-1\"\n","reasoning_details":[{"type":"reasoning.text","text":" == \"room-1\"\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"    assert room.status == Room","reasoning_details":[{"type":"reasoning.text","text":"    assert room.status == Room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Status.AGENDADA\n    assert","reasoning_details":[{"type":"reasoning.text","text":"Status.AGENDADA\n    assert","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" room.expires_at is not","reasoning_details":[{"type":"reasoning.text","text":" room.expires_at is not","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" None\n    assert room.exp","reasoning_details":[{"type":"reasoning.text","text":" None\n    assert room.exp","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ires_at > datetime.now(time","reasoning_details":[{"type":"reasoning.text","text":"ires_at > datetime.now(time","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"zone.utc)\n   ","reasoning_details":[{"type":"reasoning.text","text":"zone.utc)\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" assert room.expires_at <=","reasoning_details":[{"type":"reasoning.text","text":" assert room.expires_at <=","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" datetime.now(timezone.ut","reasoning_details":[{"type":"reasoning.text","text":" datetime.now(timezone.ut","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"c) + timedelta(min","reasoning_details":[{"type":"reasoning.text","text":"c) + timedelta(min","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"utes=31)\n\ndef test","reasoning_details":[{"type":"reasoning.text","text":"utes=31)\n\ndef test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_reject_duplicate_","reasoning_details":[{"type":"reasoning.text","text":"_reject_duplicate_","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room(service):\n    service","reasoning_details":[{"type":"reasoning.text","text":"room(service):\n    service","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".create_room(room_id","reasoning_details":[{"type":"reasoning.text","text":".create_room(room_id","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"=\"room-1\", patient","reasoning_details":[{"type":"reasoning.text","text":"=\"room-1\", patient","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_cns=\"123\",","reasoning_details":[{"type":"reasoning.text","text":"_cns=\"123\",","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" doctor_cns=\"456","reasoning_details":[{"type":"reasoning.text","text":" doctor_cns=\"456","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\")\n    with pytest.ra","reasoning_details":[{"type":"reasoning.text","text":"\")\n    with pytest.ra","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ises(DuplicateRoomError","reasoning_details":[{"type":"reasoning.text","text":"ises(DuplicateRoomError","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"):\n        service.create_room","reasoning_details":[{"type":"reasoning.text","text":"):\n        service.create_room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"(room_id=\"room-","reasoning_details":[{"type":"reasoning.text","text":"(room_id=\"room-","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"1\", patient_cns=\"","reasoning_details":[{"type":"reasoning.text","text":"1\", patient_cns=\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"123\", doctor_cns=\"","reasoning_details":[{"type":"reasoning.text","text":"123\", doctor_cns=\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"456\")\n\ndef test_status_","reasoning_details":[{"type":"reasoning.text","text":"456\")\n\ndef test_status_","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"cycle(service):\n    room","reasoning_details":[{"type":"reasoning.text","text":"cycle(service):\n    room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" = service.create_room(","reasoning_details":[{"type":"reasoning.text","text":" = service.create_room(","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room_id=\"room-2","reasoning_details":[{"type":"reasoning.text","text":"room_id=\"room-2","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\", patient_cns=\"123","reasoning_details":[{"type":"reasoning.text","text":"\", patient_cns=\"123","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\", doctor_cns=\"456","reasoning_details":[{"type":"reasoning.text","text":"\", doctor_cns=\"456","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\")\n    assert room.status ==","reasoning_details":[{"type":"reasoning.text","text":"\")\n    assert room.status ==","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" RoomStatus.AGENDADA\n    room","reasoning_details":[{"type":"reasoning.text","text":" RoomStatus.AGENDADA\n    room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" = service.update_status(room","reasoning_details":[{"type":"reasoning.text","text":" = service.update_status(room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".id, RoomStatus.EM","reasoning_details":[{"type":"reasoning.text","text":".id, RoomStatus.EM","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_ANDAMENTO)\n   ","reasoning_details":[{"type":"reasoning.text","text":"_ANDAMENTO)\n   ","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" assert room.status == RoomStatus","reasoning_details":[{"type":"reasoning.text","text":" assert room.status == RoomStatus","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".EM_ANDAMENTO","reasoning_details":[{"type":"reasoning.text","text":".EM_ANDAMENTO","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\n    room = service.update","reasoning_details":[{"type":"reasoning.text","text":"\n    room = service.update","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_status(room.id, Room","reasoning_details":[{"type":"reasoning.text","text":"_status(room.id, Room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Status.CONCLUIDA","reasoning_details":[{"type":"reasoning.text","text":"Status.CONCLUIDA","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":")\n    assert room.status ==","reasoning_details":[{"type":"reasoning.text","text":")\n    assert room.status ==","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" RoomStatus.CONCLUID","reasoning_details":[{"type":"reasoning.text","text":" RoomStatus.CONCLUID","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"A\n\ndef test_invalid","reasoning_details":[{"type":"reasoning.text","text":"A\n\ndef test_invalid","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_status_transition(service):\n","reasoning_details":[{"type":"reasoning.text","text":"_status_transition(service):\n","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"    room = service.create_","reasoning_details":[{"type":"reasoning.text","text":"    room = service.create_","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"room(room_id=\"room","reasoning_details":[{"type":"reasoning.text","text":"room(room_id=\"room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"-3\", patient_cns","reasoning_details":[{"type":"reasoning.text","text":"-3\", patient_cns","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"=\"123\", doctor_cns","reasoning_details":[{"type":"reasoning.text","text":"=\"123\", doctor_cns","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"=\"456\")\n    with pytest","reasoning_details":[{"type":"reasoning.text","text":"=\"456\")\n    with pytest","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".raises(InvalidStatus","reasoning_details":[{"type":"reasoning.text","text":".raises(InvalidStatus","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"TransitionError):\n        service.update","reasoning_details":[{"type":"reasoning.text","text":"TransitionError):\n        service.update","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"_status(room.id, Room","reasoning_details":[{"type":"reasoning.text","text":"_status(room.id, Room","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Status.CONCLUIDA","reasoning_details":[{"type":"reasoning.text","text":"Status.CONCLUIDA","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":")  # cannot go","reasoning_details":[{"type":"reasoning.text","text":")  # cannot go","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" from AGENDADA to CON","reasoning_details":[{"type":"reasoning.text","text":" from AGENDADA to CON","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"CLUIDA\n```\n\nThis","reasoning_details":[{"type":"reasoning.text","text":"CLUIDA\n```\n\nThis","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" is a good start. But we need to ensure","reasoning_details":[{"type":"reasoning.text","text":" is a good start. But we need to ensure","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the service and model exist","reasoning_details":[{"type":"reasoning.text","text":" the service and model exist","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". Since we don't have","reasoning_details":[{"type":"reasoning.text","text":". Since we don't have","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" them, we can also","reasoning_details":[{"type":"reasoning.text","text":" them, we can also","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" provide a minimal implementation in the test","reasoning_details":[{"type":"reasoning.text","text":" provide a minimal implementation in the test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" file as a fallback? That","reasoning_details":[{"type":"reasoning.text","text":" file as a fallback? That","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" would be messy.\n\nMaybe","reasoning_details":[{"type":"reasoning.text","text":" would be messy.\n\nMaybe","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we should write the tests in a way","reasoning_details":[{"type":"reasoning.text","text":" we should write the tests in a way","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that they can be run","reasoning_details":[{"type":"reasoning.text","text":" that they can be run","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" against a stub implementation that","reasoning_details":[{"type":"reasoning.text","text":" against a stub implementation that","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we also provide in the test file? But","reasoning_details":[{"type":"reasoning.text","text":" we also provide in the test file? But","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the task is to create the","reasoning_details":[{"type":"reasoning.text","text":" the task is to create the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" test file, not the implementation","reasoning_details":[{"type":"reasoning.text","text":" test file, not the implementation","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". However, the user might","reasoning_details":[{"type":"reasoning.text","text":". However, the user might","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" expect the tests to be run","reasoning_details":[{"type":"reasoning.text","text":" expect the tests to be run","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"nable. If the","reasoning_details":[{"type":"reasoning.text","text":"nable. If the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" implementation doesn't exist, the","reasoning_details":[{"type":"reasoning.text","text":" implementation doesn't exist, the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests will fail. But the","reasoning_details":[{"type":"reasoning.text","text":" tests will fail. But the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" user likely has the implementation and","reasoning_details":[{"type":"reasoning.text","text":" user likely has the implementation and","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" wants tests. So we should","reasoning_details":[{"type":"reasoning.text","text":" wants tests. So we should","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" write tests that match the expected behavior","reasoning_details":[{"type":"reasoning.text","text":" write tests that match the expected behavior","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\n\nLet's refine the test file","reasoning_details":[{"type":"reasoning.text","text":".\n\nLet's refine the test file","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to be more robust. We","reasoning_details":[{"type":"reasoning.text","text":" to be more robust. We","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'ll use `pytest.","reasoning_details":[{"type":"reasoning.text","text":"'ll use `pytest.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"importorskip` to","reasoning_details":[{"type":"reasoning.text","text":"importorskip` to","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" skip if the modules are not available,","reasoning_details":[{"type":"reasoning.text","text":" skip if the modules are not available,","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" but that would not be ideal","reasoning_details":[{"type":"reasoning.text","text":" but that would not be ideal","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". Alternatively, we can use","reasoning_details":[{"type":"reasoning.text","text":". Alternatively, we can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `unittest.mock` to mock","reasoning_details":[{"type":"reasoning.text","text":" `unittest.mock` to mock","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the service, but that would","reasoning_details":[{"type":"reasoning.text","text":" the service, but that would","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" not test the actual lifecycle","reasoning_details":[{"type":"reasoning.text","text":" not test the actual lifecycle","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".\n\nI think the best","reasoning_details":[{"type":"reasoning.text","text":".\n\nI think the best","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" approach is to write the","reasoning_details":[{"type":"reasoning.text","text":" approach is to write the","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" test file assuming the project","reasoning_details":[{"type":"reasoning.text","text":" test file assuming the project","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" structure and provide clear comments about","reasoning_details":[{"type":"reasoning.text","text":" structure and provide clear comments about","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the expected interfaces. The user can adapt","reasoning_details":[{"type":"reasoning.text","text":" the expected interfaces. The user can adapt","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" if needed.\n\nLet's also consider","reasoning_details":[{"type":"reasoning.text","text":" if needed.\n\nLet's also consider","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the \"Conexão WebSocket\"","reasoning_details":[{"type":"reasoning.text","text":" the \"Conexão WebSocket\"","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" part. Maybe we should add","reasoning_details":[{"type":"reasoning.text","text":" part. Maybe we should add","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" a test for WebSocket connection","reasoning_details":[{"type":"reasoning.text","text":" a test for WebSocket connection","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" using FastAPI's Test","reasoning_details":[{"type":"reasoning.text","text":" using FastAPI's Test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Client or `websockets`","reasoning_details":[{"type":"reasoning.text","text":"Client or `websockets`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" library. But the bullet","reasoning_details":[{"type":"reasoning.text","text":" library. But the bullet","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" points don't mention it.","reasoning_details":[{"type":"reasoning.text","text":" points don't mention it.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" The title says \"Test","reasoning_details":[{"type":"reasoning.text","text":" The title says \"Test","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"es de Conexão Web","reasoning_details":[{"type":"reasoning.text","text":"es de Conexão Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket e Ciclo de Vida","reasoning_details":[{"type":"reasoning.text","text":"Socket e Ciclo de Vida","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" da Sala\". So maybe","reasoning_details":[{"type":"reasoning.text","text":" da Sala\". So maybe","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" we need to test that a WebSocket connection can","reasoning_details":[{"type":"reasoning.text","text":" we need to test that a WebSocket connection can","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" be established to a room.","reasoning_details":[{"type":"reasoning.text","text":" be established to a room.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We can add a test that uses","reasoning_details":[{"type":"reasoning.text","text":" We can add a test that uses","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" `fastapi.testclient.TestClient`","reasoning_details":[{"type":"reasoning.text","text":" `fastapi.testclient.TestClient`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to connect to a Web","reasoning_details":[{"type":"reasoning.text","text":" to connect to a Web","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Socket endpoint. But we","reasoning_details":[{"type":"reasoning.text","text":"Socket endpoint. But we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" don't know the endpoint.","reasoning_details":[{"type":"reasoning.text","text":" don't know the endpoint.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We can assume there is an endpoint `/ws","reasoning_details":[{"type":"reasoning.text","text":" We can assume there is an endpoint `/ws","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"/telemedicina/{room_id}`","reasoning_details":[{"type":"reasoning.text","text":"/telemedicina/{room_id}`","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". We can test that connecting","reasoning_details":[{"type":"reasoning.text","text":". We can test that connecting","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to a valid room succeeds","reasoning_details":[{"type":"reasoning.text","text":" to a valid room succeeds","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" and to an invalid room fails. But","reasoning_details":[{"type":"reasoning.text","text":" and to an invalid room fails. But","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" that would require the Fast","reasoning_details":[{"type":"reasoning.text","text":" that would require the Fast","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"API app to be set","reasoning_details":[{"type":"reasoning.text","text":"API app to be set","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" up. We can create a fixture","reasoning_details":[{"type":"reasoning.text","text":" up. We can create a fixture","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" for the app. This is getting","reasoning_details":[{"type":"reasoning.text","text":" for the app. This is getting","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" complex.\n\nGiven the explicit","reasoning_details":[{"type":"reasoning.text","text":" complex.\n\nGiven the explicit","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" three bullet points, I'll focus on","reasoning_details":[{"type":"reasoning.text","text":" three bullet points, I'll focus on","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" those. The title might","reasoning_details":[{"type":"reasoning.text","text":" those. The title might","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" be a general description. I'll mention","reasoning_details":[{"type":"reasoning.text","text":" be a general description. I'll mention","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" in comments that WebSocket connection tests","reasoning_details":[{"type":"reasoning.text","text":" in comments that WebSocket connection tests","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" are not included because they","reasoning_details":[{"type":"reasoning.text","text":" are not included because they","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" require the full app, but the lifecycle","reasoning_details":[{"type":"reasoning.text","text":" require the full app, but the lifecycle","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" tests cover the core.\n\nLet","reasoning_details":[{"type":"reasoning.text","text":" tests cover the core.\n\nLet","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'s write the final test file. We'll include","reasoning_details":[{"type":"reasoning.text","text":"'s write the final test file. We'll include","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" imports, fixtures, and tests.","reasoning_details":[{"type":"reasoning.text","text":" imports, fixtures, and tests.","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" We'll also add type","reasoning_details":[{"type":"reasoning.text","text":" We'll also add type","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" hints and use Pydantic v2 if","reasoning_details":[{"type":"reasoning.text","text":" hints and use Pydantic v2 if","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" needed. Since we are","reasoning_details":[{"type":"reasoning.text","text":" needed. Since we are","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" using SQLAlchemy models, we","reasoning_details":[{"type":"reasoning.text","text":" using SQLAlchemy models, we","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" don't need Pydantic","reasoning_details":[{"type":"reasoning.text","text":" don't need Pydantic","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" in the tests directly. But we can use","reasoning_details":[{"type":"reasoning.text","text":" in the tests directly. But we can use","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Pydantic for sche","reasoning_details":[{"type":"reasoning.text","text":" Pydantic for sche","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"mas if we want to validate. We'll","reasoning_details":[{"type":"reasoning.text","text":"mas if we want to validate. We'll","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" keep it simple.\n\nWe need","reasoning_details":[{"type":"reasoning.text","text":" keep it simple.\n\nWe need","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" to ensure the code is Python","reasoning_details":[{"type":"reasoning.text","text":" to ensure the code is Python","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 3.12 compatible","reasoning_details":[{"type":"reasoning.text","text":" 3.12 compatible","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". Use `from __future__ import","reasoning_details":[{"type":"reasoning.text","text":". Use `from __future__ import","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" annotations` if needed.\n\nLet's produce","reasoning_details":[{"type":"reasoning.text","text":" annotations` if needed.\n\nLet's produce","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" the final answer with the test file content","reasoning_details":[{"type":"reasoning.text","text":" the final answer with the test file content","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":". We'll include a doc","reasoning_details":[{"type":"reasoning.text","text":". We'll include a doc","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"string explaining the tests.\n\nNow","reasoning_details":[{"type":"reasoning.text","text":"string explaining the tests.\n\nNow","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", let's write the code","reasoning_details":[{"type":"reasoning.text","text":", let's write the code","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":".","reasoning_details":[{"type":"reasoning.text","text":".","format":"unknown","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"```python\n#","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" Arquivo: backend/tests/test","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"_telemedicina_l","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"ifecycle.py\n\"\"\"\nTestes de ciclo de","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" vida da sala de tele","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"medicina.\n\nCobre","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":":\n1. Criação de","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" sala com expiração.\n","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"2. Rejeição de salas du","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"plicadas.\n3. Cic","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"lo de status da consulta (AGENDADA","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" -> EM_ANDAMENTO -> CONCLUID","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"A).\n\"\"\"\n\nfrom __future__ import","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" annotations\n\nfrom datetime import datetime, timedelta","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":", timezone\n\nimport pytest","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"\nfrom sqlalchemy import","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":" create_engine\nfrom sql","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"alchemy.orm import session","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"maker","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"length","native_finish_reason":"length"}]}
+
+data: {"id":"gen-1790357475-X7PMkcgUd3ABieFhp7CA","object":"chat.completion.chunk","created":1790357475,"model":"deepseek/deepseek-v4-flash-0731","provider":"StreamLake","service_tier":null,"choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"length","native_finish_reason":"length"}],"usage":{"prompt_tokens":381,"completion_tokens":4096,"total_tokens":4477,"cost":0.000557436,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000557436,"upstream_inference_prompt_cost":0.000016764,"upstream_inference_completions_cost":0.000540672},"completion_tokens_details":{"reasoning_tokens":3967,"image_tokens":0,"audio_tokens":0}}}
+
+data: [DONE]
+

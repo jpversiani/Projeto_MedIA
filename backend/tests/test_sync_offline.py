@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import (
     Column,
     DateTime,

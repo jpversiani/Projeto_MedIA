@@ -1,25 +1,368 @@
 backend/
 ├── app/
 │   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
 │   ├── models.py
 │   ├── schemas.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── triagem.py
 │   ├── services/
 │   │   ├── __init__.py
 │   │   └── queue_service.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── v1/
-│   │   │   ├── __init__.py
-│   │   │   ├── queue.py
-│   │   │   └── telemedicina.py
-│   │   └── dependencies.py
 │   ├── static/
 │   │   └── painel_triagem.html
-│   └── main.py
-├── tests/
-│   ├── __init__.py
-│   ├── test_queue.py
-│   ├── test_schemas.py
-│   └── test_services.py
+│   └── tests/
+│       ├── __init__.py
+│       └── test_triagem.py
 ├── requirements.txt
-└── pytest.ini
+└── pyproject.toml
+
+# Arquivo: backend/requirements.txt
+fastapi==0.115.0
+uvicorn==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+pydantic-settings==2.5.2
+alembic==1.13.1
+pytest==8.3.2
+httpx==0.27.0
+python-dotenv==1.0.1
+
+# Arquivo: backend/pyproject.toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "media-triage"
+version = "1.0.0"
+description = "Painel Visual da Triagem e Monitor de Fila APS (C11)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn==0.30.6",
+    "sqlalchemy==2.0.35",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.5.2",
+    "alembic==1.13.1",
+    "httpx==0.27.0",
+    "python-dotenv==1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.2",
+    "pytest-asyncio==0.23.8",
+    "httpx==0.27.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Arquivo: backend/app/__init__.py
+"""
+Projeto MedIA - Sistema de Triagem e Monitor de Fila APS (C11)
+Padrões SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF
+"""
+
+# Arquivo: backend/app/config.py
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    """Configuração do sistema MedIA com padrões SUS/APS."""
+
+    # Banco de Dados
+    DATABASE_URL: str = "sqlite:///./media_triage.db"
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+
+    # API
+    APP_NAME: str = "MedIA - Sistema de Triagem APS"
+    APP_VERSION: str = "1.0.0"
+    API_PREFIX: str = "/api/v1"
+
+    # Fila de Fila
+    MAX_QUEUE_SIZE: int = 100
+    ALERT_THRESHOLD: int = 10  # Alertar se fila > 10 patients
+
+    # Identificação SUS
+    SUS_CNS_PREFIX: str = "00"  # Prefixo CNS padrão
+    SUS_CPF_PREFIX: str = "11"  # Prefixo CPF padrão
+
+    # CID-10
+    CID10_CODE_LENGTH: int = 4  # CID-10 padrão
+
+    # SOAP
+    SOAP_TEMPLATE: str = "SOAP"
+    SOAP_VERSION: str = "2.0"
+
+    # Sistema
+    DEBUG: bool = True
+    LOG_LEVEL: str = "INFO"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+settings = Settings()
+
+# Arquivo: backend/app/models.py
+"""
+Modelos do banco de dados com padrões SUS/APS.
+- Identificação por CNS/CPF
+- CID-10 para diagnóstico
+- Método SOAP para registro
+- Padrão CIAP-2 para triagem
+"""
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    Integer,
+    String,
+    Text,
+    func,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    """Base declarativa com padrão CIAP-2."""
+
+
+class TriagePriority(Enum):
+    """Prioridade de triagem conforme padrão SUS/APS."""
+    URGENT = "urgente"      # Crítico - 0 segundos
+    HIGH = "alta"           # Alta - 1-5 minutos
+    MEDIUM = "média"        # Média - 5-30 minutos
+    LOW = "baixa"           # Baixa - 30+ minutos
+    OBSERVATION = "observacao"  # Observação - 60+ minutos
+
+
+class PatientStatus(Enum):
+    """Estato do paciente na fila."""
+    WAITING = "aguardando"
+    IN_TREATMENT = "em_tratamento"
+    ADMITTED = "admitido"
+    DISCHARGED = "descarregado"
+    COMPLETED = "completado"
+    NO_SHOW = "ausente"
+
+
+class SOAPSection(Enum):
+    """Seções do método SOAP."""
+    SUBJECTIVE = "S"
+    OBJECTIVE = "O"
+    ANALYSIS = "A"
+    PLAN = "P"
+
+
+class Patient(Base):
+    """
+    Modelo do Paciente com identificação SUS.
+    - CNS (Cadastro Nacional de Sistemas)
+    - CPF (Cadastro Nacional de Pessoas Físicas)
+    - CID-10 para diagnóstico
+    - Método SOAP para registro
+    """
+    __tablename__ = "patients"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID do paciente"
+    )
+    cns: Mapped[str] = mapped_column(
+        String(14), unique=True, nullable=False, comment="CNS do paciente"
+    )
+    cpf: Mapped[str] = mapped_column(
+        String(11), unique=True, nullable=False, comment="CPF do paciente"
+    )
+    full_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Nome completo"
+    )
+    gender: Mapped[str] = mapped_column(
+        String(1), nullable=False, comment="M/F"
+    )
+    age: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Idade em anos"
+    )
+    date_of_birth: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Data de nascimento"
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True, comment="CID-10 do diagnóstico"
+    )
+    soap_section: Mapped[Optional[SOAPSection]] = mapped_column(
+        Enum(SOAPSection), nullable=True, comment="Seção SOAP atual"
+    )
+    soap_content: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Conteúdo SOAP"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), default=TriagePriority.MEDIUM, comment="Prioridade de triagem"
+    )
+    status: Mapped[PatientStatus] = mapped_column(
+        Enum(PatientStatus), default=PatientStatus.WAITING, comment="Estato atual"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("cns", name="uq_patient_cns"),
+        UniqueConstraint("cpf", name="uq_patient_cpf"),
+    )
+
+
+class TriageQueue(Base):
+    """
+    Modelo da Fila de Triagem.
+    - Monitor de espera
+    - Identificação por CNS/CPF
+    - Padrão SOAP para registro
+    """
+    __tablename__ = "triage_queue"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID da fila"
+    )
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID do paciente na fila"
+    )
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="Posição na fila"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), nullable=False, comment="Prioridade de triagem"
+    )
+    estimated_wait_time: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Tempo de espera estimado (min)"
+    )
+    sound_alert: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="Alerta sonoro ativado"
+    )
+    status: Mapped[PatientStatus] = mapped_column(
+        Enum(PatientStatus), default=PatientStatus.WAITING, comment="Estato"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("patient_id", "position", name="uq_patient_position"),
+    )
+
+
+class NursingTeam(Base):
+    """
+    Modelo da Equipe de Enfermagem.
+    - Monitor de fila
+    - Identificação por CNS/CPF
+    - Padrão SOAP para registro
+    """
+    __tablename__ = "nursing_team"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID da equipe"
+    )
+    cns: Mapped[str] = mapped_column(
+        String(14), unique=True, nullable=False, comment="CNS da equipe"
+    )
+    cpf: Mapped[str] = mapped_column(
+        String(11), unique=True, nullable=False, comment="CPF da equipe"
+    )
+    full_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Nome completo"
+    )
+    role: Mapped[str] = mapped_column(
+        String(50), nullable=False, comment="Função"
+    )
+    shift_start: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Início do turno"
+    )
+    shift_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True, comment="Fim do turno"
+    )
+    current_patients: Mapped[int] = mapped_column(
+        Integer, default=0, comment="Pacientes atuais"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Criação"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("cns", name="uq_nursing_cns"),
+        UniqueConstraint("cpf", name="uq_nursing_cpf"),
+    )
+
+
+class TriageRecord(Base):
+    """
+    Registro de Triagem com padrão SOAP.
+    - Identificação por CNS/CPF
+    - CID-10 para diagnóstico
+    - Método SOAP para registro
+    """
+    __tablename__ = "triage_records"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="ID do registro"
+    )
+    patient_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID do paciente"
+    )
+    nurse_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="ID da equipe de enfermagem"
+    )
+    triage_priority: Mapped[TriagePriority] = mapped_column(
+        Enum(TriagePriority), nullable=False, comment="Prioridade de triagem"
+    )
+    soap_subjective: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção S - Subjetivo"
+    )
+    soap_objective: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção O - Objetivoivo"
+    )
+    soap_analysis: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção A - Análise"
+    )
+    soap_plan: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="Seção P - Plano"
+    )
+    cid10_code: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True, comment="CID-10"
+    )
+    triage_timestamp: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="Tempo de triagem"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), comment="Atualização"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("patient_id", "triage_timestamp", name="uq_patient_triage"),
+    )

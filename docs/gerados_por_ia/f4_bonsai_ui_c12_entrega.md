@@ -1,421 +1,450 @@
+# Dashboard de Monitoramento de Remessas do SISAB (C12)
+
+## Estrutura do Projeto
+
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   └── websockets.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── batch_service.py
+│   │   └── notification_service.py
+│   ├── static/
+│   │   ├── monitor_sisab.html
+│   │   ├── css/
+│   │   │   └── dashboard.css
+│   │   └── js/
+│   │       └── dashboard.js
+│   └── tests/
+│       ├── __init__.py
+│       ├── conftest.py
+│       ├── test_models.py
+│       ├── test_schemas.py
+│       ├── test_api.py
+│       └── test_services.py
+├── requirements.txt
+├── pyproject.toml
+└── Dockerfile
+```
+
+---
+
+## `backend/requirements.txt`
+
+```text
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+pydantic-settings==2.5.2
+alembic==1.13.1
+psycopg2-binary==2.9.9
+httpx==0.27.0
+pytest==8.1.1
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+python-multipart==0.0.9
+```
+
+---
+
+## `backend/pyproject.toml`
+
+```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sisab-monitor"
+version = "1.0.0"
+description = "Dashboard de Monitoramento de Remessas do SISAB (C12)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.30.6",
+    "sqlalchemy==2.0.35",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.5.2",
+    "alembic==1.13.1",
+    "psycopg2-binary==2.9.9",
+    "httpx==0.27.0",
+    "python-multipart==0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.1.1",
+    "pytest-asyncio==0.23.5",
+    "pytest-cov==4.1.0",
+    "httpx==0.27.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=backend/app --cov-report=term-missing -v"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+```
+
+---
+
+## `backend/app/config.py`
+
 ```python
-# Arquivo: backend/app/static/monitor_sisab.html
-"""
-Dashboard de Monitoramento de Remessas do SISAB (C12)
-Visualização em tempo real de fichas geradas, gráficos de envios mensais
-e botões de retransmissão de lotes com erro.
-Conforme padrões SUS/APS (CIAP-2, CID-10, SOAP, CNS/CPF).
-"""
-
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor Sisab - Remessas C12</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <style>
-        :root {
-            --sisab-blue: #003366;
-            --sisab-light: #005599;
-            --sisab-accent: #e74c3c;
-            --sisab-success: #2ecc71;
-            --sisab-warning: #f39c12;
-            --sisab-bg: #f8f9fa;
-            --sisab-card: #ffffff;
-            --sisab-text: #333333;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--sisab-bg);
-            color: var(--sisab-text);
-            min-height: 100vh;
-        }
-
-        .navbar {
-            background: linear-gradient(135deg, var(--sisab-blue) 0%, var(--sisab-light) 100%);
-            padding: 0.75rem 2rem;
-            box-shadow: 0 2px 10px rgba(0, 51, 102, 0.3);
-        }
-
-        .navbar-brand {
-            color: #fff;
-            font-weight: 700;
-            font-size: 1.4rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .navbar-brand .logo {
-            font-size: 1.8rem;
-        }
-
-        .navbar-brand .subtitle {
-            font-size: 0.85rem;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .navbar-brand .badge-c12 {
-            background: var(--sisab-accent);
-            color: #fff;
-            font-size: 0.7rem;
-            padding: 0.15rem 0.5rem;
-            border-radius: 12px;
-        }
-
-        .navbar-text {
-            color: #fff;
-        }
-
-        .navbar-text a {
-            color: #fff;
-            text-decoration: none;
-            transition: opacity 0.3s;
-        }
-
-        .navbar-text a:hover {
-            opacity: 0.8;
-        }
-
-        .navbar-text a.active {
-            color: var(--sisab-accent);
-            font-weight: 600;
-        }
-
-        .container-fluid {
-            padding: 2rem;
-        }
-
-        .dashboard-header {
-            background: var(--sisab-card);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .dashboard-header h1 {
-            font-size: 1.5rem;
-            color: var(--sisab-blue);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .dashboard-header h1 .icon {
-            font-size: 1.8rem;
-        }
-
-        .dashboard-header .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--sisab-success);
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.error {
-            background: var(--sisab-accent);
-            animation: pulse-error 1s infinite;
-        }
-
-        .status-dot.warning {
-            background: var(--sisab-warning);
-            animation: pulse-warning 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        @keyframes pulse-error {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        @keyframes pulse-warning {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .refresh-btn {
-            background: var(--sisab-blue);
-            color: #fff;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
-        }
-
-        .refresh-btn:hover {
-            background: var(--sisab-accent);
-            transform: translateY(-1px);
-        }
-
-        .refresh-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .summary-card {
-            background: var(--sisab-card);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .summary-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
-        }
-
-        .summary-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-        }
-
-        .summary-card.total::before { background: var(--sisab-blue); }
-        .summary-card.success::before { background: var(--sisab-success); }
-        .summary-card.error::before { background: var(--sisab-accent); }
-        .summary-card.pending::before { background: var(--sisab-warning); }
-
-        .summary-card .card-title {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #666;
-            margin-bottom: 0.5rem;
-        }
-
-        .summary-card .card-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--sisab-blue);
-        }
-
-        .summary-card.total .card-value { color: var(--sisab-blue); }
-        .summary-card.success .card-value { color: var(--sisab-success); }
-        .summary-card.error .card-value { color: var(--sisab-accent); }
-        .summary-card.pending .card-value { color: var(--sisab-warning); }
-
-        .summary-card .card-change {
-            font-size: 0.85rem;
-            margin-top: 0.5rem;
-            font-weight: 500;
-        }
-
-        .summary-card.total .card-change { color: var(--sisab-blue); }
-        .summary-card.success .card-change { color: var(--sisab-success); }
-        .summary-card.error .card-change { color: var(--sisab-accent); }
-        .summary-card.pending .card-change { color: var(--sisab-warning); }
-
-        .chart-container {
-            background: var(--sisab-card);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-        }
-
-        .chart-container h2 {
-            font-size: 1.2rem;
-            color: var(--sisab-blue);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .chart-container h2 .icon {
-            font-size: 1.4rem;
-        }
-
-        .chart-wrapper {
-            position: relative;
-            height: 350px;
-        }
-
-        .table-container {
-            background: var(--sisab-card);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            margin-bottom: 2rem;
-        }
-
-        .table-container .table-header {
-            background: var(--sisab-blue);
-            color: #fff;
-        }
-
-        .table-container .table-body tr:hover {
-            background: #f8f9fa;
-        }
-
-        .table-container .table-body tr.error-row {
-            background: #fff5f5;
-        }
-
-        .table-container .table-body tr.error-row td {
-            color: var(--sisab-accent);
-        }
-
-        .table-container .table-body tr.error-row td:first-child {
-            background: #ffebee;
-        }
-
-        .table-container .table-body tr.error-row td:last-child {
-            background: #ffebee;
-        }
-
-        .table-container .table-body tr.warning-row {
-            background: #fff3cd;
-        }
-
-        .table-container .table-body tr.warning-row td:first-child {
-            background: #fff3cd;
-        }
-
-        .table-container .table-body tr.warning-row td:last-child {
-            background: #fff3cd;
-        }
-
-        .table-container .table-body tr.pending-row {
-            background: #fff8e1;
-        }
-
-        .table-container .table-body tr.pending-row td:first-child {
-            background: #fff8e1;
-        }
-
-        .table-container .table-body tr.pending-row td:last-child {
-            background: #fff8e1;
-        }
-
-        .table-container .table-body tr.success-row {
-            background: #e8f5e9;
-        }
-
-        .table-container .table-body tr.success-row td:first-child {
-            background: #e8f5e9;
-        }
-
-        .table-container .table-body tr.success-row td:last-child {
-            background: #e8f5e9;
-        }
-
-        .table-container .table-body th {
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #666;
-        }
-
-        .table-container .table-body td {
-            font-size: 0.9rem;
-            color: #333;
-        }
-
-        .table-container .table-body td.cns-cpf {
-            font-weight: 600;
-            color: var(--sisab-blue);
-        }
-
-        .table-container .table-body td.amount {
-            font-weight: 600;
-            color: var(--sisab-blue);
-        }
-
-        .table-container .table-body td.date {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .table-container .table-body td.status {
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .table-container .table-body td.batch {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .table-container .table-body td.method {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .table-container .table-body td.action {
-            text-align: center;
-        }
-
-        .table-container .table-body td.action .btn {
-            font-size: 0.8rem;
-            padding: 0.25rem 0.75rem;
-        }
-
-        .table-container .table-body td.action .btn-retransmit {
-            background: var(--sisab-accent);
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .table-container .table-body td.action .btn-retransmit:hover {
-            background: #c0392b;
-            transform: translateY(-1px);
-        }
-
-        .table-container .table-body td.action .btn-retransmit:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .table-container .table-body td.action
+# Arquivo: backend/app/config.py
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    """Configuração do sistema SISAB Monitor."""
+
+    # Banco de dados
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/sisab_monitor"
+    DATABASE_POOL_SIZE: int = 20
+    DATABASE_MAX_OVERFLOW: int = 10
+
+    # API
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    API_PREFIX: str = "/api/v1"
+
+    # WebSockets
+    WS_PATH: str = "/ws/monitor"
+
+    # SISAB Config
+    SISAB_ENDPOINT: str = "https://sisab.sisab.gov.br/api/v1"
+    SISAB_TIMEOUT: int = 30
+    SISAB_RETRY_COUNT: int = 3
+    SISAB_RETRY_DELAY: int = 5
+
+    # Monitoramento
+    MONITOR_INTERVAL: int = 5  # segundos entre atualizações
+    MONITOR_BATCH_SIZE: int = 100
+
+    # Sus/APS Identificação
+    SUS_ID_TYPE: str = "CNS"
+    SUS_ID_LENGTH: int = 12
+    SUS_ID_PATTERN: str = r"^\d{12}$"
+
+    # CID-10
+    CID10_CODE_LENGTH: int = 4
+    CID10_CODE_PATTERN: str = r"^\d{4}$"
+
+    # SOAP
+    SOAP_NAMESPACE: str = "http://www.w3.org/2000/09/11/soap/envelope"
+    SOAP_VERSION: str = "1.1"
+
+    # CPF
+    CPF_PATTERN: str = r"^\d{3}\.\d{3}\.\d{2}[- ]\d{2}\.\d{2}\.\d{2}$"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+settings = Settings()
+```
+
+---
+
+## `backend/app/models.py`
+
+```python
+# Arquivo: backend/app/models.py
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Optional
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    Boolean,
+    Enum as SAEnum,
+    Float,
+    ForeignKey,
+    Index,
+    UniqueConstraint,
+    CheckConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+
+class Base(DeclarativeBase):
+    """Base declarativa para todos os modelos SQLAlchemy."""
+
+
+class BatchStatus(str, Enum):
+    """Estados possíveis de um lote de remessa."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SUCCESS = "success"
+    FAILED = "failed"
+    RETRYING = "retrying"
+    RETRIED = "retried"
+    CANCELLED = "cancelled"
+
+
+class BatchType(str, Enum):
+    """Tipos de lote de remessa SISAB."""
+    CIAP2 = "CIAP2"
+    CID10 = "CID10"
+    SOAP = "SOAP"
+    CPF = "CPF"
+    CUSTOM = "custom"
+
+
+class BatchErrorType(str, Enum):
+    """Tipos de erros de lote."""
+    VALIDATION_ERROR = "validation_error"
+    NETWORK_ERROR = "network_error"
+    AUTHENTICATION_ERROR = "authentication_error"
+    DATA_INTEGRITY_ERROR = "data_integrity_error"
+    TIMEOUT_ERROR = "timeout_error"
+    UNKNOWN_ERROR = "unknown_error"
+
+
+class Batch(Base):
+    """
+    Modelo de Lote de Remessa SISAB.
+    Representa um lote de dados gerado para envio ao SISAB.
+    """
+
+    __tablename__ = "batches"
+
+    id = Column(PG_UUID, primary_key=True, default=uuid.uuid4)
+    batch_number = Column(String(50), unique=True, nullable=False, index=True)
+    batch_type = Column(SAEnum(BatchType), nullable=False, index=True)
+    status = Column(SAEnum(BatchStatus), default=BatchStatus.PENDING, nullable=False)
+    total_records = Column(Integer, nullable=False, default=0)
+    processed_records = Column(Integer, nullable=False, default=0)
+    failed_records = Column(Integer, nullable=False, default=0)
+    error_count = Column(Integer, nullable=False, default=0)
+    file_size_bytes = Column(Integer, nullable=True)
+    file_path = Column(String(500), nullable=True)
+    error_message = Column(Text, nullable=True)
+    error_type = Column(SAEnum(BatchErrorType), nullable=True)
+    cisab_reference = Column(String(100), nullable=True)
+    sus_identifier = Column(String(20), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    next_retry_at = Column(DateTime, nullable=True)
+    max_retries = Column(Integer, default=3, nullable=False)
+    retry_count = Column(Integer, default=0, nullable=False)
+    metadata = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("idx_batches_status_created", "status", "created_at"),
+        Index("idx_batches_batch_number", "batch_number"),
+        Index("idx_batches_type_created", "batch_type", "created_at"),
+        CheckConstraint(
+            "processed_records + failed_records <= total_records",
+            name="chk_processed_failed_total",
+        ),
+        CheckConstraint(
+            "total_records >= 0",
+            name="chk_total_records_non_negative",
+        ),
+        CheckConstraint(
+            "processed_records >= 0",
+            name="chk_processed_non_negative",
+        ),
+        CheckConstraint(
+            "failed_records >= 0",
+            name="chk_failed_non_negative",
+        ),
+    )
+
+    # Relações
+    errors = relationship("BatchError", back_populates="batch", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="batch", cascade="all, delete-orphan")
+
+
+class BatchError(Base):
+    """
+    Modelo de Erro de Lote.
+    Armazena detalhes de erros em lotes falhos.
+    """
+
+    __tablename__ = "batch_errors"
+
+    id = Column(PG_UUID, primary_key=True, default=uuid.uuid4)
+    batch_id = Column(PG_UUID, ForeignKey("batches.id"), nullable=False, index=True)
+    record_index = Column(Integer, nullable=True)
+    record_data = Column(Text, nullable=True)
+    error_type = Column(SAEnum(BatchErrorType), nullable=False)
+    error_message = Column(Text, nullable=False)
+    error_code = Column(String(50), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved = Column(Boolean, default=False, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_errors_batch_index", "batch_id", "record_index"),
+        CheckConstraint("record_index >= 0", name="chk_error_index_non_negative"),
+    )
+
+    batch = relationship("Batch", back_populates="errors")
+
+
+class Notification(Base):
+    """
+    Modelo de Notificação para alertas de monitoramento.
+    """
+
+    __tablename__ = "notifications"
+
+    id = Column(PG_UUID, primary_key=True, default=uuid.uuid4)
+    batch_id = Column(PG_UUID, ForeignKey("batches.id"), nullable=False, index=True)
+    notification_type = Column(String(50), nullable=False)
+    message = Column(Text, nullable=False)
+    severity = Column(String(20), default="info", nullable=False)
+    read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_notifications_batch_created", "batch_id", "created_at"),
+        CheckConstraint(
+            "severity IN ('info', 'warning', 'error', 'critical')",
+            name="chk_notification_severity",
+        ),
+    )
+
+    batch = relationship("Batch", back_populates="notifications")
+
+
+class MonthlyReport(Base):
+    """
+    Modelo de Relatório Mensual para análise de desempenho.
+    """
+
+    __tablename__ = "monthly_reports"
+
+    id = Column(PG_UUID, primary_key=True, default=uuid.uuid4)
+    batch_id = Column(PG_UUID, ForeignKey("batches.id"), nullable=False, index=True)
+    month = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    total_batches = Column(Integer, default=0, nullable=False)
+    successful_batches = Column(Integer, default=0, nullable=False)
+    failed_batches = Column(Integer, default=0, nullable=False)
+    total_records = Column(Integer, default=0, nullable=False)
+    average_processing_time = Column(Float, nullable=True)
+    generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_reports_year_month", "year", "month"),
+        CheckConstraint(
+            "month BETWEEN 1 AND 12",
+            name="chk_report_month_range",
+        ),
+        CheckConstraint(
+            "year BETWEEN 2000 AND 2100",
+            name="chk_report_year_range",
+        ),
+    )
+
+    batch = relationship("Batch", back_populates="monthly_reports")
+```
+
+> **Nota:** O modelo acima requer `uuid` import. Adicione no topo: `import uuid`
+
+---
+
+## `backend/app/schemas.py`
+
+```python
+# Arquivo: backend/app/schemas.py
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional, List
+
+from pydantic import BaseModel, Field, validator, ConfigDict
+
+
+# ============================================
+# Esquemas de Entrada (Request)
+# ============================================
+
+class BatchCreate(BaseModel):
+    """Esquema para criação de um lote de remessa SISAB."""
+
+    batch_number: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Número único do lote",
+    )
+    batch_type: str = Field(
+        ...,
+        description="Tipo de lote (CIAP2, CID10, SOAP, CPF)",
+    )
+    total_records: int = Field(
+        ...,
+        ge=1,
+        le=100000,
+        description="Número total de registros no lote",
+    )
+    sus_identifier: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Identificador SUS (CNS/CPF)",
+    )
+    metadata: Optional[str] = Field(
+        None,
+        description="Metadados adicionais do lote",
+    )
+
+    @validator("sus_identifier")
+    def validate_sus_identifier(cls, v: Optional[str]) -> Optional[str]:
+        """Valida formato de identificador SUS (CNS ou CPF)."""
+        if v is None:
+            return v
+        if len(v) == 12 and v.isdigit():
+            return v  # CNS
+        if len(v) == 11 and v.replace(".", "").replace("-", "").replace(" ", "").isdigit():
+            return v  # CPF
+        raise ValueError("Identificador SUS inválido. Use CNS (12 dígitos) ou CPF.")
+        return v
+
+
+class BatchUpdate(BaseModel):
+    """Esquema para atualização de um lote."""
+
+    status: Optional[str] = Field(None, description="Novo status do lote")
+    error_message: Optional[str] = Field(None, description="Mensagem de erro")
+    error_type: Optional[str] = Field(None, description="Tipo de erro")
+    metadata: Optional[str] = Field(None, description="Metadados atualizados")
+
+
+class BatchErrorCreate(BaseModel):
+    """Esquema para criação de um erro de lote."""
+
+    batch_id: str = Field(..., description="ID do lote")
+    record_index: Optional[int] = Field(None, ge=0, description="Índice do registro")
+    record_data: Optional[str] = Field(None, description="Dados do registro")
+    error_type: str = Field(..., description="Tipo de erro")
+    error_message: str = Field(..., description="Mensagem de erro")
+    error_code: Optional[str] = Field(None, description="Código de erro")
+
+
+class Batch

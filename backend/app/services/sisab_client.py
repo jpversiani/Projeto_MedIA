@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Optional
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.services.validadores import normalizar_cns, normalizar_cpf, normalizar_ciap2, normalizar_cid10, normalizar_cnes
 
@@ -112,6 +112,12 @@ class FichaSISAB(BaseModel):
         except ValueError:
             raise ValueError(f"data_atendimento inválida: '{v}'. Esperado formato ISO 8601.")
         return v
+
+    @model_validator(mode="after")
+    def validate_codigo_clinico(self) -> "FichaSISAB":
+        if not self.ciap2 and not self.cid10:
+            raise ValueError("Ficha deve conter CIAP-2 ou CID-10")
+        return self
 
 
 class LoteSISAB(BaseModel):

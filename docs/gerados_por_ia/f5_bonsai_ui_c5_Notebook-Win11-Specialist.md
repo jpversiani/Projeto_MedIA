@@ -1,53 +1,28 @@
-# Projeto MedIA - Interface de Sincronização e Conectividade ACS (C5)
-
-## Estrutura do Projeto
-
-```
-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── config.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── routes.py
-│   ├── static/
-│   │   └── sync_status.html
-│   └── tests/
-│       ├── __init__.py
-│       ├── test_models.py
-│       ├── test_schemas.py
-│       ├── test_routes.py
-│       └── test_sync.py
-├── requirements.txt
-└── pytest.ini
-```
-
----
-
-## Arquivo: `backend/app/static/sync_status.html`
-
-```html
+```python
+# Arquivo: backend/app/static/sync_status.html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sincronização ACS - MedIA</title>
+    <title>Sincronização ACS (C5) - Atenção Domicilar</title>
     <style>
         :root {
             --color-primary: #0056b3;
             --color-primary-dark: #003d80;
-            --color-success: #28a745;
-            --color-warning: #ffc107;
-            --color-danger: #dc3545;
-            --color-info: #17a2b8;
-            --color-light: #f8f9fa;
-            --color-dark: #212529;
-            --color-border: #dee2e6;
-            --color-card-bg: #ffffff;
+            --color-success: #2e7d32;
+            --color-warning: #f57c00;
+            --color-error: #c62828;
+            --color-info: #1976d2;
+            --color-bg: #f5f5f5;
+            --color-card: #ffffff;
+            --color-text: #212121;
+            --color-text-light: #757575;
+            --color-border: #e0e0e0;
+            --color-accent: #42a5f5;
             --radius: 8px;
             --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
         }
 
         * {
@@ -57,9 +32,10 @@ backend/
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--color-light);
-            color: var(--color-dark);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
             min-height: 100vh;
         }
 
@@ -71,6 +47,9 @@ backend/
             justify-content: space-between;
             align-items: center;
             box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header h1 {
@@ -78,75 +57,53 @@ backend/
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
-        .header h1 .logo {
+        .header h1 .icon {
             font-size: 1.8rem;
         }
 
-        .header .status-badge {
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
+        .header .meta {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            gap: 20px;
+            font-size: 0.9rem;
         }
 
-        .status-badge.connected {
-            background: rgba(40, 167, 69, 0.3);
-            color: var(--color-success);
-        }
-
-        .status-badge.disconnected {
-            background: rgba(220, 53, 69, 0.3);
-            color: var(--color-danger);
-        }
-
-        .status-badge.syncing {
-            background: rgba(255, 193, 7, 0.3);
-            color: #856404;
-        }
-
-        .status-badge .pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+        .header .meta span {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 500;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 20px 30px;
         }
 
         .controls {
             display: flex;
-            gap: 15px;
-            margin: 20px 0;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
             flex-wrap: wrap;
+            gap: 12px;
         }
 
         .btn {
             padding: 10px 24px;
             border: none;
             border-radius: var(--radius);
-            cursor: pointer;
             font-size: 0.95rem;
-            font-weight: 600;
-            transition: all 0.2s;
-            display: flex;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            font-family: inherit;
         }
 
         .btn-primary {
@@ -157,6 +114,7 @@ backend/
         .btn-primary:hover {
             background: var(--color-primary-dark);
             transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
         }
 
         .btn-success {
@@ -165,21 +123,42 @@ backend/
         }
 
         .btn-success:hover {
-            background: #218838;
+            background: #1b5e20;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
         }
 
         .btn-warning {
             background: var(--color-warning);
-            color: #856404;
-        }
-
-        .btn-danger {
-            background: var(--color-danger);
             color: white;
         }
 
-        .btn-danger:hover {
-            background: #c82333;
+        .btn-warning:hover {
+            background: #e65100;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-error {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .btn-error:hover {
+            background: #b71c1c;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--color-border);
+            color: var(--color-text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
         }
 
         .btn:disabled {
@@ -189,295 +168,331 @@ backend/
         }
 
         .btn-sm {
-            padding: 6px 14px;
+            padding: 6px 16px;
             font-size: 0.85rem;
         }
 
-        .grid {
+        .status-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
 
-        .card {
-            background: var(--color-card-bg);
+        .status-card {
+            background: var(--color-card);
             border-radius: var(--radius);
+            padding: 20px;
             box-shadow: var(--shadow);
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--color-primary);
         }
 
-        .card:hover {
+        .status-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-hover);
         }
 
-        .card-header {
-            padding: 16px 20px;
+        .status-card.success {
+            border-left-color: var(--color-success);
+        }
+
+        .status-card.warning {
+            border-left-color: var(--color-warning);
+        }
+
+        .status-card.error {
+            border-left-color: var(--color-error);
+        }
+
+        .status-card.info {
+            border-left-color: var(--color-info);
+        }
+
+        .status-card .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--color-border);
+            margin-bottom: 12px;
         }
 
-        .card-title {
+        .status-card .card-title {
             font-size: 1.1rem;
             font-weight: 600;
-            color: var(--color-dark);
+            color: var(--color-text);
         }
 
-        .card-title .icon {
-            margin-right: 8px;
+        .status-card .card-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .card-body {
-            padding: 16px 20px;
+        .status-card.success .card-status {
+            background: rgba(46, 125, 50, 0.1);
+            color: var(--color-success);
         }
 
-        .metric-row {
+        .status-card.warning .card-status {
+            background: rgba(245, 124, 0, 0.1);
+            color: var(--color-warning);
+        }
+
+        .status-card.error .card-status {
+            background: rgba(198, 40, 40, 0.1);
+            color: var(--color-error);
+        }
+
+        .status-card.info .card-status {
+            background: rgba(25, 118, 210, 0.1);
+            color: var(--color-info);
+        }
+
+        .status-card .card-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .status-card .stat-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--color-border);
+            flex-direction: column;
+            gap: 4px;
         }
 
-        .metric-label {
-            font-size: 0.9rem;
-            color: #6c757d;
+        .status-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+            font-weight: 500;
         }
 
-        .metric-value {
-            font-size: 1.1rem;
+        .status-card .stat-value {
+            font-size: 1.2rem;
             font-weight: 700;
-            color: var(--color-dark);
+            font-variant-numeric: tabular-nums;
         }
 
-        .metric-value.success { color: var(--color-success); }
-        .metric-value.warning { color: #856404; }
-        .metric-value.danger { color: var(--color-danger); }
-        .metric-value.info { color: var(--color-info); }
-
-        .progress-container {
-            margin-top: 12px;
+        .status-card .stat-value.success {
+            color: var(--color-success);
         }
 
-        .progress-header {
+        .status-card .stat-value.warning {
+            color: var(--color-warning);
+        }
+
+        .status-card .stat-value.error {
+            color: var(--color-error);
+        }
+
+        .status-card .stat-value.info {
+            color: var(--color-info);
+        }
+
+        .progress-section {
+            background: var(--color-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .progress-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-section h2 .badge {
+            background: var(--color-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .batch-progress {
+            margin-bottom: 16px;
+        }
+
+        .batch-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 6px;
+            align-items: center;
+            margin-bottom: 8px;
         }
 
-        .progress-label {
-            font-size: 0.85rem;
-            color: #6c757d;
+        .batch-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .progress-value {
+        .batch-info .batch-id {
+            background: var(--color-bg);
+            padding: 4px 10px;
+            border-radius: 4px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: var(--color-dark);
+            color: var(--color-text);
+        }
+
+        .batch-info .batch-type {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+        }
+
+        .batch-info .batch-date {
+            font-size: 0.8rem;
+            color: var(--color-text-light);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 24px;
+            background: var(--color-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
         }
 
         .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--color-border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
             height: 100%;
-            border-radius: 4px;
+            border-radius: 12px;
             transition: width 0.5s ease;
+            position: relative;
         }
 
-        .progress-fill.success { background: var(--color-success); }
-        .progress-fill.warning { background: var(--color-warning); }
-        .progress-fill.danger { background: var(--color-danger); }
-        .progress-fill.info { background: var(--color-info); }
-
-        .log-section {
-            background: var(--color-card-bg);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
+        .progress-bar.active {
+            background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         }
 
-        .log-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--color-border);
+        .progress-bar.completed {
+            background: linear-gradient(90deg, var(--color-success), #4caf50);
+        }
+
+        .progress-bar.error {
+            background: linear-gradient(90deg, var(--color-error), #e53935);
+        }
+
+        .progress-bar.warning {
+            background: linear-gradient(90deg, var(--color-warning), #ff9800);
+        }
+
+        .progress-bar .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .progress-bar.completed .progress-text {
+            color: white;
+        }
+
+        .progress-bar.error .progress-text {
+            color: white;
+        }
+
+        .progress-bar.warning .progress-text {
+            color: white;
+        }
+
+        .progress-bar .bar-stats {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: var(--color-text-light);
         }
 
-        .log-header .title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--color-dark);
-        }
-
-        .log-header .title .icon {
-            margin-right: 8px;
-        }
-
-        .log-actions {
+        .batch-list {
             display: flex;
-            gap: 8px;
-        }
-
-        .log-entry {
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--color-border);
-            display: flex;
-            align-items: flex-start;
+            flex-direction: column;
             gap: 12px;
-            transition: background 0.2s;
         }
 
-        .log-entry:hover {
-            background: var(--color-light);
+        .batch-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--color-bg);
+            border-radius: var(--radius);
+            transition: all 0.3s ease;
         }
 
-        .log-entry:last-child {
-            border-bottom: none;
+        .batch-item:hover {
+            background: #f0f0f0;
         }
 
-        .log-icon {
-            width: 32px;
-            height: 32px;
+        .batch-item .batch-icon {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.85rem;
+            font-size: 1.2rem;
             flex-shrink: 0;
         }
 
-        .log-icon.success { background: rgba(40, 167, 69, 0.15); color: var(--color-success); }
-        .log-icon.warning { background: rgba(255, 193, 7, 0.15); color: #856404; }
-        .log-icon.danger { background: rgba(220, 53, 69, 0.15); color: var(--color-danger); }
-        .log-icon.info { background: rgba(23, 162, 184, 0.15); color: var(--color-info); }
-        .log-icon.error { background: rgba(139, 69, 19, 0.15); color: #8b4513; }
-
-        .log-content {
-            flex: 1;
-        }
-
-        .log-time {
-            font-size: 0.75rem;
-            color: #6c757d;
-            margin-bottom: 2px;
-        }
-
-        .log-message {
-            font-size: 0.9rem;
-            color: var(--color-dark);
-        }
-
-        .log-status {
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 4px;
-        }
-
-        .log-status.success {
-            background: rgba(40, 167, 69, 0.1);
+        .batch-item .batch-icon.success {
+            background: rgba(46, 125, 50, 0.1);
             color: var(--color-success);
         }
 
-        .log-status.warning {
-            background: rgba(255, 193, 7, 0.1);
-            color: #856404;
+        .batch-item .batch-icon.warning {
+            background: rgba(245, 124, 0, 0.1);
+            color: var(--color-warning);
         }
 
-        .log-status.danger {
-            background: rgba(220, 53, 69, 0.1);
-            color: var(--color-danger);
+        .batch-item .batch-icon.error {
+            background: rgba(198, 40, 40, 0.1);
+            color: var(--color-error);
         }
 
-        .log-status.info {
-            background: rgba(23, 162, 184, 0.1);
+        .batch-item .batch-icon.info {
+            background: rgba(25, 118, 210, 0.1);
             color: var(--color-info);
         }
 
-        .log-status.error {
-            background: rgba(139, 69, 19, 0.1);
-            color: #8b4513;
+        .batch-item .batch-details {
+            flex: 1;
+            min-width: 0;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #6c757d;
-        }
-
-        .empty-state .icon {
-            font-size: 3rem;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            font-size: 0.9rem;
-        }
-
-        .empty-state a {
-            color: var(--color-primary);
-            text-decoration: none;
+        .batch-item .batch-name {
             font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .empty-state a:hover {
-            text-decoration: underline;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .badge-success { background: rgba(40, 167, 69, 0.1); color: var(--color-success); }
-        .badge-warning { background: rgba(255, 193, 7, 0.1); color: #856404; }
-        .badge-danger { background: rgba(220, 53, 69, 0.1); color: var(--color-danger); }
-        .badge-info { background: rgba(23, 162, 184, 0.1); color: var(--color-info); }
-
-        .badge-cns {
-            background: var(--color-primary);
-            color: white;
+        .batch-item .batch-meta {
             font-size: 0.8rem;
+            color: var(--color-text-light);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
-        .badge-cpf {
-            background: var(--color-success);
-            color: white;
-            font-size: 0.8rem;
+        .batch-item .batch-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .badge-aps {
-            background: var(--color-warning);
-            color: #856404;
-            font-size: 0.8rem;
-        }
-
-        .badge-soap {
-            background: var(--color-info);
-            color: white;
-            font-size: 0.8rem;
-        }
-
-        .badge-ciap2 {
-            background: #6c757d;
-            color: white;
-            font-size: 0.8rem;
-        }
-
-        .badge-cid10 {
-            background: #28a
+        .batch-item .batch-status {
+            padding: 4px 12px;
+            border-radius:

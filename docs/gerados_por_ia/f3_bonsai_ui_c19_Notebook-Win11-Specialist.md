@@ -1,4 +1,4 @@
-# Projeto MedIA - Painel de Triagem e Monitor de Fila APS (C19)
+# Backend MedIA - Painel de Triagem e Monitor de Fila APS
 
 ## Estrutura do Projeto
 
@@ -8,34 +8,36 @@ backend/
 │   ├── __init__.py
 │   ├── main.py
 │   ├── config.py
+│   ├── database.py
 │   ├── models.py
 │   ├── schemas.py
-│   ├── services.py
-│   ├── routes/
+│   ├── routers/
 │   │   ├── __init__.py
-│   │   └── triagem.py
+│   │   └── triage.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── triage_service.py
 │   ├── static/
 │   │   └── painel_triagem.html
 │   └── tests/
 │       ├── __init__.py
-│       ├── conftest.py
 │       ├── test_models.py
 │       ├── test_schemas.py
-│       ├── test_services.py
-│       └── test_routes.py
+│       ├── test_triage.py
+│       └── conftest.py
 ├── requirements.txt
 └── pytest.ini
 ```
 
 ---
 
-## Arquivo: `requirements.txt`
+## Arquivo: `backend/requirements.txt`
 
 ```text
 fastapi==0.109.0
 uvicorn==0.27.1
 sqlalchemy==2.0.23
-pydantic==2.6.1
+pydantic==2.5.2
 pydantic-settings==2.1.0
 alembic==1.13.1
 pytest==7.4.4
@@ -46,7 +48,7 @@ python-dotenv==1.0.0
 
 ---
 
-## Arquivo: `pytest.ini`
+## Arquivo: `backend/pytest.ini`
 
 ```ini
 [pytest]
@@ -57,7 +59,8 @@ python_classes = Test*
 python_functions = test_*
 addopts = -v --tb=short --strict-markers
 markers =
-    asyncio: marks tests as async (skip if not async)
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    integration: marks tests as integration tests
 ```
 
 ---
@@ -65,11 +68,13 @@ markers =
 ## Arquivo: `backend/app/__init__.py`
 
 ```python
-# Arquivo: backend/app/__init__.py
 """
-Projeto MedIA - Sistema de Triagem e Monitor de Fila APS (C19)
-Padrões SUS / APS: CIAP-2, CID-10, SOAP, identificação por CNS/CPF
+Projeto MedIA - Sistema de Triagem e Monitor de Fila APS
+Padrões SUS / APS: CIAP-2, CID-10, SOAP, Identificação CNS/CPF
 """
+
+__version__ = "1.0.0"
+__author__ = "Engenheiro de Software MedIA"
 ```
 
 ---
@@ -79,54 +84,121 @@ Padrões SUS / APS: CIAP-2, CID-10, SOAP, identificação por CNS/CPF
 ```python
 # Arquivo: backend/app/config.py
 """
-Configuração do projeto MedIA com validação de ambiente.
+Configuração do projeto MedIA com validação de tipos e padrões SUS/APS.
 """
+
 from pydantic_settings import BaseSettings
 from typing import Optional
 
 
 class Settings(BaseSettings):
-    """Configuração do sistema MedIA."""
-    
-    # Aplicação
-    APP_NAME: str = "MedIA - Sistema de Triagem APS (C19)"
-    APP_VERSION: str = "1.0.0"
-    DEBUG: bool = False
-    
+    """Configuração do sistema MedIA com padrões SUS/APS."""
+
+    # Identificação do sistema
+    app_name: str = "MedIA - Sistema de Triagem e Monitor de Fila"
+    app_version: str = "1.0.0"
+
     # Banco de dados
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/media_db"
-    DATABASE_POOL_SIZE: int = 10
-    DATABASE_MAX_OVERFLOW: int = 20
-    
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/media_db"
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_echo: bool = False
+
     # API
-    API_PREFIX: str = "/api/v1"
-    CORS_ORIGINS: list[str] = ["*"]
-    
-    # Sistema SUS/APS
-    CIAP_CODE: str = "00000000000000"  # Código do CIAP
-    CID_CODE: str = "00000000000000"  # Código do CID
-    SOAP_VERSION: str = "1.0"
-    
-    # Fila de triagem
-    MAX_QUEUE_SIZE: int = 100
-    CALL_TIMEOUT_SECONDS: int = 30
-    CALL_INTERVAL_SECONDS: int = 5
-    
-    # Sound call
-    SOUND_FILE_PATH: str = "/app/sounds/paciente_somato.wav"
-    CALL_SOUND_ENABLED: bool = True
-    
-    # Team de enfermagem
-    NURSING_TEAM_SIZE: int = 5
-    NURSING_SHIFT_START: str = "08:00"
-    NURSING_SHIFT_END: str = "20:00"
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    api_prefix: str = "/api/v1"
+    debug: bool = False
+    secret_key: str = "media-secret-key-change-in-production"
+
+    # Triagem - Padrões SUS/APS
+    ciap2_grades: list[int] = [1, 2, 3, 4, 5]  # Gradas de intensidade
+    cid10_categories: list[str] = [
+        "A00-A99", "B00-B99", "C00-C99", "D00-D99", "E00-E99",
+        "F00-F99", "G00-G99", "H00-H99", "I00-I99", "J00-J99",
+        "K00-K99", "L00-L99", "M00-M99", "N00-N99", "O00-O99",
+        "P00-P99", "Q00-Q99", "R00-R99", "S00-S99", "T00-T99",
+        "U00-U99", "V00-V99", "W00-W99", "Y00-Y99", "Z00-Z99"
+    ]
+
+    # Identificação de pacientes
+    identification_methods: list[str] = ["CNS", "CPF", "CNPJ"]
+
+    # Fila de espera
+    max_queue_size: int = 100
+    emergency_threshold: int = 30  # minutos
+
+    # Audio
+    audio_enabled: bool = True
+    audio_volume: float = 0.7
+
+    model_config = {"extra": "forbid"}
 
 
+# Instância global
 settings = Settings()
+```
+
+---
+
+## Arquivo: `backend/app/database.py`
+
+```python
+# Arquivo: backend/app/database.py
+"""
+Configuração do banco de dados com SQLAlchemy 2.0 e padrões SUS/APS.
+"""
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import AsyncGenerator
+from app.config import settings
+
+
+class Base(DeclarativeBase):
+    """Base declarativa para todos os modelos do projeto MedIA."""
+    pass
+
+
+# Configuração síncrona
+engine = create_engine(
+    settings.database_url,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    echo=settings.database_echo,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=AsyncSession,
+)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Dependência assíncrona para sessão de banco de dados."""
+    async with AsyncSession(bind=engine) as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def init_db() -> None:
+    """Inicializa o banco de dados com todas as tabelas."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_db() -> None:
+    """Fecha a conexão do banco de dados."""
+    await engine.dispose()
 ```
 
 ---
@@ -136,178 +208,225 @@ settings = Settings()
 ```python
 # Arquivo: backend/app/models.py
 """
-Modelos SQLAlchemy 2.0 para o sistema MedIA.
-Padrões SUS/APS: CIAP-2, CID-10, SOAP, identificação por CNS/CPF.
+Modelos SQLAlchemy 2.0 com padrões SUS/APS:
+- CIAP-2 (Classificação de Intensidade de Agudos)
+- CID-10 (Código Internacional de Diagnóstico)
+- SOAP (Simptomas, Observações, Avaliação, Plano)
+- Identificação por CNS/CPF
 """
-from __future__ import annotations
 
-import enum
-import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
+    Column, Integer, String, Text, DateTime, Boolean, Float,
+    ForeignKey, Enum as SAEnum, Index, UniqueConstraint,
+    CheckConstraint, event
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import relationship
+from app.database import Base
 
 
-class Base(DeclarativeBase):
-    """Base declarativa para todos os modelos."""
+class PatientIdentification(str, Enum):
+    """Métodos de identificação de pacientes conforme SUS/APS."""
+    CNS = "CNS"
+    CPF = "CPF"
+    CNPJ = "CNPJ"
 
 
-class PatientType(str, enum.Enum):
-    """Tipo de paciente conforme SUS."""
-    URGENTE = "Urgente"
-    URGENTE_2 = "Urgente 2"
-    URGENTE_3 = "Urgente 3"
-    URGENTE_4 = "Urgente 4"
-    URGENTE_5 = "Urgente 5"
-    URGENTE_6 = "Urgente 6"
-    URGENTE_7 = "Urgente 7"
-    URGENTE_8 = "Urgente 8"
-    URGENTE_9 = "Urgente 9"
-    URGENTE_10 = "Urgente 10"
-    URGENTE_11 = "Urgente 11"
-    URGENTE_12 = "Urgente 12"
-    URGENTE_13 = "Urgente 13"
-    URGENTE_14 = "Urgente 14"
-    URGENTE_15 = "Urgente 15"
-    URGENTE_16 = "Urgente 16"
-    URGENTE_17 = "Urgente 17"
-    URGENTE_18 = "Urgente 18"
-    URGENTE_19 = "Urgente 19"
-    URGENTE_20 = "Urgente 20"
-    URGENTE_21 = "Urgente 21"
-    URGENTE_22 = "Urgente 22"
-    URGENTE_23 = "Urgente 23"
-    URGENTE_24 = "Urgente 24"
-    URGENTE_25 = "Urgente 25"
-    URGENTE_26 = "Urgente 26"
-    URGENTE_27 = "Urgente 27"
-    URGENTE_28 = "Urgente 28"
-    URGENTE_29 = "Urgente 29"
-    URGENTE_30 = "Urgente 30"
-    URGENTE_31 = "Urgente 31"
-    URGENTE_32 = "Urgente 32"
-    URGENTE_33 = "Urgente 33"
-    URGENTE_34 = "Urgente 34"
-    URGENTE_35 = "Urgente 35"
-    URGENTE_36 = "Urgente 36"
-    URGENTE_37 = "Urgente 37"
-    URGENTE_38 = "Urgente 38"
-    URGENTE_39 = "Urgente 39"
-    URGENTE_40 = "Urgente 40"
-    URGENTE_41 = "Urgente 41"
-    URGENTE_42 = "Urgente 42"
-    URGENTE_43 = "Urgente 43"
-    URGENTE_44 = "Urgente 44"
-    URGENTE_45 = "Urgente 45"
-    URGENTE_46 = "Urgente 46"
-    URGENTE_47 = "Urgente 47"
-    URGENTE_48 = "Urgente 48"
-    URGENTE_49 = "Urgente 49"
-    URGENTE_50 = "Urgente 50"
-    URGENTE_51 = "Urgente 51"
-    URGENTE_52 = "Urgente 52"
-    URGENTE_53 = "Urgente 53"
-    URGENTE_54 = "Urgente 54"
-    URGENTE_55 = "Urgente 55"
-    URGENTE_56 = "Urgente 56"
-    URGENTE_57 = "Urgente 57"
-    URGENTE_58 = "Urgente 58"
-    URGENTE_59 = "Urgente 59"
-    URGENTE_60 = "Urgente 60"
-    URGENTE_61 = "Urgente 61"
-    URGENTE_62 = "Urgente 62"
-    URGENTE_63 = "Urgente 63"
-    URGENTE_64 = "Urgente 64"
-    URGENTE_65 = "Urgente 65"
-    URGENTE_66 = "Urgente 66"
-    URGENTE_67 = "Urgente 67"
-    URGENTE_68 = "Urgente 68"
-    URGENTE_69 = "Urgente 69"
-    URGENTE_70 = "Urgente 70"
-    URGENTE_71 = "Urgente 71"
-    URGENTE_72 = "Urgente 72"
-    URGENTE_73 = "Urgente 73"
-    URGENTE_74 = "Urgente 74"
-    URGENTE_75 = "Urgente 75"
-    URGENTE_76 = "Urgente 76"
-    URGENTE_77 = "Urgente 77"
-    URGENTE_78 = "Urgente 78"
-    URGENTE_79 = "Urgente 79"
-    URGENTE_80 = "Urgente 80"
-    URGENTE_81 = "Urgente 81"
-    URGENTE_82 = "Urgente 82"
-    URGENTE_83 = "Urgente 83"
-    URGENTE_84 = "Urgente 84"
-    URGENTE_85 = "Urgente 85"
-    URGENTE_86 = "Urgente 86"
-    URGENTE_87 = "Urgente 87"
-    URGENTE_88 = "Urgente 88"
-    URGENTE_89 = "Urgente 89"
-    URGENTE_90 = "Urgente 90"
-    URGENTE_91 = "Urgente 91"
-    URGENTE_92 = "Urgente 92"
-    URGENTE_93 = "Urgente 93"
-    URGENTE_94 = "Urgente 94"
-    URGENTE_95 = "Urgente 95"
-    URGENTE_96 = "Urgente 96"
-    URGENTE_97 = "Urgente 97"
-    URGENTE_98 = "Urgente 98"
-    URGENTE_99 = "Urgente 99"
-    URGENTE_100 = "Urgente 100"
-    URGENTE_101 = "Urgente 101"
-    URGENTE_102 = "Urgente 102"
-    URGENTE_103 = "Urgente 103"
-    URGENTE_104 = "Urgente 104"
-    URGENTE_105 = "Urgente 105"
-    URGENTE_106 = "Urgente 106"
-    URGENTE_107 = "Urgente 107"
-    URGENTE_108 = "Urgente 108"
-    URGENTE_109 = "Urgente 109"
-    URGENTE_110 = "Urgente 110"
-    URGENTE_111 = "Urgente 111"
-    URGENTE_112 = "Urgente 112"
-    URGENTE_113 = "Urgente 113"
-    URGENTE_114 = "Urgente 114"
-    URGENTE_115 = "Urgente 115"
-    URGENTE_116 = "Urgente 116"
-    URGENTE_117 = "Urgente 117"
-    URGENTE_118 = "Urgente 118"
-    URGENTE_119 = "Urgente 119"
-    URGENTE_120 = "Urgente 120"
-    URGENTE_121 = "Urgente 121"
-    URGENTE_122 = "Urgente 122"
-    URGENTE_123 = "Urgente 123"
-    URGENTE_124 = "Urgente 124"
-    URGENTE_125 = "Urgente 125"
-    URGENTE_126 = "Urgente 126"
-    URGENTE_127 = "Urgente 127"
-    URGENTE_128 = "Urgente 128"
-    URGENTE_129 = "Urgente 129"
-    URGENTE_130 = "Urgente 130"
-    URGENTE_131 = "Urgente 131"
-    URGENTE_132 = "Urgente 132"
-    URGENTE_133 = "Urgente 133"
-    URGENTE_134 = "Urgente 134"
-    URGENTE_135 = "Urgente 135"
-    URGENTE_136 = "Urgente 136"
-    URGENTE_137 = "Urgente 137"
-    URGENTE_138 = "Urgente 138"
-    URGENTE_139 = "Urgente 139"
-    URGENTE_140 = "Urgente 140"
-    URGENTE_141 = "Urgente 141"
-    URGENTE_142 = "Urgente 142"
-    URGENTE_143 = "Urgente 143"
-    URGENTE_144 = "Urgente 144
+class Ciap2Grade(Enum):
+    """
+    Classificação de Intensidade de Agudos (CIAP-2).
+    Grade 1: Baixa intensidade
+    Grade 5: Crítica/Immediata
+    """
+    GRADE_1 = 1
+    GRADE_2 = 2
+    GRADE_3 = 3
+    GRADE_4 = 4
+    GRADE_5 = 5
+
+
+class PatientStatus(str, Enum):
+    """Status do paciente na fila de espera."""
+    WAITING = "waiting"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    DISCHARGED = "discharged"
+    ADMITTED = "admitted"
+    EMERGENCY = "emergency"
+
+
+class TriagePriority(str, Enum):
+    """Prioridade de triagem conforme protocolo SUS."""
+    PRIORITY_1 = "priority_1"  # Crítica
+    PRIORITY_2 = "priority_2"  # Urgente
+    PRIORITY_3 = "priority_3"  # Rápida
+    PRIORITY_4 = "priority_4"  # Não urgente
+
+
+class Patient(Base):
+    """
+    Modelo de Paciente com identificação por CNS/CPF.
+    Conformidade SUS/APS: Identificação única por CNS/CPF.
+    """
+
+    __tablename__ = "patients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=base_uuid)
+    identification = Column(String(11), unique=True, nullable=False, index=True)
+    identification_type = Column(SAEnum(PatientIdentification), nullable=False)
+    first_name = Column(String(50), nullable=False)
+    last_name = Column(String(50), nullable=False)
+    gender = Column(String(1), nullable=False)  # M/F
+    age = Column(Integer, nullable=False)
+    date_of_birth = Column(DateTime, nullable=False)
+    phone = Column(String(15), nullable=True)
+    email = Column(String(100), nullable=True)
+    ciap2_grade = Column(SAEnum(Ciap2Grade), nullable=False)
+    cid10_diagnosis = Column(String(10), nullable=False)
+    soap_symptoms = Column(Text, nullable=False)
+    soap_observations = Column(Text, nullable=False)
+    soap_assessment = Column(Text, nullable=False)
+    soap_plan = Column(Text, nullable=False)
+    status = Column(SAEnum(PatientStatus), nullable=False, default=PatientStatus.WAITING)
+    triage_priority = Column(SAEnum(TriagePriority), nullable=False)
+    queue_position = Column(Integer, nullable=False, default=0)
+    arrival_time = Column(DateTime, nullable=False)
+    expected_completion = Column(DateTime, nullable=True)
+    actual_completion = Column(DateTime, nullable=True)
+    waiting_time = Column(Float, nullable=True)  # em minutos
+    is_emergency = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relações
+    appointments = relationship("Appointment", back_populates="patient")
+    nurse_assignments = relationship("NurseAssignment", back_populates="patient")
+
+    __table_args__ = (
+        CheckConstraint("age >= 0", name="check_age_positive"),
+        CheckConstraint("age <= 150", name="check_age_reasonable"),
+        UniqueConstraint("identification", "identification_type", name="uq_patient_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Patient(id={self.id}, id={self.identification}, status={self.status})>"
+
+
+class Appointment(Base):
+    """
+    Modelo de Agendamento com padrão SOAP.
+    """
+
+    __tablename__ = "appointments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=base_uuid)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    appointment_time = Column(DateTime, nullable=False)
+    provider_name = Column(String(100), nullable=False)
+    provider_specialty = Column(String(100), nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    patient = relationship("Patient", back_populates="appointments")
+
+    def __repr__(self) -> str:
+        return f"<Appointment(id={self.id}, patient={self.patient_id}, time={self.appointment_time})>"
+
+
+class NurseAssignment(Base):
+    """
+    Modelo de Atribuição de Enfermeira ao Paciente.
+    """
+
+    __tablename__ = "nurse_assignments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=base_uuid)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    nurse_name = Column(String(100), nullable=False)
+    assigned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    status = Column(SAEnum(PatientStatus), nullable=False)
+    notes = Column(Text, nullable=True)
+
+    patient = relationship("Patient", back_populates="nurse_assignments")
+
+    def __repr__(self) -> str:
+        return f"<NurseAssignment(id={self.id}, patient={self.patient_id}, nurse={self.nurse_name})>"
+
+
+class TriageEvent(Base):
+    """
+    Evento de triagem registrado para auditoria.
+    """
+
+    __tablename__ = "triage_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=base_uuid)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    event_type = Column(String(50), nullable=False)  # triage, reassessment, etc.
+    performed_by = Column(String(100), nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    details = Column(Text, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<TriageEvent(id={self.id}, patient={self.patient_id}, type={self.event_type})>"
+
+
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+base_uuid = func.uuid_generate_v4()
+```
+
+---
+
+## Arquivo: `backend/app/schemas.py`
+
+```python
+# Arquivo: backend/app/schemas.py
+"""
+Esquemas Pydantic v2 com tipagem estrita para o sistema MedIA.
+Validação conforme padrões SUS/APS.
+"""
+
+from datetime import datetime
+from enum import Enum
+from typing import Optional, List
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+class PatientIdentification(BaseModel):
+    """Identificação do paciente conforme SUS/APS."""
+
+    identification: str = Field(..., min_length=6, max_length=11)
+    identification_type: str = Field(..., pattern="^(CNS|CPF|CNPJ)$")
+
+
+class Ciap2Grade(BaseModel):
+    """Classe CIAP-2 com validação de grau."""
+
+    grade: int = Field(..., ge=1, le=5)
+    description: str = Field(..., max_length=100)
+
+    @field_validator("grade")
+    @classmethod
+    def validate_grade(cls, v: int) -> int:
+        if v < 1 or v > 5:
+            raise ValueError("Grade CIAP-2 deve estar entre 1 e 5")
+        return v
+
+
+class PatientSOAP(BaseModel):
+    """
+    Padrão SOAP (Simptomas, Observações, Avaliação, Plano).
+    Conformidade SUS/APS.
+    """
+
+    symptoms: str = Field(..., min_length=1, max_length=5000)
+    observations: str = Field(..., min_length=1, max_length=5000)
+    assessment: str = Field(..., min_length=1, max_length=5000)
+    plan: str = Field(..., min_length=1, max_length=50
