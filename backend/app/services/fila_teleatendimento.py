@@ -1,13 +1,23 @@
 """Fila Eletrônica Reativa de Acolhimento e Chamada por Voz (C3).
 
-Implementa fila de prioridades em memória (heapq/asyncio), cálculo de tempo
-estimado de espera e disparo de notificações WebSocket, conforme padrões
-SUS/APS (CIAP-2, CID-10, método SOAP, identificação por CNS/CPF).
+Fila de prioridades em memória (``heapq`` + ``asyncio``) para acolhimento e
+chamada por voz do atendimento particular e de convênios do MedIA
+(TISS ANS 4.01 / DMED Receita Federal), guiada pelo método clínico de
+Atenção Primária / Saúde da Família.
 
-Conformidade:
-- Python 3.12, tipagem estrita com Pydantic v2
-- Padrões SUS/APS: CIAP-2, CID-10, método SOAP, CNS/CPF
-- Código limpo, sem dependência de framework (chamado de routers/services)
+Destaques:
+
+* Ordenação por classificação de risco (VERMELHO → AZUL) com desempate FIFO;
+* Tempo estimado de espera a partir da posição real na ordem de chamada;
+* Disparo de notificações WebSocket por unidade via :class:`HubFilaWS`;
+* Espera reativa da chamada (:meth:`FilaAcolhimentoService.aguardar_chamada`)
+  para sustentar o fluxo de chamada por voz.
+
+Identificação por CNS/CPF e códigos clínicos CIAP-2/CID-10. Não realiza
+envio obrigatório a SUS/SISAB nem integração com periféricos IoT.
+
+Python 3.12 · Pydantic v2 com tipagem estrita · serviço independente de
+framework (o endpoint WebSocket apenas consome :func:`obter_hub_fila`).
 """
 
 from __future__ import annotations
@@ -16,24 +26,27 @@ import asyncio
 import heapq
 import itertools
 import logging
-import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import StrEnum, IntEnum
-from typing import Any, Literal
+from enum import IntEnum, StrEnum
+from typing import Any, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    computed_field,
+    field_validator,
+)
 
 from app.services.validadores import (
-    CNSInvalidoError,
-    CPFInvalidoError,
-    CodigoClinicoInvalidoError,
     normalizar_cns,
-    normalizar_cpf,
     normalizar_ciap2,
     normalizar_cid10,
+    normalizar_cpf,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,7 +100,7 @@ class TipoEventoFila(StrEnum):
 # Constantes
 # ---------------------------------------------------------------------------
 
-TEMPO_ALVO_MINUTOS: dict[ClassificacaoRisco, int] = {
+TEMPO_ALVO_MINUTOS: Final[dict[ClassificacaoRisco, int]] = {
     ClassificacaoRisco.VERMELHO: 0,
     ClassificacaoRisco.LARANJA: 10,
     ClassificacaoRisco.AMARELO: 60,
@@ -95,18 +108,13 @@ TEMPO_ALVO_MINUTOS: dict[ClassificacaoRisco, int] = {
     ClassificacaoRisco.AZUL: 240,
 }
 
-_PRIORIDADE_RISCO: Final[dict[int, ClassificacaoRisco]] = {
-    int(Prioridade.VERMELHO): ClassificacaoRisco.VERMELHO,
-    int(Prioridade.LARANJA): ClassificacaoRisco.LARANJA,
-    int(Prioridade.AMARELO): ClassificacaoRisco.AMARELO,
-    int(Prioridade.VERDE): ClassificacaoRisco.VERDE,
-    int(Prioridade.AZUL): ClassificacaoRisco.AZUL,
-}
-
 TEMPO_MEDIO_CONSULTA_MINUTOS: Final[int] = 15
 
-_PESOS_CNS = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-_PESOS_CNS_11 = list(range(15, 0, -1))
+_TAMANHO_MAXIMO_FILA_WS: Final[int] = 200
+
+_STATUS_SAIRAM_DA_FILA: Final[frozenset[StatusFila]] = frozenset(
+    {StatusFila.FINALIZADO, StatusFila.EVASAO}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -134,31 +142,42 @@ class PacienteFilaIn(BaseModel):
 
     @field_validator("documento")
     @classmethod
-    def _validar_documento(cls, v: str, info) -> str:
+    def _validar_documento(cls, valor: str, info: ValidationInfo) -> str:
         tipo = info.data.get("documento_tipo")
+        normalizado: str | None
         if tipo == "CNS":
-            return normalizar_cns(v)
-        if tipo == "CPF":
-            return normalizar_cpf(v)
-        raise ValueError("documento_tipo deve ser 'CNS' ou 'CPF'")
+            normalizado = normalizar_cns(valor)
+        elif tipo == "CPF":
+            normalizado = normalizar_cpf(valor)
+        else:
+            raise ValueError("documento_tipo deve ser 'CNS' ou 'CPF'")
+        if normalizado is None:
+            raise ValueError("documento não pode ser nulo")
+        return normalizado
 
     @field_validator("queixa_ciap2")
     @classmethod
-    def _validar_ciap2(cls, v: str | None) -> str | None:
-        if v is None:
+    def _validar_ciap2(cls, valor: str | None) -> str | None:
+        if valor is None:
             return None
-        return normalizar_ciap2(v)
+        normalizado = normalizar_ciap2(valor)
+        if normalizado is None:
+            raise ValueError("queixa_ciap2 não pode ser nulo")
+        return normalizado
 
     @field_validator("cid10_suspeita")
     @classmethod
-    def _validar_cid10(cls, v: str | None) -> str | None:
-        if v is None:
+    def _validar_cid10(cls, valor: str | None) -> str | None:
+        if valor is None:
             return None
-        return normalizar_cid10(v)
+        normalizado = normalizar_cid10(valor)
+        if normalizado is None:
+            raise ValueError("cid10_suspeita não pode ser nulo")
+        return normalizado
 
 
 class PacienteFilaOut(BaseModel):
-    """Saída de paciente na fila."""
+    """Visão imutável de um paciente na fila."""
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
 
@@ -185,6 +204,7 @@ class PacienteFilaOut(BaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def tempo_espera_real_min(self) -> float | None:
+        """Espera real até a chamada, em minutos (``None`` se não chamado)."""
         if self.chamado_em is None:
             return None
         delta = self.chamado_em - self.entrado_em
@@ -192,7 +212,7 @@ class PacienteFilaOut(BaseModel):
 
 
 class FilaSnapshot(BaseModel):
-    """Snapshot completo do estado da fila."""
+    """Instantâneo do estado da fila, enviado junto às notificações."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -227,7 +247,7 @@ class NotificacaoFila(BaseModel):
 
 @dataclass(order=True, slots=True)
 class _ItemHeap:
-    """Item interno do heap: (prioridade, contador_fifo, id)."""
+    """Item do heap: ordenado por (prioridade, contador FIFO)."""
 
     prioridade: int
     fifo: int
@@ -237,31 +257,52 @@ class _ItemHeap:
 
 @dataclass
 class _EntradaInterna:
-    """Entrada completa em memória."""
+    """Entrada completa mantida em memória."""
 
     item_heap: _ItemHeap
     dados: PacienteFilaIn
     entrado_em: datetime
     chamado_em: datetime | None = None
     atendido_em: datetime | None = None
+    evento_chamada: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 # ---------------------------------------------------------------------------
-# Hub WebSocket para Fila
+# Hub WebSocket para a Fila
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class _ConexaoFila:
+    """Assinante WebSocket de uma unidade."""
+
     fila: asyncio.Queue[NotificacaoFila]
-    loop: asyncio.AbstractEventLoop
+    loop: asyncio.AbstractEventLoop | None = None
+
+
+def _loop_atual() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
+def _enfileirar(
+    fila: asyncio.Queue[NotificacaoFila], notificacao: NotificacaoFila
+) -> bool:
+    try:
+        fila.put_nowait(notificacao)
+    except asyncio.QueueFull:
+        logger.warning("Fila de notificação cheia; evento descartado")
+        return False
+    return True
 
 
 class HubFilaWS:
-    """Hub em memória de conexões WebSocket da Fila de Acolhimento.
+    """Hub em memória das conexões WebSocket da Fila de Acolhimento.
 
-    Gerencia as conexões por unidade e dispara notificações de entrada,
-    chamada, início/fim de atendimento e evasão.
+    Mantém uma fila de eventos por unidade (recepção, chamada, início/fim de
+    atendimento e evasão) e a publica em todas as conexões assinantes.
     """
 
     def __init__(self) -> None:
@@ -270,41 +311,57 @@ class HubFilaWS:
             lambda: {"conexoes": 0, "eventos": 0}
         )
 
-    def conectar(self, unidade_id: str) -> tuple[asyncio.Queue[NotificacaoFila], asyncio.Lock]:
-        fila: asyncio.Queue[NotificacaoFila] = asyncio.Queue(maxsize=200)
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-        self._conexoes[unidade_id].append(_ConexaoFila(fila=fila, loop=loop))
+    def conectar(self, unidade_id: str) -> asyncio.Queue[NotificacaoFila]:
+        """Registra um assinante da unidade e devolve sua fila de eventos.
+
+        Deve ser chamada no event loop que consumirá a fila (endpoint
+        WebSocket); a publicação usa ``call_soon_threadsafe`` quando o
+        publicador roda fora desse loop.
+        """
+        conexao = _ConexaoFila(
+            fila=asyncio.Queue(maxsize=_TAMANHO_MAXIMO_FILA_WS),
+            loop=_loop_atual(),
+        )
+        self._conexoes[unidade_id].append(conexao)
         self._stats[unidade_id]["conexoes"] = len(self._conexoes[unidade_id])
-        return fila, asyncio.Lock()
+        return conexao.fila
 
     def desconectar(self, unidade_id: str, fila: asyncio.Queue[NotificacaoFila]) -> None:
-        conexoes = self._conexoes.get(unidade_id, [])
-        for i, c in enumerate(conexoes):
-            if c.fila is fila:
-                conexoes.pop(i)
-                break
+        """Remove a assinatura correspondente à ``fila`` da unidade."""
+        conexoes = self._conexoes.get(unidade_id)
+        if conexoes is None:
+            return
+        conexoes[:] = [c for c in conexoes if c.fila is not fila]
         if not conexoes:
             self._conexoes.pop(unidade_id, None)
-        self._stats[unidade_id]["conexoes"] = len(self._conexoes.get(unidade_id, []))
+        self._stats[unidade_id]["conexoes"] = len(self._conexoes.get(unidade_id, ()))
 
     def publicar(self, unidade_id: str, notificacao: NotificacaoFila) -> int:
-        conexoes = list(self._conexoes.get(unidade_id, []))
+        """Dispara a notificação para todas as conexões da unidade.
+
+        Retorna a quantidade de conexões que receberam o evento.
+        """
         entregues = 0
-        for conn in conexoes:
-            try:
-                conn.loop.call_soon_threadsafe(conn.fila.put_nowait, notificacao)
+        for conexao in list(self._conexoes.get(unidade_id, ())):
+            if self._entregar(conexao, notificacao):
                 entregues += 1
-            except asyncio.QueueFull:
-                logger.warning("Fila de notificação cheia para unidade %s", unidade_id)
-            except RuntimeError:
-                continue
         self._stats[unidade_id]["eventos"] += 1
         return entregues
 
+    def _entregar(self, conexao: _ConexaoFila, notificacao: NotificacaoFila) -> bool:
+        loop = conexao.loop
+        if loop is None or loop is _loop_atual():
+            return _enfileirar(conexao.fila, notificacao)
+        if loop.is_closed():
+            return False
+        try:
+            loop.call_soon_threadsafe(_enfileirar, conexao.fila, notificacao)
+        except RuntimeError:
+            return False
+        return True
+
     def obter_stats(self, unidade_id: str) -> dict[str, Any]:
+        """Estatísticas de conexões e eventos da unidade."""
         return {
             "unidade_id": unidade_id,
             "conexoes": self._stats[unidade_id]["conexoes"],
@@ -313,8 +370,12 @@ class HubFilaWS:
         }
 
 
-# Instância global do hub
 _hub_fila_ws = HubFilaWS()
+
+
+def obter_hub_fila() -> HubFilaWS:
+    """Retorna a instância global do Hub WebSocket da fila."""
+    return _hub_fila_ws
 
 
 # ---------------------------------------------------------------------------
@@ -323,11 +384,12 @@ _hub_fila_ws = HubFilaWS()
 
 
 class FilaAcolhimentoService:
-    """Serviço de Fila Eletrônica de Acolhimento com prioridades.
+    """Fila de prioridades de acolhimento com chamada por voz.
 
-    Thread-safe via asyncio.Lock. Utiliza heapq para ordenação por prioridade
-    e FIFO interno. Calcula tempo estimado de espera e dispara notificações
-    WebSocket para unidades conectadas.
+    Usa ``heapq`` para a ordenação (prioridade de risco + FIFO) e
+    ``asyncio.Lock`` para serializar as mutações. Calcula o tempo estimado de
+    espera a partir da posição na ordem de chamada e dispara notificações
+    WebSocket para as unidades assinantes do :class:`HubFilaWS`.
     """
 
     def __init__(self, unidade_id: str) -> None:
@@ -338,44 +400,41 @@ class FilaAcolhimentoService:
         self._counter = itertools.count()
         self._hub = _hub_fila_ws
 
+    @property
+    def unidade_id(self) -> str:
+        """Identificador da unidade atendida por esta fila."""
+        return self._unidade_id
+
     # ------------------------------------------------------------------
     # Operações principais
     # ------------------------------------------------------------------
 
     async def entrar_na_fila(self, paciente: PacienteFilaIn) -> PacienteFilaOut:
-        """Adiciona paciente à fila com prioridade baseada na classificação de risco."""
+        """Enfileira o paciente priorizado pela classificação de risco."""
         async with self._lock:
-            paciente_id = uuid.uuid4()
+            entrada_id = uuid.uuid4()
             agora = datetime.now(timezone.utc)
             prioridade = Prioridade[paciente.classificacao_risco]
-            fifo = next(self._counter)
             item = _ItemHeap(
                 prioridade=int(prioridade),
-                fifo=fifo,
-                id=paciente_id,
+                fifo=next(self._counter),
+                id=entrada_id,
                 status=StatusFila.AGUARDANDO,
             )
-            entrada = _EntradaInterna(
-                item_heap=item,
-                dados=paciente,
-                entrado_em=agora,
-            )
-            self._entradas[paciente_id] = entrada
+            entrada = _EntradaInterna(item_heap=item, dados=paciente, entrado_em=agora)
+            self._entradas[entrada_id] = entrada
             heapq.heappush(self._heap, item)
-
             saida = self._montar_saida(entrada)
 
-        notif = NotificacaoFila(
-            tipo=TipoEventoFila.PACIENTE_ENTRADA,
-            paciente=saida,
-            fila_snapshot=await self.get_snapshot(),
-            mensagem=f"Paciente {paciente.nome_social} entraram na fila — risco {paciente.classificacao_risco}",
+        await self._notificar(
+            TipoEventoFila.PACIENTE_ENTRADA,
+            saida,
+            f"Paciente {saida.nome_social} entrou na fila — risco {saida.classificacao_risco}",
         )
-        self._hub.publicar(self._unidade_id, notif)
         logger.info(
-            "Paciente %s (%s) entrou na fila da unidade %s — risco=%s prioridade=%d",
+            "Entrada %s (%s) na fila da unidade %s — risco=%s prioridade=%d",
+            entrada_id,
             paciente.nome_social,
-            paciente_id,
             self._unidade_id,
             paciente.classificacao_risco,
             prioridade,
@@ -383,190 +442,249 @@ class FilaAcolhimentoService:
         return saida
 
     async def proximo_da_fila(self) -> PacienteFilaOut | None:
-        """Retorna o próximo paciente sem alterar status (peek)."""
+        """Retorna o próximo paciente da ordem de chamada (sem mutar estado)."""
         async with self._lock:
-            for item in self._heap:
-                if item.status == StatusFila.AGUARDANDO:
-                    entrada = self._entradas.get(item.id)
-                    if entrada:
-                        return self._montar_saida(entrada)
-            return None
+            entrada = self._proxima_entrada()
+            if entrada is None:
+                return None
+            return self._montar_saida(entrada)
 
     async def chamar_proximo(self) -> PacienteFilaOut | None:
-        """Chama o próximo paciente (status AGUARDANDO -> CHAMADO)."""
+        """Chama o próximo paciente (``AGUARDANDO`` → ``CHAMADO``)."""
         async with self._lock:
-            agora = datetime.now(timezone.utc)
-            for item in self._heap:
-                if item.status == StatusFila.AGUARDANDO:
-                    entrada = self._entradas[item.id]
-                    entrada.chamado_em = agora
-                    item.status = StatusFila.CHAMADO
-                    saida = self._montar_saida(entrada)
-                    break
-            else:
+            entrada = self._proxima_entrada()
+            if entrada is None:
                 return None
+            entrada.chamado_em = datetime.now(timezone.utc)
+            entrada.item_heap.status = StatusFila.CHAMADO
+            entrada.evento_chamada.set()
+            saida = self._montar_saida(entrada)
 
-        notif = NotificacaoFila(
-            tipo=TipoEventoFila.PACIENTE_CHAMADO,
-            paciente=saida,
-            fila_snapshot=await self.get_snapshot(),
-            mensagem=f"Paciente {saida.nome_social} foi chamado — risco {saida.classificacao_risco}",
+        await self._notificar(
+            TipoEventoFila.PACIENTE_CHAMADO,
+            saida,
+            f"Paciente {saida.nome_social} foi chamado — risco {saida.classificacao_risco}",
         )
-        self._hub.publicar(self._unidade_id, notif)
         logger.info("Paciente %s chamado na unidade %s", saida.nome_social, self._unidade_id)
         return saida
 
-    async def iniciar_atendimento(self, paciente_id: uuid.UUID) -> PacienteFilaOut:
-        """Inicia atendimento (status CHAMADO -> EM_ATENDIMENTO)."""
+    async def iniciar_atendimento(self, entrada_id: uuid.UUID) -> PacienteFilaOut:
+        """Inicia o atendimento (``CHAMADO`` → ``EM_ATENDIMENTO``)."""
         async with self._lock:
-            entrada = self._entradas.get(paciente_id)
-            if not entrada:
-                raise KeyError(f"Paciente {paciente_id} não encontrado na fila")
-            if entrada.item_heap.status != StatusFila.CHAMADO:
+            entrada = self._entradas.get(entrada_id)
+            if entrada is None:
+                raise KeyError(f"Entrada {entrada_id} não encontrada na fila")
+            if entrada.item_heap.status is not StatusFila.CHAMADO:
+                self._publicar_erro(
+                    "Transição inválida ao iniciar atendimento",
+                    f"entrada={entrada_id} status={entrada.item_heap.status} esperado={StatusFila.CHAMADO}",
+                )
                 raise ValueError(
-                    f"Paciente está em status {entrada.item_heap.status}, "
-                    f"esperado CHAMADO"
+                    f"Paciente está em status {entrada.item_heap.status}, esperado {StatusFila.CHAMADO}"
                 )
             entrada.atendido_em = datetime.now(timezone.utc)
             entrada.item_heap.status = StatusFila.EM_ATENDIMENTO
             saida = self._montar_saida(entrada)
 
-        notif = NotificacaoFila(
-            tipo=TipoEventoFila.PACIENTE_ATENDIMENTO,
-            paciente=saida,
-            fila_snapshot=await self.get_snapshot(),
-            mensagem=f"Atendimento iniciado para {saida.nome_social}",
+        await self._notificar(
+            TipoEventoFila.PACIENTE_ATENDIMENTO,
+            saida,
+            f"Atendimento iniciado para {saida.nome_social}",
         )
-        self._hub.publicar(self._unidade_id, notif)
         return saida
 
-    async def finalizar_atendimento(self, paciente_id: uuid.UUID) -> PacienteFilaOut:
-        """Finaliza atendimento (status -> FINALIZADO)."""
+    async def finalizar_atendimento(self, entrada_id: uuid.UUID) -> PacienteFilaOut:
+        """Finaliza o atendimento (``EM_ATENDIMENTO`` → ``FINALIZADO``)."""
         async with self._lock:
-            entrada = self._entradas.get(paciente_id)
-            if not entrada:
-                raise KeyError(f"Paciente {paciente_id} não encontrado na fila")
+            entrada = self._entradas.get(entrada_id)
+            if entrada is None:
+                raise KeyError(f"Entrada {entrada_id} não encontrada na fila")
+            if entrada.item_heap.status is not StatusFila.EM_ATENDIMENTO:
+                self._publicar_erro(
+                    "Transição inválida ao finalizar atendimento",
+                    f"entrada={entrada_id} status={entrada.item_heap.status} esperado={StatusFila.EM_ATENDIMENTO}",
+                )
+                raise ValueError(
+                    f"Paciente está em status {entrada.item_heap.status}, "
+                    f"esperado {StatusFila.EM_ATENDIMENTO}"
+                )
             entrada.item_heap.status = StatusFila.FINALIZADO
+            entrada.evento_chamada.set()
             saida = self._montar_saida(entrada)
 
-        notif = NotificacaoFila(
-            tipo=TipoEventoFila.PACIENTE_FINALIZADO,
-            paciente=saida,
-            fila_snapshot=await self.get_snapshot(),
-            mensagem=f"Atendimento finalizado para {saida.nome_social}",
+        await self._notificar(
+            TipoEventoFila.PACIENTE_FINALIZADO,
+            saida,
+            f"Atendimento finalizado para {saida.nome_social}",
         )
-        self._hub.publicar(self._unidade_id, notif)
         return saida
 
-    async def cancelar(self, paciente_id: uuid.UUID) -> PacienteFilaOut:
-        """Cancela/evasão (status -> EVASAO)."""
+    async def cancelar(self, entrada_id: uuid.UUID) -> PacienteFilaOut:
+        """Registra evasão do paciente (``AGUARDANDO``/``CHAMADO`` → ``EVASAO``)."""
         async with self._lock:
-            entrada = self._entradas.get(paciente_id)
-            if not entrada:
-                raise KeyError(f"Paciente {paciente_id} não encontrado na fila")
+            entrada = self._entradas.get(entrada_id)
+            if entrada is None:
+                raise KeyError(f"Entrada {entrada_id} não encontrada na fila")
+            if entrada.item_heap.status not in (
+                StatusFila.AGUARDANDO,
+                StatusFila.CHAMADO,
+            ):
+                self._publicar_erro(
+                    "Transição inválida ao registrar evasão",
+                    f"entrada={entrada_id} status={entrada.item_heap.status}",
+                )
+                raise ValueError(
+                    f"Paciente está em status {entrada.item_heap.status}; "
+                    f"evasão permitida apenas em {StatusFila.AGUARDANDO} "
+                    f"ou {StatusFila.CHAMADO}"
+                )
             entrada.item_heap.status = StatusFila.EVASAO
+            entrada.evento_chamada.set()
             saida = self._montar_saida(entrada)
 
-        notif = NotificacaoFila(
-            tipo=TipoEventoFila.PACIENTE_EVASAO,
-            paciente=saida,
-            fila_snapshot=await self.get_snapshot(),
-            mensagem=f"Paciente {saida.nome_social} evadiu da fila",
+        await self._notificar(
+            TipoEventoFila.PACIENTE_EVASAO,
+            saida,
+            f"Paciente {saida.nome_social} registrou evasão da fila",
         )
-        self._hub.publicar(self._unidade_id, notif)
         return saida
+
+    async def aguardar_chamada(
+        self, entrada_id: uuid.UUID, timeout: float | None = None
+    ) -> PacienteFilaOut:
+        """Aguarda reativamente até a chamada do paciente (suporte à voz).
+
+        ``timeout`` é em segundos; sem valor, aguarda indefinidamente.
+
+        Raises:
+            KeyError: entrada inexistente.
+            TimeoutError: paciente não chamado dentro do ``timeout``.
+            RuntimeError: paciente saiu da fila sem ter sido chamado.
+        """
+        async with self._lock:
+            entrada = self._entradas.get(entrada_id)
+            if entrada is None:
+                raise KeyError(f"Entrada {entrada_id} não encontrada na fila")
+            evento = entrada.evento_chamada
+
+        try:
+            await asyncio.wait_for(evento.wait(), timeout)
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"Entrada {entrada_id} não foi chamada em {timeout} segundo(s)"
+            ) from exc
+
+        async with self._lock:
+            entrada = self._entradas.get(entrada_id)
+            if entrada is None:
+                raise KeyError(f"Entrada {entrada_id} não encontrada na fila")
+            if entrada.chamado_em is None:
+                self._publicar_erro(
+                    "Fluxo de chamada encerrado sem chamada",
+                    f"entrada={entrada_id} status={entrada.item_heap.status}",
+                )
+                raise RuntimeError(
+                    f"Entrada {entrada_id} saiu da fila sem chamada "
+                    f"(status {entrada.item_heap.status})"
+                )
+            return self._montar_saida(entrada)
 
     # ------------------------------------------------------------------
     # Consultas
     # ------------------------------------------------------------------
 
     async def get_snapshot(self) -> FilaSnapshot:
-        """Retorna snapshot completo da fila."""
+        """Retorna o instantâneo completo da fila."""
         async with self._lock:
-            aguardando = 0
-            chamado = 0
-            em_atendimento = 0
-            finalizado = 0
-            evasao = 0
-            pacientes_aguardando: list[PacienteFilaOut] = []
-
+            contagem: dict[StatusFila, int] = {status: 0 for status in StatusFila}
             for item in self._heap:
-                entrada = self._entradas.get(item.id)
-                if not entrada:
-                    continue
-                saida = self._montar_saida(entrada)
-                match item.status:
-                    case StatusFila.AGUARDANDO:
-                        aguardando += 1
-                        pacientes_aguardando.append(saida)
-                    case StatusFila.CHAMADO:
-                        chamado += 1
-                    case StatusFila.EM_ATENDIMENTO:
-                        em_atendimento += 1
-                    case StatusFila.FINALIZADO:
-                        finalizado += 1
-                    case StatusFila.EVASAO:
-                        evasao += 1
+                if item.id in self._entradas:
+                    contagem[item.status] += 1
 
-            pacientes_aguardando.sort(key=lambda p: (p.prioridade, p.entrado_em))
-
-            risco_prioritario = self._risco_prioritario_interno()
-            tempo_medio = self._tempo_medio_espera_interno()
-
+            aguardando = [
+                self._montar_saida(entrada, posicao=indice)
+                for indice, entrada in enumerate(self._aguardando_ordenadas())
+            ]
             return FilaSnapshot(
-                total_aguardando=aguardando,
-                total_chamado=chamado,
-                total_em_atendimento=em_atendimento,
-                total_finalizado=finalizado,
-                total_evasao=evasao,
-                proximos=pacientes_aguardando[:5],
-                risco_prioritario=risco_prioritario,
-                tempo_medio_espera_min=tempo_medio,
+                total_aguardando=contagem[StatusFila.AGUARDANDO],
+                total_chamado=contagem[StatusFila.CHAMADO],
+                total_em_atendimento=contagem[StatusFila.EM_ATENDIMENTO],
+                total_finalizado=contagem[StatusFila.FINALIZADO],
+                total_evasao=contagem[StatusFila.EVASAO],
+                proximos=aguardando[:5],
+                risco_prioritario=self._risco_prioritario(),
+                tempo_medio_espera_min=self._tempo_medio_espera(),
                 timestamp=datetime.now(timezone.utc),
             )
 
     async def get_por_status(self, status: StatusFila) -> list[PacienteFilaOut]:
-        """Retorna pacientes filtrados por status."""
+        """Retorna os pacientes filtrados por status, na ordem de chamada."""
         async with self._lock:
-            resultado: list[PacienteFilaOut] = []
-            for item in self._heap:
-                entrada = self._entradas.get(item.id)
-                if entrada and item.status == status:
-                    resultado.append(self._montar_saida(entrada))
-            return resultado
+            return [
+                self._montar_saida(self._entradas[item.id])
+                for item in sorted(self._heap)
+                if item.status == status and item.id in self._entradas
+            ]
+
+    async def posicao_na_fila(self, entrada_id: uuid.UUID) -> int | None:
+        """Posição na ordem de chamada (``0`` = próximo) ou ``None``."""
+        async with self._lock:
+            return self._posicao(entrada_id)
 
     def get_entradas_count(self) -> int:
-        """Total de entradas na fila (inclui todos os status)."""
+        """Total de entradas registradas (qualquer status, inclusive concluídas)."""
         return len(self._entradas)
 
     # ------------------------------------------------------------------
-    # Cálculos
+    # Cálculo de espera
     # ------------------------------------------------------------------
 
     def calcular_tempo_espera(self, paciente: PacienteFilaIn) -> int:
-        """Calcula tempo estimado de espera em minutos."""
-        base = TEMPO_ALVO_MINUTOS[paciente.classificacao_risco]
-        return base
+        """Tempo alvo de espera (minutos) para a classificação de risco."""
+        return TEMPO_ALVO_MINUTOS[paciente.classificacao_risco]
 
     def calcular_tempo_espera_considerando_fila(
         self, paciente: PacienteFilaIn, posicao_na_fila: int
     ) -> int:
-        """Calcula tempo estimado considerando posição na fila."""
+        """Estimativa de espera: tempo alvo + consultas à frente na fila."""
         base = TEMPO_ALVO_MINUTOS[paciente.classificacao_risco]
-        contagem_acima = sum(
-            1
-            for item in self._heap
-            if item.status == StatusFila.AGUARDANDO
-            and item.prioridade < int(Prioridade[paciente.classificacao_risco])
-        )
-        return base + (contagem_acima * TEMPO_MEDIO_CONSULTA_MINUTOS)
+        consultas_a_frente = max(posicao_na_fila, 0)
+        return base + consultas_a_frente * TEMPO_MEDIO_CONSULTA_MINUTOS
 
     # ------------------------------------------------------------------
     # Internos
     # ------------------------------------------------------------------
 
-    def _montar_saida(self, entrada: _EntradaInterna) -> PacienteFilaOut:
+    def _proxima_entrada(self) -> _EntradaInterna | None:
+        for item in sorted(self._heap):
+            entrada = self._entradas.get(item.id)
+            if entrada is not None and item.status is StatusFila.AGUARDANDO:
+                return entrada
+        return None
+
+    def _aguardando_ordenadas(self) -> list[_EntradaInterna]:
+        return [
+            self._entradas[item.id]
+            for item in sorted(self._heap)
+            if item.status is StatusFila.AGUARDANDO and item.id in self._entradas
+        ]
+
+    def _posicao(self, entrada_id: uuid.UUID) -> int | None:
+        for indice, entrada in enumerate(self._aguardando_ordenadas()):
+            if entrada.item_heap.id == entrada_id:
+                return indice
+        return None
+
+    def _montar_saida(
+        self, entrada: _EntradaInterna, posicao: int | None = None
+    ) -> PacienteFilaOut:
         espera = self.calcular_tempo_espera(entrada.dados)
+        if entrada.item_heap.status is StatusFila.AGUARDANDO:
+            if posicao is None:
+                posicao = self._posicao(entrada.item_heap.id)
+            espera = self.calcular_tempo_espera_considerando_fila(
+                entrada.dados, 0 if posicao is None else posicao
+            )
         return PacienteFilaOut(
             id=entrada.item_heap.id,
             paciente_id=entrada.dados.paciente_id,
@@ -589,27 +707,59 @@ class FilaAcolhimentoService:
             sinais_vitais=entrada.dados.sinais_vitais,
         )
 
-    def _risco_prioritario_interno(self) -> ClassificacaoRisco | None:
-        for item in sorted(self._heap, key=lambda x: (x.prioridade, x.fifo)):
-            if item.status in (StatusFila.AGUARDANDO, StatusFila.CHAMADO):
-                entrada = self._entradas.get(item.id)
-                if entrada:
-                    return entrada.dados.classificacao_risco
-        return None
-
-    def _tempo_medio_espera_interno(self) -> float:
-        aguardando = [
-            item
-            for item in self._heap
-            if item.status == StatusFila.AGUARDANDO
+    def _risco_prioritario(self) -> ClassificacaoRisco | None:
+        ativos = [
+            entrada
+            for entrada in self._entradas.values()
+            if entrada.item_heap.status in (StatusFila.AGUARDANDO, StatusFila.CHAMADO)
         ]
+        if not ativos:
+            return None
+        ativos.sort(key=lambda e: (e.item_heap.prioridade, e.item_heap.fifo))
+        return ativos[0].dados.classificacao_risco
+
+    def _tempo_medio_espera(self) -> float:
+        aguardando = self._aguardando_ordenadas()
         if not aguardando:
             return 0.0
         total = sum(
-            TEMPO_ALVO_MINUTOS[_PRIORIDADE_RISCO[item.prioridade]]
-            for item in aguardando
+            self.calcular_tempo_espera(entrada.dados) for entrada in aguardando
         )
         return round(total / len(aguardando), 1)
+
+    async def _notificar(
+        self, tipo: TipoEventoFila, saida: PacienteFilaOut, mensagem: str
+    ) -> int:
+        notificacao = NotificacaoFila(
+            tipo=tipo,
+            paciente=saida,
+            fila_snapshot=await self.get_snapshot(),
+            mensagem=mensagem,
+        )
+        return self._hub.publicar(self._unidade_id, notificacao)
+
+    def _publicar_erro(self, mensagem: str, detalhe: str) -> None:
+        self._hub.publicar(
+            self._unidade_id,
+            NotificacaoFila(tipo=TipoEventoFila.ERRO, mensagem=mensagem, erro=detalhe),
+        )
+
+    async def limpar_concluidos(self) -> int:
+        """Libera da memória as entradas ``FINALIZADO``/``EVASAO``. Retorna o total."""
+        async with self._lock:
+            concluidas = [
+                entrada_id
+                for entrada_id, entrada in self._entradas.items()
+                if entrada.item_heap.status in _STATUS_SAIRAM_DA_FILA
+            ]
+            if not concluidas:
+                return 0
+            removidas = set(concluidas)
+            for entrada_id in concluidas:
+                self._entradas.pop(entrada_id, None)
+            self._heap = [item for item in self._heap if item.id not in removidas]
+            heapq.heapify(self._heap)
+            return len(concluidas)
 
 
 # ---------------------------------------------------------------------------
@@ -618,26 +768,37 @@ class FilaAcolhimentoService:
 
 
 def validar_documento(documento: str, tipo: Literal["CNS", "CPF"]) -> str:
-    """Valida e normaliza CNS ou CPF. Retorna valor canônico em dígitos."""
+    """Valida e normaliza CNS ou CPF. Retorna o valor canônico em dígitos."""
+    normalizado: str | None
     if tipo == "CNS":
-        return normalizar_cns(documento)
-    if tipo == "CPF":
-        return normalizar_cpf(documento)
-    raise ValueError(f"Tipo de documento inválido: {tipo}")
+        normalizado = normalizar_cns(documento)
+    elif tipo == "CPF":
+        normalizado = normalizar_cpf(documento)
+    else:
+        raise ValueError(f"Tipo de documento inválido: {tipo}")
+    if normalizado is None:
+        raise ValueError("documento não pode ser nulo")
+    return normalizado
 
 
 def validar_ciap2(codigo: str) -> str:
     """Valida código CIAP-2."""
-    return normalizar_ciap2(codigo)
+    normalizado = normalizar_ciap2(codigo)
+    if normalizado is None:
+        raise ValueError("Código CIAP-2 não pode ser nulo")
+    return normalizado
 
 
 def validar_cid10(codigo: str) -> str:
     """Valida código CID-10."""
-    return normalizar_cid10(codigo)
+    normalizado = normalizar_cid10(codigo)
+    if normalizado is None:
+        raise ValueError("Código CID-10 não pode ser nulo")
+    return normalizado
 
 
 def classificar_por_sinais_vitais(sinais: dict[str, Any]) -> ClassificacaoRisco:
-    """Classificação rápida por sinais vitais (triagem rápida)."""
+    """Triagem rápida por sinais vitais no acolhimento."""
     pas = sinais.get("pa_sistolica")
     pad = sinais.get("pa_diastolica")
     fc = sinais.get("frequencia_cardiaca")
@@ -669,10 +830,5 @@ def classificar_por_sinais_vitais(sinais: dict[str, Any]) -> ClassificacaoRisco:
 
 
 def tempo_espera_por_classificacao(risco: ClassificacaoRisco) -> int:
-    """Retorna tempo máximo de espera em minutos para cada classificação."""
+    """Retorna o tempo alvo de espera (minutos) para a classificação."""
     return TEMPO_ALVO_MINUTOS[risco]
-
-
-def obter_hub_fila() -> HubFilaWS:
-    """Retorna a instância global do Hub WebSocket da fila."""
-    return _hub_fila_ws

@@ -1,35 +1,54 @@
-```html:backend/app/static/painel_triagem.html
+```python
+# Arquivo: backend/app/static/painel_triagem.html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Triagem e Monitor de Fila - C3 (SUS/APS)</title>
+    <title>Painel Triagem — MedIA C3</title>
     <style>
         /* ============================================
-           CSS RESET & VARIABLES (Manchester Colors)
+           PALETA MANCHESTER — C3
            ============================================ */
         :root {
-            --man-blue: #003388;
-            --man-blue-light: #0055aa;
-            --man-blue-dark: #002266;
-            --man-white: #ffffff;
-            --man-green: #008800;
-            --man-green-light: #00aa00;
-            --man-red: #cc0000;
-            --man-red-light: #ff4444;
-            --man-yellow: #ffff00;
-            --man-orange: #ff8800;
-            --man-gray: #888888;
-            --man-gray-light: #e8e8e8;
-            --man-gray-dark: #333333;
-            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
-            --shadow-lg: 0 8px 24px rgba(0,0,0,0.2);
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --transition: all 0.3s ease;
+            --m-cream:    #F8F5F0;
+            --m-cream-l:  #FAF9F6;
+            --m-blue:     #003366;
+            --m-blue-l:   #005588;
+            --m-blue-m:   #0077B3;
+            --m-blue-l:   #0099D4;
+            --m-teal:     #00A896;
+            --m-teal-l:   #00CCBB;
+            --m-teal-m:   #00D4CC;
+            --m-teal-l:   #00E8D4;
+            --m-green:    #007A5F;
+            --m-green-l:  #00997A;
+            --m-green-m:  #00BB96;
+            --m-green-l:  #00CCB0;
+            --m-orange:   #D47A3A;
+            --m-orange-l: #E88A4A;
+            --m-orange-m: #F09A5A;
+            --m-orange-l: #F8A86A;
+            --m-red:      #C44A3A;
+            --m-red-l:    #D45A4A;
+            --m-red-m:    #E46A4A;
+            --m-red-l:    #E87A5A;
+            --m-purple:   #5A3A8A;
+            --m-purple-l: #6A4A9A;
+            --m-purple-m: #7A5AB3;
+            --m-purple-l: #8A6AC3;
+            --m-gray:     #888888;
+            --m-gray-l:   #A8A8A8;
+            --m-gray-m:   #B8B8B8;
+            --m-gray-l:   #C8C8C8;
+            --m-gray-d:   #E8E8E8;
+            --m-gray-dl:  #F0F0F0;
+            --m-white:    #FFFFFF;
+            --m-shadow:   0 2px 8px rgba(0,0,0,0.08);
+            --m-shadow-l: 0 4px 16px rgba(0,0,0,0.12);
+            --m-radius:   12px;
+            --m-radius-sm: 8px;
+            --m-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -39,431 +58,339 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--man-gray-light);
-            color: var(--man-gray-dark);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--m-cream);
+            color: var(--m-blue);
             min-height: 100vh;
+            line-height: 1.6;
         }
 
         /* ============================================
-           HEADER / BARRA DE NAVEGAÇÃO
+           HEADER
            ============================================ */
-        .app-header {
-            background: var(--man-blue);
-            color: var(--man-white);
-            padding: 12px 24px;
+        .c3-header {
+            background: linear-gradient(135deg, var(--m-blue) 0%, var(--m-blue-m) 50%, var(--m-blue-l) 100%);
+            color: var(--m-white);
+            padding: 16px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--m-shadow-l);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
         }
 
-        .header-brand {
+        .c3-header__logo {
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .header-brand .logo {
+        .c3-header__logo-icon {
             width: 40px;
             height: 40px;
-            background: var(--man-white);
-            border-radius: var(--radius-sm);
+            background: var(--m-teal);
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 900;
-            font-size: 18px;
-            color: var(--man-blue-dark);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--m-white);
         }
 
-        .header-brand h1 {
-            font-size: 1.2rem;
+        .c3-header__logo-text {
+            font-size: 1.3rem;
             font-weight: 700;
             letter-spacing: 0.5px;
         }
 
-        .header-brand h1 span {
-            color: var(--man-green);
+        .c3-header__logo-text span {
+            color: var(--m-teal-l);
         }
 
-        .header-right {
+        .c3-header__info {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 24px;
         }
 
-        .header-right .stat-badge {
-            background: var(--man-white);
-            color: var(--man-blue-dark);
-            padding: 6px 14px;
+        .c3-header__status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.15);
+            padding: 8px 16px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .header-right .stat-badge .pulse {
-            width: 8px;
-            height: 8px;
-            background: var(--man-green);
+        .c3-header__status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--m-green-l);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
 
-        .header-right .stat-badge .pulse.red {
-            background: var(--man-red);
-        }
-
-        .header-right .stat-badge .pulse.yellow {
-            background: var(--man-yellow);
-        }
-
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,170,150,0.4); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(0,170,150,0); }
         }
 
-        .header-right .nav-links {
+        .c3-header__time {
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        .c3-header__actions {
             display: flex;
-            gap: 8px;
+            gap: 10px;
         }
 
-        .header-right .nav-links a {
-            color: var(--man-white);
-            text-decoration: none;
+        .c3-header__btn {
+            background: var(--m-white);
+            color: var(--m-blue);
+            border: none;
             padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            transition: var(--transition);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--m-transition);
         }
 
-        .header-right .nav-links a:hover {
-            background: rgba(255,255,255,0.2);
+        .c3-header__btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--m-shadow);
         }
 
-        .header-right .nav-links a.active {
-            background: var(--man-white);
-            color: var(--man-blue-dark);
+        .c3-header__btn--call {
+            background: var(--m-red);
+            color: var(--m-white);
+        }
+
+        .c3-header__btn--call:hover {
+            background: var(--m-red-m);
         }
 
         /* ============================================
            MAIN LAYOUT
            ============================================ */
-        .main-container {
+        .c3-main {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px 32px;
         }
 
-        .page-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 16px 20px;
-            background: var(--man-white);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
+        .c3-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
         }
 
-        .page-header h2 {
-            font-size: 1.3rem;
-            color: var(--man-blue-dark);
-        }
-
-        .page-header h2 .subtitle {
-            font-size: 0.85rem;
-            color: var(--man-gray);
-            margin-top: 2px;
-        }
-
-        .page-header .filters {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .filter-btn {
-            padding: 6px 14px;
-            border: 1px solid var(--man-gray-light);
-            background: var(--man-white);
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            color: var(--man-gray-dark);
-            transition: var(--transition);
-        }
-
-        .filter-btn:hover {
-            border-color: var(--man-blue);
-            color: var(--man-blue);
-        }
-
-        .filter-btn.active {
-            background: var(--man-blue);
-            color: var(--man-white);
-            border-color: var(--man-blue);
+        @media (max-width: 1024px) {
+            .c3-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* ============================================
-           CARDS GRID
+           CARDS
            ============================================ */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+        .c3-card {
+            background: var(--m-white);
+            border-radius: var(--m-radius);
+            box-shadow: var(--m-shadow);
+            overflow: hidden;
+            transition: var(--m-transition);
         }
 
-        .card {
-            background: var(--man-white);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            padding: 20px;
-            transition: var(--transition);
-            border-left: 4px solid transparent;
-        }
-
-        .card:hover {
-            box-shadow: var(--shadow-md);
+        .c3-card:hover {
+            box-shadow: var(--m-shadow-l);
             transform: translateY(-2px);
         }
 
-        .card.man-blue {
-            border-left-color: var(--man-blue);
-        }
-
-        .card.man-green {
-            border-left-color: var(--man-green);
-        }
-
-        .card.man-red {
-            border-left-color: var(--man-red);
-        }
-
-        .card.man-yellow {
-            border-left-color: var(--man-yellow);
-        }
-
-        .card.man-orange {
-            border-left-color: var(--man-orange);
-        }
-
-        .card-header {
+        .c3-card__header {
+            padding: 20px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 16px;
+            border-bottom: 1px solid var(--m-gray-d);
         }
 
-        .card-title {
+        .c3-card__title {
             font-size: 1rem;
             font-weight: 700;
-            color: var(--man-gray-dark);
+            color: var(--m-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .card-status {
+        .c3-card__title-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .c3-card__title--teal { background: var(--m-teal); color: var(--m-white); }
+        .c3-card__title--blue { background: var(--m-blue); color: var(--m-white); }
+        .c3-card__title--green { background: var(--m-green); color: var(--m-white); }
+        .c3-card__title--orange { background: var(--m-orange); color: var(--m-white); }
+        .c3-card__title--red { background: var(--m-red); color: var(--m-white); }
+        .c3-card__title--purple { background: var(--m-purple); color: var(--m-white); }
+
+        .c3-card__badge {
             font-size: 0.75rem;
-            padding: 3px 10px;
+            font-weight: 700;
+            padding: 4px 10px;
             border-radius: 12px;
-            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .card-status.critical {
-            background: rgba(255,0,0,0.1);
-            color: var(--man-red);
+        .c3-card__badge--active {
+            background: var(--m-teal);
+            color: var(--m-white);
         }
 
-        .card-status.warning {
-            background: rgba(255,255,0,0.1);
-            color: var(--man-orange);
+        .c3-card__badge--urgent {
+            background: var(--m-red);
+            color: var(--m-white);
         }
 
-        .card-status.normal {
-            background: rgba(0,136,0,0.1);
-            color: var(--man-green);
+        .c3-card__badge--normal {
+            background: var(--m-blue);
+            color: var(--m-white);
         }
 
-        .card-status.resolved {
-            background: rgba(0,51,136,0.1);
-            color: var(--man-blue);
+        .c3-card__badge--stable {
+            background: var(--m-green);
+            color: var(--m-white);
         }
 
-        /* ============================================
-           METRICS DISPLAY
-           ============================================ */
-        .metric-value {
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: var(--man-blue-dark);
-            line-height: 1;
-        }
-
-        .metric-label {
-            font-size: 0.85rem;
-            color: var(--man-gray);
-            margin-top: 4px;
-        }
-
-        .metric-sub {
-            font-size: 0.8rem;
-            color: var(--man-gray-light);
-            margin-top: 2px;
-        }
-
-        .metric-change {
-            font-size: 0.85rem;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 10px;
-        }
-
-        .metric-change.up {
-            background: rgba(0,136,0,0.1);
-            color: var(--man-green);
-        }
-
-        .metric-change.down {
-            background: rgba(255,0,0,0.1);
-            color: var(--man-red);
+        .c3-card__body {
+            padding: 24px;
         }
 
         /* ============================================
-           TRIAGE LEVELS (C3)
+           KPI CARDS (TOP ROW)
            ============================================ */
-        .triage-grid {
+        .c3-kpi-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
         }
 
-        .triage-level {
-            padding: 12px 10px;
-            border-radius: var(--radius-sm);
+        @media (max-width: 768px) {
+            .c3-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .c3-kpi-card {
+            background: var(--m-white);
+            border-radius: var(--m-radius);
+            box-shadow: var(--m-shadow);
+            padding: 20px;
             text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 2px solid transparent;
+            transition: var(--m-transition);
         }
 
-        .triage-level:hover {
-            transform: scale(1.05);
+        .c3-kpi-card:hover {
+            box-shadow: var(--m-shadow-l);
+            transform: translateY(-2px);
         }
 
-        .triage-level.c3-urgent {
-            background: rgba(255,0,0,0.1);
-            border-color: var(--man-red);
-            color: var(--man-red);
+        .c3-kpi-card__icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 24px;
         }
 
-        .triage-level.c3-urgent:hover {
-            background: rgba(255,0,0,0.2);
+        .c3-kpi-card__icon--teal { background: var(--m-teal); color: var(--m-white); }
+        .c3-kpi-card__icon--blue { background: var(--m-blue); color: var(--m-white); }
+        .c3-kpi-card__icon--green { background: var(--m-green); color: var(--m-white); }
+        .c3-kpi-card__icon--orange { background: var(--m-orange); color: var(--m-white); }
+
+        .c3-kpi-card__value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 4px;
         }
 
-        .triage-level.c3-urgent .level-number {
-            font-size: 1.5rem;
-            font-weight: 900;
-        }
-
-        .triage-level.c3-urgent .level-label {
-            font-size: 0.7rem;
+        .c3-kpi-card__label {
+            font-size: 0.8rem;
+            color: var(--m-gray);
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .triage-level.c3-urgent .level-count {
-            background: var(--man-red);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
+        .c3-kpi-card__value--teal { color: var(--m-teal); }
+        .c3-kpi-card__value--blue { color: var(--m-blue); }
+        .c3-kpi-card__value--green { color: var(--m-green); }
+        .c3-kpi-card__value--orange { color: var(--m-orange); }
+
+        /* ============================================
+           TRIAGE CARDS
+           ============================================ */
+        .c3-triage-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .c3-triage-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .c3-triage-card {
+            background: var(--m-white);
+            border-radius: var(--m-radius);
+            box-shadow: var(--m-shadow);
+            overflow: hidden;
+            transition: var(--m-transition);
+        }
+
+        .c3-triage-card:hover {
+            box-shadow: var(--m-shadow-l);
+            transform: translateY(-2px);
+        }
+
+        .c3-triage-card__header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--m-gray-d);
+        }
+
+        .c3-triage-card__title {
+            font-size: 0.95rem;
             font-weight: 700;
-        }
-
-        .triage-level.c3-urgent-2 {
-            background: rgba(255,255,0,0.1);
-            border-color: var(--man-orange);
-            color: var(--man-orange);
-        }
-
-        .triage-level.c3-urgent-2:hover {
-            background: rgba(255,255,0,0.2);
-        }
-
-        .triage-level.c3-urgent-2 .level-number {
-            font-size: 1.5rem;
-            font-weight: 900;
-        }
-
-        .triage-level.c3-urgent-2 .level-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-
-        .triage-level.c3-urgent-2 .level-count {
-            background: var(--man-orange);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .triage-level.c3-urgent-3 {
-            background: rgba(255,255,0,0.1);
-            border-color: var(--man-yellow);
-            color: var(--man-yellow);
-        }
-
-        .triage-level.c3-urgent-3:hover {
-            background: rgba(255,255,0,0.2);
-        }
-
-        .triage-level.c3-urgent-3 .level-number {
-            font-size: 1.5rem;
-            font-weight: 900;
-        }
-
-        .triage-level.c3-urgent-3 .level-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-
-        .triage-level.c3-urgent-3 .level-count {
-            background: var(--man-yellow);
-            color: var(--man-gray-dark);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .triage-level.c3-normal {
-            background: rgba(0,136,0,0.1);
-            border-color: var(--man-green);
-            color: var(--man-green);
-        }
-
-        .triage-level.c3-normal:hover {
-            background: rgba(0,136,0,0.2);
-        }
-
-        .triage-level.c3-normal .level-number {
-            font-size: 1.5rem;
-            font-weight: 900;
-        }
-
-        .triage-level.c3-normal .level-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-
-        .triage-level.c3-normal .level-count {
-            background: var(--man-green);
-            color: white;
-            padding: 2px 8px;
+            color: var(--m-blue);
+            display: flex;
+            align-items: center;
+            gap: 1

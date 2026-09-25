@@ -2,312 +2,313 @@ Here's a thinking process:
 
 1.  **Understand User Role & Task:**
    - **Role:** Software Engineer (Tester)
-   - **Task:** Implement `backend/app/repositories/auditoria_telemedicina.py` with a class `AuditoriaTelemedicinaRepository`.
-   - **Features:** Log connection/disconnection events, patient confidentiality agreement acceptance (LGPD/CFM), secure timestamping.
-   - **Architecture Guidelines:** Python 3.12, strict typing with Pydantic v2 & SQLAlchemy 2.0, SUS/APS standards (CIAP-2, CID-10, SOAP method, CNS/CPF identification), full compliance & automated test coverage with pytest.
-   - **Output Requirement:** Provide complete, executable code. Specify file paths at the top of each code block.
+   - **Task:** Implement `backend/app/repositories/auditoria_telemedicina.py` with a class `AuditoriaTelemedicinaRepository` for logging teleconsultation events (connection, disconnection, patient confidentiality agreement acceptance, secure timestamping) using SQLAlchemy 2.0.
+   - **Context:** MedIA project for private/insurance teleconsultations (TISS ANS 4.01 / DMED Receita Federal), Primary Care/Family Health methodology.
+   - **Constraints:**
+     - No SUS/SISAB or IoT peripheral code.
+     - Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0.
+     - Production code only in `backend/app/`, tests in `backend/tests/`.
+     - Preserve 100% green test suite (implies I should provide tests too, or at least ensure the implementation is testable and matches expected patterns).
+     - Provide complete, executable code.
+     - Specify file paths in code blocks.
 
-2.  **Deconstruct Requirements:**
-   - **Repository Class:** `AuditoriaTelemedicinaRepository`
-   - **Database:** SQLAlchemy 2.0 (async preferred for modern web apps, but I'll stick to sync/async agnostic or explicitly async as it's common in FastAPI. I'll use async SQLAlchemy 2.0 as it's standard for modern Python backends, but I'll make sure it's compatible with standard patterns. Actually, I'll use `AsyncSession` for modern practices, but I'll also provide sync if needed. I'll stick to async as it's standard for FastAPI/Telemedicine apps).
-   - **Pydantic v2:** For request/response models and validation.
-   - **Events to Log:**
-     - Connection (conexão)
-     - Disconnection (desconexão)
-     - Confidentiality agreement acceptance (aceite de termos de sigilo - LGPD/CFM)
-   - **Secure Timestamping:** Use `datetime.now(timezone.utc)` or `datetime.utcnow()` (deprecated, so UTC with timezone). I'll use `datetime.now(timezone.utc)`.
-   - **SUS/APS Standards:** Include fields for CIAP-2, CID-10, SOAP method, CNS, CPF.
-   - **Testing:** Provide pytest tests covering the repository.
+2.  **Analyze Requirements for `AuditoriaTelemedicinaRepository`:**
+   - **Events to log:** Connection, Disconnection, Patient confidentiality agreement acceptance (LGPD/CFM), Secure timestamp.
+   - **Tech Stack:** SQLAlchemy 2.0 (async/sync? Usually async is preferred in modern FastAPI, but I'll stick to sync or async based on common patterns. I'll use async SQLAlchemy 2.0 as it's standard for modern Python backends, but I'll make it clear. Actually, I'll use `async` with `Session` from `sqlalchemy.ext.asyncio` as it's standard, but I'll also provide sync if needed. I'll stick to async for modern stack, but ensure it's clear. Wait, the prompt says "SQLAlchemy 2.0", doesn't specify sync/async. I'll use async as it's standard for FastAPI, but I'll make the repository interface clear.)
+   - **Pydantic v2:** For request/response models or data transfer.
+   - **Strict Typing:** Use `typing` module, type hints.
+   - **Secure Timestamp:** Use `datetime.now(timezone.utc)` or `datetime.utcnow()` (deprecated in 3.12, so `datetime.now(timezone.utc)` is correct).
+   - **Database Model:** Need an `AuditoriaTelemedicina` model/table.
+   - **Repository Methods:** `log_connection`, `log_disconnection`, `log_confidentiality_acceptance`, `get_secure_timestamp`, etc.
 
-3.  **Design Database Model (SQLAlchemy 2.0):**
-   Need a table for audit logs. Let's call it `auditoria_telemedicina`.
-   Fields:
-   - `id`: UUID or Integer (PK)
-   - `tipo_evento`: Enum (CONEXAO, DESCONEXAO, ACEITE_TERMO_SIGILO)
-   - `paciente_cns`: String (nullable)
-   - `paciente_cpf`: String (nullable)
-   - `medico_cpf`: String (nullable)
-   - `codigo_ciap2`: String (nullable)
-   - `codigo_cid10`: String (nullable)
-   - `metodo_soa`: String (nullable) - SOAP method
-   - `aceite_lgpd`: Boolean (nullable)
-   - `aceite_cfm`: Boolean (nullable)
-   - `detalhes`: JSON (nullable) - for extra info
-   - `timestamp_utc`: DateTime (timezone-aware)
-   - `ip_origem`: String (nullable)
-   - `user_agent`: String (nullable)
-   - `status`: String (nullable) - e.g., SUCCESS, FAILED
+3.  **Design the Database Model (`backend/app/models/auditoria_telemedicina.py`):**
+   - Table: `auditoria_telemedicina`
+   - Columns:
+     - `id`: UUID or int (PK)
+     - `consulta_id`: UUID (FK to teleconsultas)
+     - `paciente_id`: UUID (FK to pacientes)
+     - `medico_id`: UUID (FK to medicos)
+     - `evento`: Enum (CONEXAO, DESCONEXAO, ACEITE_SIGILO)
+     - `detalhes`: JSON/Text (optional metadata)
+     - `carimbo_hora_utc`: DateTime (timezone-aware)
+     - `ip_origem`: String (optional)
+     - `created_at`: DateTime
+   - I'll define this model in `backend/app/models/auditoria_telemedicina.py`.
 
-   Let's refine based on requirements:
-   - `tipo_evento`: `conexao`, `desconexao`, `aceite_termo_sigilo`
-   - `paciente_cns`, `paciente_cpf`
-   - `medico_cpf`
-   - `codigo_ciap2`, `codigo_cid10`
-   - `metodo_soa` (SOAP)
-   - `aceite_lgpd`, `aceite_cfm`
-   - `timestamp_utc`
-   - `detalhes` (JSON)
-   - `ip_origem`, `user_agent`
-   - `status`
+4.  **Design the Repository (`backend/app/repositories/auditoria_telemedicina.py`):**
+   - Class: `AuditoriaTelemedicinaRepository`
+   - Constructor: Takes `AsyncSession` (or `Session`)
+   - Methods:
+     - `async log_connection(self, consulta_id, paciente_id, medico_id, ip_origem: str = None) -> None`
+     - `async log_disconnection(self, consulta_id, paciente_id, medico_id, duracao_segundos: int = None) -> None`
+     - `async log_confidentiality_acceptance(self, consulta_id, paciente_id, medico_id, versao_termo: str = "1.0") -> None`
+     - `async get_secure_timestamp(self) -> datetime`
+     - Helper to create event records.
+   - Use SQLAlchemy 2.0 syntax: `insert()`, `select()`, `session.execute()`, `session.commit()`.
+   - Pydantic v2: Maybe define a `AuditoriaEvento` model for type hints, but the prompt says "tipagem estrita Pydantic v2". I'll use Pydantic for data validation/serialization if needed, but for DB operations, SQLAlchemy models are standard. I'll add Pydantic models for DTOs if necessary, or just use strict typing on the repository methods.
 
-   I'll use SQLAlchemy 2.0 declarative style with `Mapped`, `mapped_column`, `MappedAsDataclass` or standard class. I'll use standard class with `__tablename__`.
+5.  **Refine Implementation Details:**
+   - **Secure Timestamp:** `datetime.now(timezone.utc)` is correct. I'll make it a method that returns it, or just use it directly. The prompt says "carimbo de data/hora seguro com SQLAlchemy 2.0", so I'll ensure the DB model uses `server_default=func.now()` or sets it explicitly in Python with timezone awareness.
+   - **Pydantic v2:** I'll create a Pydantic model for the audit event DTO to satisfy the requirement, even if it's just for type hints or response serialization.
+   - **SQLAlchemy 2.0:** Use `Insert`, `Select`, `session.execute()`, `session.commit()`.
+   - **Strict Typing:** Use `from typing import ...`, `Enum`, `UUID`, `datetime`, `Optional`, `AsyncSession`.
+   - **Structure:**
+     ```python
+     # backend/app/models/auditoria_telemedicina.py
+     # backend/app/repositories/auditoria_telemedicina.py
+     # backend/tests/test_auditoria_telemedicina.py
+     ```
 
+   Let's draft the model first:
    ```python
-   from sqlalchemy import String, Boolean, DateTime, JSON, Enum as SAEnum
-   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+   from sqlalchemy import Column, String, DateTime, Enum, ForeignKey, Text, func
+   from sqlalchemy.dialects.postgresql import UUID
+   from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
    from datetime import datetime, timezone
-   import enum
    import uuid
-
-   class EventoTipo(str, enum.Enum):
-       CONEXAO = "conexao"
-       DESCONEXAO = "desconexao"
-       ACEITE_TERMO_SIGILO = "aceite_termo_sigilo"
 
    class Base(DeclarativeBase):
        pass
+
+   class AuditoriaTelemedicinaStatus(str, Enum):
+       CONEXAO = "CONEXAO"
+       DESCONEXAO = "DESCONEXAO"
+       ACEITE_SIGILO = "ACEITE_SIGILO"
 
    class AuditoriaTelemedicina(Base):
        __tablename__ = "auditoria_telemedicina"
 
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       tipo_evento: Mapped[EventoTipo] = mapped_column(SAEnum(EventoTipo), nullable=False)
-       paciente_cns: Mapped[str | None] = mapped_column(String(15), nullable=True)
-       paciente_cpf: Mapped[str | None] = mapped_column(String(14), nullable=True)
-       medico_cpf: Mapped[str | None] = mapped_column(String(14), nullable=True)
-       codigo_ciap2: Mapped[str | None] = mapped_column(String(10), nullable=True)
-       codigo_cid10: Mapped[str | None] = mapped_column(String(10), nullable=True)
-       metodo_soa: Mapped[str | None] = mapped_column(String(50), nullable=True)
-       aceite_lgpd: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-       aceite_cfm: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-       detalhes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-       timestamp_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+       consulta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teleconsultas.id"))
+       paciente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pacientes.id"))
+       medico_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("medicos.id"))
+       evento: Mapped[AuditoriaTelemedicinaStatus] = mapped_column(Enum(AuditoriaTelemedicinaStatus))
+       detalhes: Mapped[dict | None] = mapped_column(Text, nullable=True) # JSON stored as text
+       carimbo_hora_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
        ip_origem: Mapped[str | None] = mapped_column(String(45), nullable=True)
-       user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
-       status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+       created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
    ```
+   Wait, SQLAlchemy 2.0 uses `Mapped` and `mapped_column`. I'll stick to that. For JSON, I'll use `JSON` type or `Text`. I'll use `Text` for simplicity, or `JSON` if available. I'll stick to `Text` and note it's JSON.
 
-4.  **Design Pydantic Models (v2):**
-   Need schemas for creating logs and querying.
+   Now the repository:
    ```python
-   from pydantic import BaseModel, Field, ConfigDict
-   from typing import Optional
-   from datetime import datetime
-   from enum import Enum
-
-   class EventoTipoEnum(str, Enum):
-       CONEXAO = "conexao"
-       DESCONEXAO = "desconexao"
-       ACEITE_TERMO_SIGILO = "aceite_termo_sigilo"
-
-   class AuditoriaCreateSchema(BaseModel):
-       tipo_evento: EventoTipoEnum
-       paciente_cns: Optional[str] = None
-       paciente_cpf: Optional[str] = None
-       medico_cpf: Optional[str] = None
-       codigo_ciap2: Optional[str] = None
-       codigo_cid10: Optional[str] = None
-       metodo_soa: Optional[str] = None
-       aceite_lgpd: Optional[bool] = None
-       aceite_cfm: Optional[bool] = None
-       detalhes: Optional[dict] = None
-       ip_origem: Optional[str] = None
-       user_agent: Optional[str] = None
-       status: Optional[str] = "SUCCESS"
-
-       model_config = ConfigDict(from_attributes=True)
-
-   class AuditoriaReadSchema(AuditoriaCreateSchema):
-       id: uuid.UUID
-       timestamp_utc: datetime
-   ```
-
-5.  **Implement Repository Class:**
-   Needs to interact with SQLAlchemy session. I'll make it async for modern compatibility, but I'll structure it so it's clear. I'll use `AsyncSession` as it's standard for FastAPI. I'll also add methods for each event type.
-   Secure timestamping: I'll ensure `datetime.now(timezone.utc)` is used. I'll also add a method to force timestamp if needed, but default is fine.
-   I'll implement:
-   - `__init__(self, session: AsyncSession)`
-   - `criar_log(self, schema: AuditoriaCreateSchema) -> AuditoriaTelemedicina`
-   - `registrar_conexao(...)`
-   - `registrar_desconexao(...)`
-   - `registrar_aceite_termo(...)`
-   - `buscar_por_paciente(...)`
-   - `buscar_por_medico(...)`
-   - `buscar_por_periodo(...)`
-
-   Let's write the repository code carefully.
-
-   ```python
-   import uuid
+   # backend/app/repositories/auditoria_telemedicina.py
+   from typing import AsyncSession, Optional, Dict, Any
+   from uuid import UUID
    from datetime import datetime, timezone
-   from typing import Optional, List
-   from sqlalchemy import select, update
-   from sqlalchemy.ext.asyncio import AsyncSession
-   from sqlalchemy.orm import Mapped, mapped_column
-   from app.models.base import Base # Assuming Base is defined elsewhere, but I'll define it locally or import it. I'll define it in the same file for completeness as requested.
-   ```
-
-   Wait, the prompt says `backend/app/repositories/auditoria_telemedicina.py`. I should define the model in the same file or import it. I'll define it in the same file for self-containment, but note that in a real project it might be in `models/`. I'll keep it in the same file to ensure it's executable and complete.
-
-   Let's structure the file:
-   - Imports
-   - SQLAlchemy Model
-   - Pydantic Schemas
-   - Repository Class
-   - (Optional) Test file structure
-
-   I'll make sure the repository uses `datetime.now(timezone.utc)` for secure timestamps. I'll also add a method to explicitly set timestamps if needed, but the default is fine.
-
-   Repository implementation details:
-   - Use `session.add()` and `session.commit()` (or `session.flush()` depending on transaction management). I'll use `session.add()` and assume the caller handles commits, or I'll commit inside for simplicity. I'll stick to `session.add()` and `await session.flush()` for better transaction control, but I'll add a `commit` method or just return the object. I'll use `await session.add()` and `await session.commit()` for simplicity in the repo, but note that in FastAPI, sessions are usually committed by the caller. I'll use `await session.add()` and `await session.flush()` and let the caller commit, or I'll just commit inside for the repo to be self-contained. I'll go with `await session.add()` and `await session.commit()` for simplicity, but I'll add a note. Actually, standard practice is to return the object and let the service layer commit. I'll use `await session.add()` and `await session.commit()` inside the repo methods for simplicity, but I'll make it clear.
-
-   Let's refine the repository to be async and use SQLAlchemy 2.0 syntax properly.
-
-   ```python
+   from sqlalchemy import insert, select, func
+   from sqlalchemy.orm import Session
+   from app.models.auditoria_telemedicina import AuditoriaTelemedicina, AuditoriaTelemedicinaStatus
+   from pydantic import BaseModel, Field, field_validator
    import uuid
-   from datetime import datetime, timezone
-   from typing import Optional, List
-   from enum import Enum
-   from sqlalchemy import String, Boolean, DateTime, JSON, Enum as SAEnum, select
-   from sqlalchemy.ext.asyncio import AsyncSession
-   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-   from pydantic import BaseModel, Field, ConfigDict
 
-   # --- SQLAlchemy Model ---
-   class Base(DeclarativeBase):
-       pass
-
-   class EventoTipo(str, Enum):
-       CONEXAO = "conexao"
-       DESCONEXAO = "desconexao"
-       ACEITE_TERMO_SIGILO = "aceite_termo_sigilo"
-
-   class AuditoriaTelemedicina(Base):
-       __tablename__ = "auditoria_telemedicina"
-
-       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       tipo_evento: Mapped[EventoTipo] = mapped_column(SAEnum(EventoTipo), nullable=False)
-       paciente_cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
-       paciente_cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-       medico_cpf: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
-       codigo_ciap2: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       codigo_cid10: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-       metodo_soa: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-       aceite_lgpd: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-       aceite_cfm: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-       detalhes: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-       timestamp_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-       ip_origem: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
-       user_agent: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-       status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-   ```
-
-   Now Pydantic schemas:
-   ```python
-   class AuditoriaCreateSchema(BaseModel):
-       tipo_evento: EventoTipo
-       paciente_cns: Optional[str] = None
-       paciente_cpf: Optional[str] = None
-       medico_cpf: Optional[str] = None
-       codigo_ciap2: Optional[str] = None
-       codigo_cid10: Optional[str] = None
-       metodo_soa: Optional[str] = None
-       aceite_lgpd: Optional[bool] = None
-       aceite_cfm: Optional[bool] = None
-       detalhes: Optional[dict] = None
+   class AuditoriaEventoDTO(BaseModel):
+       consulta_id: UUID
+       paciente_id: UUID
+       medico_id: UUID
+       evento: AuditoriaTelemedicinaStatus
+       detalhes: Optional[Dict[str, Any]] = None
        ip_origem: Optional[str] = None
-       user_agent: Optional[str] = None
-       status: Optional[str] = "SUCCESS"
+       carimbo_hora_utc: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-       model_config = ConfigDict(from_attributes=True)
+       @field_validator('carimbo_hora_utc', mode='before')
+       @classmethod
+       def ensure_utc_timezone(cls, v):
+           if v is None:
+               return datetime.now(timezone.utc)
+           if v.tzinfo is None:
+               return v.replace(tzinfo=timezone.utc)
+           return v
 
-   class AuditoriaReadSchema(AuditoriaCreateSchema):
-       id: uuid.UUID
-       timestamp_utc: datetime
-   ```
-
-   Repository Class:
-   ```python
    class AuditoriaTelemedicinaRepository:
        def __init__(self, session: AsyncSession):
            self.session = session
 
-       async def criar_log(self, schema: AuditoriaCreateSchema) -> AuditoriaTelemedicina:
-           evento = AuditoriaTelemedicina(
-               tipo_evento=schema.tipo_evento,
-               paciente_cns=schema.paciente_cns,
-               paciente_cpf=schema.paciente_cpf,
-               medico_cpf=schema.medico_cpf,
-               codigo_ciap2=schema.codigo_ciap2,
-               codigo_cid10=schema.codigo_cid10,
-               metodo_soa=schema.metodo_soa,
-               aceite_lgpd=schema.aceite_lgpd,
-               aceite_cfm=schema.aceite_cfm,
-               detalhes=schema.detalhes,
-               ip_origem=schema.ip_origem,
-               user_agent=schema.user_agent,
-               status=schema.status,
-               timestamp_utc=datetime.now(timezone.utc) # Secure timestamp
+       async def log_connection(self, consulta_id: UUID, paciente_id: UUID, medico_id: UUID, ip_origem: Optional[str] = None) -> None:
+           evento = AuditoriaEventoDTO(
+               consulta_id=consulta_id,
+               paciente_id=paciente_id,
+               medico_id=medico_id,
+               evento=AuditoriaTelemedicinaStatus.CONEXAO,
+               ip_origem=ip_origem
            )
-           self.session.add(evento)
+           await self._persist_event(evento)
+
+       async def log_disconnection(self, consulta_id: UUID, paciente_id: UUID, medico_id: UUID, duracao_segundos: Optional[int] = None) -> None:
+           detalhes = {"duracao_segundos": duracao_segundos} if duracao_segundos is not None else None
+           evento = AuditoriaEventoDTO(
+               consulta_id=consulta_id,
+               paciente_id=paciente_id,
+               medico_id=medico_id,
+               evento=AuditoriaTelemedicinaStatus.DESCONEXAO,
+               detalhes=detalhes
+           )
+           await self._persist_event(evento)
+
+       async def log_confidentiality_acceptance(self, consulta_id: UUID, paciente_id: UUID, medico_id: UUID, versao_termo: str = "1.0") -> None:
+           detalhes = {"versao_termo": versao_termo, "conformidade": "LGPD / CFM"}
+           evento = AuditoriaEventoDTO(
+               consulta_id=consulta_id,
+               paciente_id=paciente_id,
+               medico_id=medico_id,
+               evento=AuditoriaTelemedicinaStatus.ACEITE_SIGILO,
+               detalhes=detalhes
+           )
+           await self._persist_event(evento)
+
+       async def _persist_event(self, evento: AuditoriaEventoDTO) -> None:
+           stmt = insert(AuditoriaTelemedicina).values(
+               id=uuid.uuid4(),
+               consulta_id=evento.consulta_id,
+               paciente_id=evento.paciente_id,
+               medico_id=evento.medico_id,
+               evento=evento.evento,
+               detalhes=evento.detalhes,
+               ip_origem=evento.ip_origem,
+               carimbo_hora_utc=evento.carimbo_hora_utc
+           )
+           await self.session.execute(stmt)
            await self.session.commit()
-           await self.session.refresh(evento)
-           return evento
 
-       async def registrar_conexao(self, paciente_cns: Optional[str], paciente_cpf: Optional[str],
-                                   medico_cpf: Optional[str], ip_origem: Optional[str],
-                                   user_agent: Optional[str]) -> AuditoriaTelemedicina:
-           schema = AuditoriaCreateSchema(
-               tipo_evento=EventoTipo.CONEXAO,
-               paciente_cns=paciente_cns,
-               paciente_cpf=paciente_cpf,
-               medico_cpf=medico_cpf,
-               ip_origem=ip_origem,
-               user_agent=user_agent,
-               status="SUCCESS"
-           )
-           return await self.criar_log(schema)
+       async def get_secure_timestamp(self) -> datetime:
+           return datetime.now(timezone.utc)
+   ```
 
-       async def registrar_desconexao(self, paciente_cns: Optional[str], paciente_cpf: Optional[str],
-                                      medico_cpf: Optional[str], ip_origem: Optional[str],
-                                      user_agent: Optional[str], status: str = "SUCCESS") -> AuditoriaTelemedicina:
-           schema = AuditoriaCreateSchema(
-               tipo_evento=EventoTipo.DESCONEXAO,
-               paciente_cns=paciente_cns,
-               paciente_cpf=paciente_cpf,
-               medico_cpf=medico_cpf,
-               ip_origem=ip_origem,
-               user_agent=user_agent,
-               status=status
-           )
-           return await self.criar_log(schema)
+   Wait, I need to make sure it's strictly typed and uses Pydantic v2 correctly. The `field_validator` is correct for v2. I'll adjust imports and types to be precise. Also, SQLAlchemy 2.0 recommends `session.execute()` and `session.commit()`. For async, it's `await session.execute()` and `await session.commit()`.
 
-       async def registrar_aceite_termo(self, paciente_cns: Optional[str], paciente_cpf: Optional[str],
-                                        medico_cpf: Optional[str], aceite_lgpd: bool,
-                                        aceite_cfm: bool, detalhes: Optional[dict] = None) -> AuditoriaTelemedicina:
-           schema = AuditoriaCreateSchema(
-               tipo_evento=EventoTipo.ACEITE_TERMO_SIGILO,
-               paciente_cns=paciente_cns,
-               paciente_cpf=paciente_cpf,
-               medico_cpf=medico_cpf,
-               aceite_lgpd=aceite_lgpd,
-               aceite_cfm=aceite_cfm,
-               detalhes=detalhes,
-               status="SUCCESS"
-           )
-           return await self.criar_log(schema)
+   I should also consider that the prompt says "carimbo de data/hora seguro com SQLAlchemy 2.0". This might imply using `server_default=func.now()` or explicitly setting it. I'll explicitly set it in Python with `timezone.utc` for security and consistency, which is standard practice.
 
-       async def buscar_por_paciente(self, paciente_cpf: Optional[str] = None, paciente_cns: Optional[str] = None) -> List[AuditoriaTelemedicina]:
-           stmt = select(AuditoriaTelemedicina)
-           if paciente_cpf:
-               stmt = stmt.where(AuditoriaTelemedicina.paciente_cpf == paciente_cpf)
-           if paciente_cns:
-               stmt = stmt.where(AuditoriaTelemedicina.paciente_cns == paciente_cns)
-           stmt = stmt.order_by(AuditoriaTelemedicina.timestamp_utc.desc())
-           result = await self.session.execute(stmt)
-           return list(result.scalars().all())
+   Let's refine the repository to be more robust and strictly typed:
+   - Use `typing` properly.
+   - Ensure Pydantic v2 compatibility.
+   - Add docstrings.
+   - Handle potential errors? The prompt says "código de produção apenas", so I'll keep it clean and production-ready.
 
-       async def buscar_por_medico(self, medico_cpf: str) -> List[AuditoriaTelemedicina]:
-           stmt = select(AuditoriaTelemedicina).where(AuditoriaTelemedicina.medico_cpf == medico_cpf).order_by(AuditoriaTelemedicina.timestamp_utc.desc())
-           result = await self.session.execute(stmt)
-           return list(result.scalars
+   Now, I need to provide the test suite as well, since it says "Preservar 100% da suíte de testes verde." I'll create a test file that mocks the session and tests the repository methods.
+
+   Test file structure:
+   ```python
+   # backend/tests/test_auditoria_telemedicina.py
+   import pytest
+   from unittest.mock import AsyncMock, MagicMock
+   from uuid import uuid4
+   from datetime import datetime, timezone
+   from app.repositories.auditoria_telemedicina import AuditoriaTelemedicinaRepository, AuditoriaEventoDTO
+   from app.models.auditoria_telemedicina import AuditoriaTelemedicinaStatus
+
+   @pytest.fixture
+   def mock_session():
+       session = AsyncMock()
+       session.execute = AsyncMock()
+       session.commit = AsyncMock()
+       return session
+
+   @pytest.fixture
+   def repository(mock_session):
+       return AuditoriaTelemedicinaRepository(session=mock_session)
+
+   @pytest.mark.asyncio
+   async def test_log_connection(repository, mock_session):
+       consulta_id = uuid4()
+       paciente_id = uuid4()
+       medico_id = uuid4()
+       ip = "192.168.1.1"
+
+       await repository.log_connection(consulta_id, paciente_id, medico_id, ip)
+
+       mock_session.execute.assert_called_once()
+       mock_session.commit.assert_called_once()
+       # Verify the statement contains correct values
+       call_args = mock_session.execute.call_args[0][0]
+       assert call_args._values["evento"] == AuditoriaTelemedicinaStatus.CONEXAO
+       assert call_args._values["ip_origem"] == ip
+
+   # ... other tests
+   ```
+
+   I need to make sure the tests are robust and match SQLAlchemy 2.0's `insert()` behavior. `insert()` returns an `Insert` object. Checking `_values` might be implementation-specific. Better to just verify that `execute` and `commit` were called, and maybe use a more reliable assertion or just trust the mock. For production-grade tests, I'll use `pytest-asyncio` and mock the session properly. I'll also add tests for `log_disconnection`, `log_confidentiality_acceptance`, and `get_secure_timestamp`.
+
+   Let's adjust the test to be more standard and reliable:
+   ```python
+   import pytest
+   from unittest.mock import AsyncMock, call
+   from uuid import uuid4
+   from datetime import datetime, timezone
+   from app.repositories.auditoria_telemedicina import AuditoriaTelemedicinaRepository
+   from app.models.auditoria_telemedicina import AuditoriaTelemedicinaStatus
+
+   @pytest.fixture
+   def mock_session():
+       session = AsyncMock()
+       session.execute = AsyncMock()
+       session.commit = AsyncMock()
+       return session
+
+   @pytest.fixture
+   def repository(mock_session):
+       return AuditoriaTelemedicinaRepository(session=mock_session)
+
+   @pytest.mark.asyncio
+   async def test_log_connection_calls_execute_and_commit(repository, mock_session):
+       consulta_id = uuid4()
+       paciente_id = uuid4()
+       medico_id = uuid4()
+       ip = "10.0.0.1"
+
+       await repository.log_connection(consulta_id, paciente_id, medico_id, ip)
+
+       mock_session.execute.assert_called_once()
+       mock_session.commit.assert_called_once()
+
+   @pytest.mark.asyncio
+   async def test_log_disconnection_calls_execute_and_commit(repository, mock_session):
+       consulta_id = uuid4()
+       paciente_id = uuid4()
+       medico_id = uuid4()
+       duracao = 300
+
+       await repository.log_disconnection(consulta_id, paciente_id, medico_id, duracao)
+
+       mock_session.execute.assert_called_once()
+       mock_session.commit.assert_called_once()
+
+   @pytest.mark.asyncio
+   async def test_log_confidentiality_acceptance_calls_execute_and_commit(repository, mock_session):
+       consulta_id = uuid4()
+       paciente_id = uuid4()
+       medico_id = uuid4()
+
+       await repository.log_confidentiality_acceptance(consulta_id, paciente_id, medico_id, "2.1")
+
+       mock_session.execute.assert_called_once()
+       mock_session.commit.assert_called_once()
+
+   @pytest.mark.asyncio
+   async def test_get_secure_timestamp_returns_utc(repository):
+       ts = await repository.get_secure_timestamp()
+       assert ts.tzinfo is not None
+       assert ts.tzinfo == timezone.utc
+   ```
+
+   This looks solid. Now, I need to ensure the model and repository are correctly structured and follow all constraints.
+
+   Let's review constraints:
+   - Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0.
+   - No SUS/SISAB or IoT.
+   - Production code in `backend/app/`, tests in `backend/tests/`.
+   - Complete and executable.
+   - Specify file paths.
+
+   I'll structure the response with three files:
+   1. `backend/app/models/auditoria_telemedicina.py` (Model)
+   2. `backend/app/repositories/auditoria_telemedicina.py` (Repository)
+   3. `backend/tests/test_auditoria_telemedicina.py` (Tests)
+
+   I'll make sure the code is self-contained, uses correct imports, and follows modern Python/SQLAlchemy/Pydantic standards.
+
+   One detail: SQLAlchemy 2.0 `insert()` returns an `Insert` object. To verify values in tests, I can use `call_args[0][0]._select_args` or just rely on the fact that it's a mock. For simplicity and reliability in tests, I'll just assert `execute` and `commit` were called. I'll also add a test that verifies the Pydantic model validation works correctly.
+
+   Let's refine the repository to be strictly typed and production-ready:
+   - Use `typing` module.
+   - Use `datetime.now(timezone.utc)` for secure timestamp.
+  

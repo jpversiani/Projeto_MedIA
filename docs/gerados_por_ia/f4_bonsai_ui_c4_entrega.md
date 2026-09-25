@@ -1,307 +1,236 @@
-```html:backend/app/static/monitor_sisab.html
+```html:backend/app/static/painel_convenios.html
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="min-h-screen bg-slate-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoramento SISAB (C4) - Remessas</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Painel Convenios e Recibos de Reembolso — MedIA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #0056b3;
-            --secondary: #003366;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f0f1f5; }
+        .glass-panel {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--light);
-            color: var(--dark);
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        header {
-            background-color: var(--primary);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+        .glass-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
         .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .stat-card h3 {
-            color: var(--primary);
-            margin: 0;
-            font-size: 18px;
-        }
-        .stat-card p {
-            margin: 5px 0 0 0;
-            color: #666;
-        }
-        .graph-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .graph-container h2 {
-            color: var(--secondary);
-            margin-top: 0;
-        }
-        .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .invoice-table th, .invoice-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        .invoice-table th {
-            background-color: var(--primary);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 14px;
+            padding: 24px;
             color: white;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.25);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .invoice-table tr:hover {
-            background-color: #f5f5f5;
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99,102,241,0.35);
         }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
+        .stat-card.green {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
         }
-        .badge-success {
-            background-color: #d4edda;
-            color: #155724;
+        .stat-card.red {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
         }
-        .badge-warning {
-            background-color: #fff3cd;
-            color: #856404;
+        .stat-card.amber {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
         }
-        .badge-danger {
-            background-color: #f8d7da;
-            color: #721c24;
+        .stat-card.blue {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         }
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
+        .stat-card.purple {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
         }
-        button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
+        .stat-card.teal {
+            background: linear-gradient(135deg, #0891b2 0%, #14b8a6 100%);
         }
-        button:hover {
-            opacity: 0.9;
+        .stat-card.cyan {
+            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);
         }
-        button.retransmit {
-            background-color: var(--danger);
-            color: white;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #db2777 0%, #f43f5e 100%);
         }
-        button.retransmit:hover {
-            background-color: #c82333;
+        .stat-card.emerald {
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%);
         }
-        button.refresh {
-            background-color: var(--primary);
-            color: white;
+        .stat-card.slate {
+            background: linear-gradient(135deg, #374151 0%, #64748b 100%);
         }
-        button.refresh:hover {
-            background-color: #004494;
+        .stat-card.amber {
+            background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
         }
-        .status-bar {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-size: 14px;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .status-bar .live {
-            color: var(--success);
+        .stat-card.pink {
+            background: linear-gradient(135deg, #7f1d1d 0%, #ec4899 100%);
         }
-        .status-bar .error {
-            color: var(--danger);
+        .stat-card.violet {
+            background: linear-gradient(135deg, #581c87 0%, #c084fc 100%);
         }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: #666;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .filter-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        select, input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .error-message {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            color: white;
-            z-index: 1000;
-            transform: translateX(150%);
-            transition: transform 0.3s ease;
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .notification.show {
-            transform: translateX(0);
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .notification.success {
-            background-color: var(--success);
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-        .notification.error {
-            background-color: var(--danger);
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
         }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Monitoramento SISAB (C4) - Remessas</h1>
-            <p>Visualização em tempo real de fichas geradas e controle de retransmissão</p>
-        </header>
-
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Total Remessas</h3>
-                <p id="totalRemessas">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Em Processo</h3>
-                <p id="emProcesso">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Com Erro</h3>
-                <p id="comErro">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Último Atualizado</h3>
-                <p id="lastUpdated">-</p>
-            </div>
-        </div>
-
-        <div class="filter-controls">
-            <select id="statusFilter">
-                <option value="all">Todos os Estados</option>
-                <option value="pending">Em Processo</option>
-                <option value="completed">Concluídos</option>
-                <option value="failed">Com Erro</option>
-            </select>
-            <select id="monthFilter">
-                <option value="all">Todos os Mês</option>
-                <option value="2024-01">Jan 2024</option>
-                <option value="2024-02">Feb 2024</option>
-                <option value="2024-03">Mar 2024</option>
-                <option value="2024-04">Apr 2024</option>
-                <option value="2024-05">May 2024</option>
-                <option value="2024-06">Jun 2024</option>
-                <option value="2024-07">Jul 2024</option>
-                <option value="2024-08">Aug 2024</option>
-                <option value="2024-09">Sep 2024</option>
-                <option value="2024-10">Oct 2024</option>
-                <option value="2024-11">Nov 2024</option>
-                <option value="2024-12">Dec 2024</option>
-            </select>
-            <button class="refresh" onclick="refreshData()">🔄 Atualizar</button>
-        </div>
-
-        <div class="graph-container">
-            <h2>Gráficos de Envios Mensais</h2>
-            <canvas id="monthlyGraph"></canvas>
-        </div>
-
-        <div class="invoice-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID da Fatura</th>
-                        <th>CNPJ/CNPJ</th>
-                        <th>Valor</th>
-                        <th>Estado</th>
-                        <th>Data de Geração</th>
-                        <th>Erro</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="invoiceTableBody">
-                    <!-- Dados serão carregados aqui -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="error-message" id="errorMessage"></div>
-
-        <div class="status-bar">
-            <span class="live">● Sistema em tempo real - Atualização automática a cada 5 segundos</span>
-        </div>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <script>
-        // Simulação de dados para demonstração
-        const mockData = [
-            { id: 'FAT-001', cnpj: '123456789000', value: 1500.00, status: 'completed', date: '2024-01-15', error: null, month: '2024-01' },
-            { id: 'FAT-002', cnpj: '098765432100', value: 2300.50, status: 'pending', date: '2024-01-16', error: null, month: '2024-01' },
-            { id: 'FAT-003', cnpj: '112233445566', value: 800.00, status: 'failed', date: '2024-01-17', error: 'Timeout na API', month: '2024-01' },
-            { id: 'FAT-004', cnpj: '998877665544', value: 3200.00, status: 'completed', date: '2024-02-01', error: null, month:
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(

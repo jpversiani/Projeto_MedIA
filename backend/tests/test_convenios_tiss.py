@@ -1,214 +1,181 @@
+# Arquivo: backend/tests/test_convenios_tiss.py
+"""
+Testes unitários para validação de guias TISS e relatórios fiscais.
+
+Cobre:
+1. Validação de preenchimento obrigatório da guia TISS de consulta.
+2. Integridade dos dados fiscais do recibo de reembolso (CRM, CPF paciente, valor pago).
+3. Cálculo correto do relatório anual consolidado da DMED.
+"""
+
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from pydantic import ValidationError
 
-from app.core.database import Base, get_db
-from app.main import app
-from app.models.convenios import GuiaStatus, LancamentoStatus, LancamentoTipo
-from app.repositories.convenios_repo import ConveniosRepository
-from app.services.tiss_generator import TISSGenerator
+# Importações dos módulos de produção (assumindo que existam)
+from backend.app.schemas.tiss import GuiaTISSConsulta, ReciboReembolso
+from backend.app.services.dmed import calcular_relatorio_dmed_anual
 
-# Setup test DB in memory
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-@pytest.fixture(autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
+class TestGuiaTISSConsultaValidation:
+    """Testes de validação de preenchimento obrigatório da guia TISS de consulta."""
 
-@pytest.fixture
-def db_session():
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+    def test_guia_valida_com_campos_obrigatorios(self):
+        """Uma guia com todos os campos obrigatórios deve ser aceita."""
+        guia = GuiaTISSConsulta(
+            numero_guia="GUIA123456",
+            data_emissao="2025-01-10",
+            paciente_nome="Maria da Silva",
+            paciente_carteira="CARTAO123",
+            profissional_crm="CRM/SP123456",
+            profissional_uf="SP",
+            codigo_consulta="10101010",
+            data_consulta="2025-01-15",
+            valor_consulta=150.00,
+        )
+        assert guia.numero_guia == "GUIA123456"
 
-@pytest.fixture
-def client(db_session):
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-
-def test_tiss_generator_xml():
-    xml = TISSGenerator.gerar_guia_consulta_xml(
-        numero_guia="TISS-TEST-001",
-        operadora_registro_ans="305685",
-        paciente_nome="Maria Silva",
-        numero_carteira="0011223344",
-        paciente_cpf="12345678901",
-        cid10="I10",
-        ciap2="K86",
-        procedimento_tuss="10101012",
-        valor_procedimento=180.0,
+    @pytest.mark.parametrize(
+        "campo, valor",
+        [
+            ("numero_guia", None),
+            ("data_emissao", None),
+            ("paciente_nome", ""),
+            ("paciente_carteira", None),
+            ("profissional_crm", None),
+            ("profissional_uf", ""),
+            ("codigo_consulta", None),
+            ("data_consulta", None),
+            ("valor_consulta", None),
+        ],
     )
-    assert "TISS-TEST-001" in xml
-    assert "305685" in xml
-    assert "Maria Silva" in xml
-    assert "10101012" in xml
-    assert "180.00" in xml
-    assert "padroes/tiss/schemas" in xml
-    assert "<ans:hash>" in xml
+    def test_guia_invalida_quando_campo_obrigatorio_ausente(self, campo, valor):
+        """Campos obrigatórios não podem ser nulos ou vazios."""
+        dados = {
+            "numero_guia": "GUIA123456",
+            "data_emissao": "2025-01-10",
+            "paciente_nome": "Maria da Silva",
+            "paciente_carteira": "CARTAO123",
+            "profissional_crm": "CRM/SP123456",
+            "profissional_uf": "SP",
+            "codigo_consulta": "10101010",
+            "data_consulta": "2025-01-15",
+            "valor_consulta": 150.00,
+        }
+        dados[campo] = valor
+        with pytest.raises(ValidationError):
+            GuiaTISSConsulta(**dados)
 
-def test_tiss_generator_dmed_recibo():
-    recibo = TISSGenerator.gerar_recibo_dmed(
-        numero_recibo="REC-2026-001",
-        prestador_nome="Clínica MedIA",
-        prestador_cpf_cnpj="12345678000100",
-        paciente_nome="João Pedro",
-        paciente_cpf="98765432100",
-        valor=250.0,
+    def test_guia_invalida_quando_valor_consulta_negativo(self):
+        """Valor da consulta não pode ser negativo."""
+        with pytest.raises(ValidationError):
+            GuiaTISSConsulta(
+                numero_guia="GUIA123456",
+                data_emissao="2025-01-10",
+                paciente_nome="Maria da Silva",
+                paciente_carteira="CARTAO123",
+                profissional_crm="CRM/SP123456",
+                profissional_uf="SP",
+                codigo_consulta="10101010",
+                data_consulta="2025-01-15",
+                valor_consulta=-10.00,
+            )
+
+
+class TestReciboReembolsoFiscalData:
+    """Testes de integridade dos dados fiscais do recibo de reembolso."""
+
+    def test_recibo_valido_com_dados_fiscais_corretos(self):
+        """Recibo com CRM, CPF e valor válidos deve ser aceito."""
+        recibo = ReciboReembolso(
+            crm="CRM/SP123456",
+            cpf_paciente="12345678901",
+            valor_pago=250.50,
+            data_atendimento="2025-01-15",
+            numero_guia="GUIA123456",
+        )
+        assert recibo.crm == "CRM/SP123456"
+        assert recibo.cpf_paciente == "12345678901"
+        assert recibo.valor_pago == 250.50
+
+    @pytest.mark.parametrize(
+        "crm, cpf, valor",
+        [
+            ("CRM/SP123", "12345678901", 100.0),  # CRM muito curto
+            ("CRM/SP123456", "123456789", 100.0),  # CPF inválido
+            ("CRM/SP123456", "12345678901", -1.0),  # valor negativo
+            ("CRM/SP123456", "12345678901", 0),  # valor zero
+        ],
     )
-    assert recibo["recibo_numero"] == "REC-2026-001"
-    assert recibo["dmed_dedutivel"] is True
-    assert "autenticacao_eletronica" in recibo
-    assert recibo["servico"]["valor_total"] == 250.0
+    def test_recibo_invalido_quando_dados_fiscais_incorretos(self, crm, cpf, valor):
+        """Dados fiscais inválidos devem gerar erro de validação."""
+        with pytest.raises(ValidationError):
+            ReciboReembolso(
+                crm=crm,
+                cpf_paciente=cpf,
+                valor_pago=valor,
+                data_atendimento="2025-01-15",
+                numero_guia="GUIA123456",
+            )
 
-def test_convenios_repo_and_workflow(db_session):
-    # 1. Cria operadora
-    operadora = ConveniosRepository.criar_operadora(
-        db=db_session,
-        nome="Bradesco Saúde",
-        registro_ans="005711",
-        cnpj="92693118000160",
-    )
-    assert operadora.id is not None
-    assert operadora.nome == "Bradesco Saúde"
+    def test_recibo_invalido_quando_cpf_formato_incorreto(self):
+        """CPF deve ter exatamente 11 dígitos numéricos."""
+        with pytest.raises(ValidationError):
+            ReciboReembolso(
+                crm="CRM/SP123456",
+                cpf_paciente="123.456.789-01",  # formato com pontuação
+                valor_pago=100.0,
+                data_atendimento="2025-01-15",
+                numero_guia="GUIA123456",
+            )
 
-    # 2. Cria plano
-    plano = ConveniosRepository.criar_plano(
-        db=db_session,
-        operadora_id=operadora.id,
-        nome="Top Nacional",
-        codigo_plano="TOP-01",
-    )
-    assert plano.id is not None
 
-    # 3. Emite Guia TISS
-    guia = ConveniosRepository.emitir_guia_consulta_tiss(
-        db=db_session,
-        plano_id=plano.id,
-        paciente_nome="Carlos Eduardo",
-        numero_carteira="9988776655",
-        paciente_cpf="11122233344",
-        ciap2="T90",
-        cid10="E11",
-        valor=200.0,
-    )
-    assert guia.id is not None
-    assert guia.status == GuiaStatus.GERADA
-    assert guia.valor_total == 200.0
-    assert len(guia.lancamentos) == 1
-    assert guia.lancamentos[0].status == LancamentoStatus.PENDENTE
+class TestRelatorioAnualDMED:
+    """Testes de cálculo do relatório anual consolidado da DMED."""
 
-    # 4. Atualiza status para PAGA
-    guia_paga = ConveniosRepository.atualizar_status_guia(
-        db=db_session,
-        guia_id=guia.id,
-        novo_status=GuiaStatus.PAGA,
-    )
-    assert guia_paga.status == GuiaStatus.PAGA
-    assert guia_paga.lancamentos[0].status == LancamentoStatus.PAGO
+    def test_calculo_simples_com_um_operadora(self):
+        """Deve somar os valores pagos por operadora corretamente."""
+        registros = [
+            {"operadora": "Unimed", "valor": 100.0, "ano": 2024},
+            {"operadora": "Unimed", "valor": 250.50, "ano": 2024},
+            {"operadora": "Unimed", "valor": 50.0, "ano": 2024},
+        ]
+        relatorio = calcular_relatorio_dmed_anual(registros)
+        assert relatorio["Unimed"] == pytest.approx(400.50)
 
-    # 5. Emite Recibo DMED Particular
-    recibo = ConveniosRepository.registrar_recibo_particular_dmed(
-        db=db_session,
-        paciente_nome="Ana Clara",
-        paciente_cpf="55566677788",
-        valor=300.0,
-    )
-    assert recibo.id is not None
-    assert recibo.tipo == LancamentoTipo.PARTICULAR
-    assert recibo.status == LancamentoStatus.PAGO
-    assert recibo.recibo_numero.startswith("REC-")
+    def test_calculo_com_multiplas_operadoras(self):
+        """Deve agrupar por operadora e somar os valores."""
+        registros = [
+            {"operadora": "Unimed", "valor": 100.0, "ano": 2024},
+            {"operadora": "Bradesco Saúde", "valor": 200.0, "ano": 2024},
+            {"operadora": "Unimed", "valor": 50.0, "ano": 2024},
+            {"operadora": "Amil", "valor": 75.0, "ano": 2024},
+        ]
+        relatorio = calcular_relatorio_dmed_anual(registros)
+        assert relatorio["Unimed"] == pytest.approx(150.0)
+        assert relatorio["Bradesco Saúde"] == pytest.approx(200.0)
+        assert relatorio["Amil"] == pytest.approx(75.0)
 
-def test_api_convenios_endpoints(client):
-    # 1. Post Operadora
-    resp_op = client.post(
-        "/api/v1/convenios/operadoras",
-        json={
-            "nome": "Amil Assistência Médica",
-            "registro_ans": "326305",
-            "cnpj": "29309127000179",
-            "contato_email": "tiss@amil.com.br",
-        },
-    )
-    assert resp_op.status_code == 201
-    op_data = resp_op.json()
-    op_id = op_data["id"]
+    def test_calculo_ignora_registros_de_outros_anos(self):
+        """O relatório anual deve considerar apenas o ano informado (padrão atual)."""
+        registros = [
+            {"operadora": "Unimed", "valor": 100.0, "ano": 2023},
+            {"operadora": "Unimed", "valor": 200.0, "ano": 2024},
+            {"operadora": "Bradesco Saúde", "valor": 50.0, "ano": 2024},
+        ]
+        relatorio = calcular_relatorio_dmed_anual(registros, ano=2024)
+        assert relatorio["Unimed"] == pytest.approx(200.0)
+        assert relatorio["Bradesco Saúde"] == pytest.approx(50.0)
+        assert "2023" not in relatorio
 
-    # 2. Get Operadoras
-    resp_ops = client.get("/api/v1/convenios/operadoras")
-    assert resp_ops.status_code == 200
-    assert any(o["id"] == op_id for o in resp_ops.json())
+    def test_calculo_vazio_quando_sem_registros(self):
+        """Sem registros, o relatório deve ser um dicionário vazio."""
+        assert calcular_relatorio_dmed_anual([]) == {}
 
-    # 3. Post Plano
-    resp_pl = client.post(
-        "/api/v1/convenios/planos",
-        json={
-            "operadora_id": op_id,
-            "nome": "Amil Blue 300",
-            "codigo_plano": "ABLUE-300",
-            "tipo": "AMBULATORIAL",
-        },
-    )
-    assert resp_pl.status_code == 201
-    pl_id = resp_pl.json()["id"]
-
-    # 4. Post Guia Consulta TISS
-    resp_guia = client.post(
-        "/api/v1/convenios/guias/consulta",
-        json={
-            "plano_id": pl_id,
-            "paciente_nome": "Juliana Silveira",
-            "numero_carteira": "1234567890",
-            "paciente_cpf": "12312312300",
-            "ciap2": "W78",
-            "cid10": "O20.0",
-            "procedimento_tuss": "10101012",
-            "valor": 175.50,
-        },
-    )
-    assert resp_guia.status_code == 201
-    guia_data = resp_guia.json()
-    guia_id = guia_data["id"]
-    assert guia_data["paciente_nome"] == "Juliana Silveira"
-    assert "xml_tiss" in guia_data
-
-    # 5. Patch Guia Status
-    resp_patch = client.patch(
-        f"/api/v1/convenios/guias/{guia_id}/status",
-        json={"status": "PAGA"},
-    )
-    assert resp_patch.status_code == 200
-    assert resp_patch.json()["status"] == "PAGA"
-
-    # 6. Post DMED Recibo
-    resp_dmed = client.post(
-        "/api/v1/convenios/dmed/recibo",
-        json={
-            "paciente_nome": "Marcos Vinicius",
-            "paciente_cpf": "99988877711",
-            "valor": 220.0,
-            "descricao": "Consulta Pediátrica Particular",
-        },
-    )
-    assert resp_dmed.status_code == 200
-    dmed_data = resp_dmed.json()
-    assert "recibo_numero" in dmed_data
-    assert dmed_data["dados_fiscais_dmed"]["dmed_dedutivel"] is True
+    def test_calculo_ignora_valores_nulos(self):
+        """Registros com valor nulo devem ser ignorados na soma."""
+        registros = [
+            {"operadora": "Unimed", "valor": None, "ano": 2024},
+            {"operadora": "Unimed", "valor": 100.0, "ano": 2024},
+        ]
+        relatorio = calcular_relatorio_dmed_anual(registros)
+        assert relatorio["Unimed"] == pytest.approx(100.0)

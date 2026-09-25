@@ -1,389 +1,344 @@
-```python:backend/app/static/sync_status.html
+```html:backend/app/static/sync_status.html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sincronização ACS — Atenção Domicilar</title>
+    <title>Sync Status — Atenção Domicilar</title>
     <style>
-        :root {
-            --color-primary: #0056b3;
-            --color-primary-light: #1a73e8;
-            --color-success: #28a745;
-            --color-warning: #ffc107;
-            --color-danger: #dc3545;
-            --color-info: #17a2b8;
-            --color-bg: #f8f9fa;
-            --color-card: #ffffff;
-            --color-text: #212529;
-            --color-text-light: #6c757d;
-            --color-border: #dee2e6;
-            --color-header: #0d47a1;
-            --radius: 12px;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
-            --shadow-lg: 0 8px 30px rgba(0,0,0,0.15);
-        }
+        /* ── Reset & Base ──────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg:          #0f1117;
+            --surface:     #1a1d27;
+            --surface2:    #232833;
+            --border:      #2e3545;
+            --text:        #e2e8f0;
+            --text-muted:  #94a3b8;
+            --accent:      #3b82f6;
+            --accent-glow: rgba(59, 130, 246, .15);
+            --success:     #10b981;
+            --success-glow: rgba(16, 185, 129, .15);
+            --warning:     #f59e0b;
+            --warning-glow: rgba(245, 158, 11, .15);
+            --danger:      #ef4444;
+            --danger-glow: rgba(239, 68, 68, .15);
+            --radius:      12px;
+            --font:        'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--color-bg);
-            color: var(--color-text);
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        .page-header {
-            background: linear-gradient(135deg, var(--color-header), var(--color-primary));
-            color: white;
-            padding: 24px 32px;
-            box-shadow: var(--shadow-md);
-        }
-
-        .page-header h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
+        /* ── Header ────────────────────────────────────────── */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
         }
 
-        .page-header h1 .icon {
-            font-size: 1.8rem;
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
         }
 
-        .page-header .subtitle {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 4px;
+        .header-brand .logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: #fff;
         }
 
-        .page-header .badge-cns {
-            background: rgba(255,255,255,0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-family: monospace;
-            font-weight: 600;
+        .header-brand h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 24px;
-        }
+        .header-brand h1 span { color: var(--accent); }
 
         .header-actions {
             display: flex;
+            gap: .5rem;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .header-actions .search-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--color-card);
-            border: 1px solid var(--color-border);
-            border-radius: 50px;
-            padding: 8px 16px;
-        }
-
-        .search-bar input {
-            border: none;
-            outline: none;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            width: 200px;
-        }
-
-        .search-bar .icon {
-            color: var(--color-text-light);
         }
 
         .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 600;
+            padding: .5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface2);
+            color: var(--text);
+            font-size: .85rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            transition: all .2s;
+            font-family: inherit;
         }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
 
         .btn-primary {
-            background: var(--color-primary);
-            color: white;
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
         }
 
-        .btn-primary:hover {
-            background: var(--color-primary-light);
-            transform: translateY(-1px);
+        .btn-primary:hover { opacity: .9; }
+
+        .btn-danger { border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: var(--danger-glow); }
+
+        .btn-success { border-color: var(--success); color: var(--success); }
+        .btn-success:hover { background: var(--success-glow); }
+
+        /* ── Main Layout ───────────────────────────────────── */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
         }
 
-        .btn-secondary {
-            background: var(--color-card);
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
-        }
-
-        .btn-secondary:hover {
-            background: var(--color-bg);
-        }
-
-        .btn-danger {
-            background: var(--color-danger);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-success {
-            background: var(--color-success);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #1e8439;
-        }
-
-        .btn-sm {
-            padding: 4px 10px;
-            font-size: 0.75rem;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .status-card {
-            background: var(--color-card);
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: var(--shadow-sm);
-            border-left: 4px solid var(--color-primary);
-            transition: all 0.3s;
-        }
-
-        .status-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }
-
-        .status-card.success {
-            border-left-color: var(--color-success);
-        }
-
-        .status-card.warning {
-            border-left-color: var(--color-warning);
-        }
-
-        .status-card.danger {
-            border-left-color: var(--color-danger);
-        }
-
-        .status-card.info {
-            border-left-color: var(--color-info);
-        }
-
-        .status-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .status-card-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--color-text);
-        }
-
-        .status-card-status {
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-card-status.success {
-            background: rgba(40,167,69,0.1);
-            color: var(--color-success);
-        }
-
-        .status-card-status.warning {
-            background: rgba(255,193,7,0.1);
-            color: #856404;
-        }
-
-        .status-card-status.danger {
-            background: rgba(220,53,69,0.1);
-            color: var(--color-danger);
-        }
-
-        .status-card-status.info {
-            background: rgba(23,162,184,0.1);
-            color: var(--color-info);
-        }
-
-        .status-card-body {
+        .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
 
-        .status-card-item {
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Card ──────────────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            transition: border-color .2s;
+        }
+
+        .card:hover { border-color: var(--accent); }
+
+        .card-title {
+            font-size: .9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .card-title .icon {
+            font-size: 1.1rem;
+        }
+
+        /* ── Connection Status Cards ───────────────────────── */
+        .conn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: .75rem;
+        }
+
+        .conn-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            text-align: center;
+            transition: all .3s;
+        }
+
+        .conn-card:hover { transform: translateY(-2px); }
+
+        .conn-card .status-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin: 0 auto .6rem;
+        }
+
+        .conn-card.connected .status-icon {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, .3);
+        }
+
+        .conn-card.syncing .status-icon {
+            background: var(--warning-glow);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, .3);
+            animation: pulse 1.5s infinite;
+        }
+
+        .conn-card.disconnected .status-icon {
+            background: var(--danger-glow);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, .3);
+        }
+
+        .conn-card .status-label {
+            font-size: .8rem;
+            font-weight: 600;
+            margin-bottom: .25rem;
+        }
+
+        .conn-card.connected .status-label { color: var(--success); }
+        .conn-card.syncing .status-label { color: var(--warning); }
+        .conn-card.disconnected .status-label { color: var(--danger); }
+
+        .conn-card .status-detail {
+            font-size: .75rem;
+            color: var(--text-muted);
+        }
+
+        .conn-card .last-sync {
+            font-size: .7rem;
+            color: var(--text-muted);
+            margin-top: .4rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: .4; }
+        }
+
+        /* ── Upload Progress ───────────────────────────────── */
+        .upload-list {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: .75rem;
         }
 
-        .status-card-item .label {
-            font-size: 0.75rem;
-            color: var(--color-text-light);
+        .upload-item {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .75rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        .upload-item .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .upload-item .file-name {
+            font-size: .85rem;
             font-weight: 500;
-        }
-
-        .status-card-item .value {
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
-
-        .status-card-item .value.cns {
-            font-family: monospace;
-            color: var(--color-primary);
-        }
-
-        .status-card-item .value.cpf {
-            font-family: monospace;
-            color: var(--color-primary);
-        }
-
-        .progress-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .progress-card {
-            background: var(--color-card);
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .progress-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .progress-card-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-
-        .progress-card-title .badge {
-            background: var(--color-primary);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-
-        .progress-card .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--color-border);
-            border-radius: 4px;
+            white-space: nowrap;
             overflow: hidden;
-            margin-bottom: 12px;
+            text-overflow: ellipsis;
         }
 
-        .progress-card .progress-fill {
+        .upload-item .file-meta {
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin-top: .15rem;
+        }
+
+        .upload-item .progress-track {
+            flex: 1;
+            min-width: 100px;
+            height: 6px;
+            background: var(--surface);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .upload-item .progress-fill {
             height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
+            border-radius: 3px;
+            transition: width .4s ease;
         }
 
-        .progress-card .progress-fill.success { background: var(--color-success); }
-        .progress-card .progress-fill.warning { background: var(--color-warning); }
-        .progress-card .progress-fill.danger { background: var(--color-danger); }
-        .progress-card .progress-fill.info { background: var(--color-info); }
+        .upload-item .progress-fill.done { background: var(--success); }
+        .upload-item .progress-fill.active { background: var(--accent); }
+        .upload-item .progress-fill.error { background: var(--danger); }
 
-        .progress-card .progress-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: var(--color-text-light);
+        .upload-item .progress-pct {
+            font-size: .75rem;
+            color: var(--text-muted);
+            min-width: 48px;
+            text-align: right;
         }
 
-        .progress-card .progress-info .value {
-            color: var(--color-text);
+        .upload-item .upload-status {
+            font-size: .75rem;
             font-weight: 600;
+            padding: .2rem .6rem;
+            border-radius: 20px;
         }
 
-        .logs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+        .upload-status.success {
+            background: var(--success-glow);
+            color: var(--success);
         }
 
-        .log-card {
-            background: var(--color-card);
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: var(--shadow-sm);
+        .upload-status.active {
+            background: var(--accent-glow);
+            color: var(--accent);
         }
 
-        .log-card-header {
+        .upload-status.error {
+            background: var(--danger-glow);
+            color: var(--danger);
+        }
+
+        /* ── Transmission Log ──────────────────────────────── */
+        .log-list {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .log-card-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-
-        .log-card-title .icon {
-            font-size: 1.2rem;
-            margin-right: 8px;
+            flex-direction: column;
+            gap: .5rem;
         }
 
         .log-entry {
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--color-border);
+            gap: .75rem;
+            padding: .65rem .85rem;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: border-color .2s;
         }
 
-        .log-entry:last-child {
-            border-bottom: none;
+        .log-entry:hover { border-color: var(--accent); }
+
+        .log-entry .log-time {
+            font-size: .7rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
         }
 
         .log-entry .log-icon {
@@ -393,108 +348,89 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.9rem;
+            font-size: .85rem;
             flex-shrink: 0;
         }
 
-        .log-entry .log-icon.success {
-            background: rgba(40,167,69,0.1);
-            color: var(--color-success);
+        .log-entry.success .log-icon {
+            background: var(--success-glow);
+            color: var(--success);
         }
 
-        .log-entry .log-icon.warning {
-            background: rgba(255,193,7,0.1);
-            color: #856404;
+        .log-entry.warning .log-icon {
+            background: var(--warning-glow);
+            color: var(--warning);
         }
 
-        .log-entry .log-icon.danger {
-            background: rgba(220,53,69,0.1);
-            color: var(--color-danger);
-        }
-
-        .log-entry .log-icon.info {
-            background: rgba(23,162,184,0.1);
-            color: var(--color-info);
+        .log-entry.error .log-icon {
+            background: var(--danger-glow);
+            color: var(--danger);
         }
 
         .log-entry .log-body {
             flex: 1;
+            min-width: 0;
         }
 
-        .log-entry .log-time {
-            font-size: 0.75rem;
-            color: var(--color-text-light);
+        .log-entry .log-text {
+            font-size: .82rem;
+            color: var(--text);
         }
 
-        .log-entry .log-message {
-            font-size: 0.85rem;
-            margin-top: 2px;
+        .log-entry .log-text strong { color: var(--accent); }
+
+        .log-entry .log-body .log-ref {
+            font-size: .7rem;
+            color: var(--text-muted);
+            margin-top: .2rem;
         }
 
-        .log-entry .log-message .detail {
-            display: inline-block;
-            background: var(--color-bg);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-family: monospace;
-            color: var(--color-text-light);
-            margin-left: 6px;
-        }
+        /* ── Scrollbar ─────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-        .log-entry .log-message .detail.cns {
-            color: var(--color-primary);
-        }
-
-        .log-entry .log-message .detail.cpf {
-            color: var(--color-primary);
-        }
-
-        .empty-state {
+        /* ── Footer ────────────────────────────────────────── */
+        .footer {
             text-align: center;
-            padding: 40px 20px;
-            color: var(--color-text-light);
+            padding: 1.5rem;
+            font-size: .75rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
         }
 
-        .empty-state .icon {
-            font-size: 2rem;
-            margin-bottom: 12px;
-        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
 
-        .empty-state p {
-            font-size: 0.9rem;
-        }
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Header                                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<header class="header">
+    <div class="header-brand">
+        <div class="logo">M</div>
+        <h1>MedIA <span>Sync</span></h1>
+    </div>
+    <div class="header-actions">
+        <span id="connection-badge" style="font-size:.8rem;padding:.35rem .8rem;border-radius:20px;background:var(--success-glow);color:var(--success);font-weight:600;">● Conectado</span>
+        <button class="btn btn-primary" onclick="refreshAll()">🔄 Atualizar</button>
+        <button class="btn btn-danger" onclick="disconnectAll()">⚠ Desconectar</button>
+    </div>
+</header>
 
-        .empty-state a {
-            color: var(--color-primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Main Content                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<main class="main">
 
-        .empty-state a:hover {
-            text-decoration: underline;
-        }
-
-        .refresh-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 12px;
-        }
-
-        .refresh-btn .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid var(--color-border);
-            border-top-color: var(--color-primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .toast {
-            position: fixed;
-            bottom
+    <!-- ── Connection Status Cards ───────────────────────── -->
+    <div class="grid">
+        <div class="card">
+            <div class="card-title"><span class="icon">📡</span> Conexão ACS</div>
+            <div class="conn-grid">
+                <div class="conn-card connected" id="conn-acs">
+                    <div class="

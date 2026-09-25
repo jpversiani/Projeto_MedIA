@@ -2,306 +2,284 @@ Here's a thinking process:
 
 1.  **Understand User Role & Task:**
    - **Role:** Software Engineer (Tester)
-   - **Task:** Create `backend/app/repositories/remessas_sisab_repo.py` for the MedIA project.
-   - **Purpose:** Persist transmission batches, send status (GERADO, ENVIADO, PROCESSADO, REJEITADO), and SISAB return logs.
-   - **Guidelines:**
-     - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
-     - SUS/APS standards (CIAP-2, CID-10, SOAP method, CNS/CPF identification).
-     - Full compliance and automated test coverage with pytest.
+   - **Task:** Create `backend/app/repositories/convenios_repo.py` for the MedIA project.
+   - **Domain:** Health insurance (convênios), TISS guides (TISS 4.01), Financial receipts (private billing).
+   - **Architecture/Constraints:**
+     - Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0.
+     - Models & queries for: operators/plans, TISS guide history (status: GERADA, ENVIADA, FATURADA, GLOSADA), private receipts control.
+     - No SUS/SISAB or IoT code.
+     - Production code in `backend/app/`, tests in `backend/tests/`.
+     - Preserve 100% test suite (green).
      - Provide complete, executable code.
      - Specify file path at the top of each code block.
 
 2.  **Deconstruct Requirements:**
-   - **Domain:** Remessas e Lotes de Exportação SISAB (C4) - This relates to Brazilian public health data transmission (SUS). SISAB is the Sistema de Informação em Saúde para a Atenção Básica.
-   - **Entities/Models:**
-     - `LoteSISAB` (Batch): Represents a transmission batch.
-     - `StatusLote` (Enum): GERADO, ENVIADO, PROCESSADO, REJEITADO.
-     - `LogRetornoSISAB` (Log): Stores return logs from SISAB.
-   - **Repository Pattern:** Needs to handle CRUD/operations for these entities using SQLAlchemy 2.0.
-   - **Pydantic v2:** For data validation/serialization (schemas).
-   - **SUS/APS Standards:** CIAP-2, CID-10, SOAP, CNS/CPF. These should be reflected in the data models/schemas.
-   - **Testing:** Pytest coverage. Need to provide tests as well, though the prompt specifically asks for the repository file. I'll include the repository code and a comprehensive test file to satisfy "cobertura de testes automatizados com pytest".
+   - **Models Needed:**
+     - `Operadora` (Health Insurance Operator)
+     - `PlanoSaude` (Health Insurance Plan)
+     - `GuiaTISS` (TISS Guide) with status enum
+     - `ReciboParticular` (Private Receipt)
+   - **Queries/Repository Methods:**
+     - CRUD for operators/plans
+     - Guide history/status tracking
+     - Receipt control
+   - **Tech Stack:** SQLAlchemy 2.0 (declarative, async/sync? I'll assume sync for simplicity unless specified, but I'll use `sqlalchemy.orm` with `Mapped` and `mapped_column` for modern SQLAlchemy 2.0 style), Pydantic v2 for schemas, Python 3.12 type hints.
+   - **Structure:** The file should contain models, enums, and repository functions/classes. Since it's a repository file, I'll structure it with SQLAlchemy models and a repository class/function set.
 
-3.  **Design Data Models (Pydantic v2):**
-   - `LoteSISABSchema`:
-     - `id`: UUID
-     - `numero_lote`: str
-     - `status`: LoteStatusEnum
-     - `data_criacao`: datetime
-     - `data_envio`: Optional[datetime]
-     - `data_processamento`: Optional[datetime]
-     - `total_registros`: int
-     - `registros_sucesso`: int
-     - `registros_erro`: int
-     - `cns_paciente`: Optional[str] (CNS/CPF identification)
-     - `codigo_ciap2`: Optional[str] (CIAP-2)
-     - `codigo_cid10`: Optional[str] (CID-10)
-     - `metodo_soap`: Optional[str] (SOAP method)
-     - `xml_payload`: Optional[str]
-     - `erro_sisab`: Optional[str]
-   - `LogRetornoSISABSchema`:
-     - `id`: UUID
-     - `lote_id`: UUID
-     - `timestamp`: datetime
-     - `tipo`: str (INFO, WARNING, ERROR)
-     - `mensagem`: str
-     - `codigo_retorno`: Optional[str]
-     - `descricao_retorno`: Optional[str]
-   - `LoteStatusEnum`: GERADO, ENVIADO, PROCESSADO, REJEITADO
+3.  **Design Models (SQLAlchemy 2.0 style):**
+   - Use `sqlalchemy.orm.Mapped`, `mapped_column`, `MappedAsDataclass` or standard declarative. I'll stick to standard declarative with `__tablename__` and `mapped_column` for clarity.
+   - Enums: `GuiaStatus` (GERADA, ENVIADA, FATURADA, GLOSADA)
+   - Relationships: Operadora -> Planos, Plano -> Guias, Guia -> Recibos (or direct to Plano/Paciente? I'll keep it simple: Guia links to Plano and has receipts).
+   - Let's define:
+     - `Operadora`: id, nome, cns (ANS code), cnpj, ativo
+     - `PlanoSaude`: id, operadora_id, nome, codigo_ans, tipo (AMB, HOSP, etc.), ativo
+     - `GuiaTISS`: id, plano_id, paciente_cpf, numero_guias, status, data_emissao, data_envio, data_faturamento, data_glosa, xml_tiss, json_tiss, ativo
+     - `ReciboParticular`: id, guia_id, valor, descricao, data_emissao, pdf_path, ativo
 
-4.  **Design SQLAlchemy Models (for persistence):**
-   - Need corresponding SQLAlchemy 2.0 declarative models.
-   - `LoteSISAB`: id (UUID), numero_lote, status, data_criacao, data_envio, data_processamento, total_registros, registros_sucesso, registros_erro, cns_paciente, codigo_ciap2, codigo_cid10, metodo_soap, xml_payload, erro_sisab.
-   - `LogRetornoSISAB`: id (UUID), lote_id (FK), timestamp, tipo, mensagem, codigo_retorno, descricao_retorno.
-   - Use `Mapped`, `mapped_column`, `relationship` from SQLAlchemy 2.0.
+   Wait, TISS 4.01 has specific fields, but I'll keep it practical for the repository layer. I'll add necessary columns for the domain.
 
-5.  **Design Repository:**
-   - `RemessasSISABRepository`:
-     - Constructor takes `AsyncSession` (assuming async for modern Python, but I'll make it compatible with sync/async or explicitly use `AsyncSession` as it's standard now. I'll use `AsyncSession` for SQLAlchemy 2.0 async style, but I'll also provide sync if needed. The prompt says "Python 3.12, tipagem estrita com Pydantic v2 e SQLAlchemy 2.0". I'll stick to `AsyncSession` as it's the modern standard, but I'll make it clear. Actually, I'll use `Session` for simplicity unless async is specified, but I'll type it properly. I'll use `AsyncSession` to be safe with modern practices, but I'll write it in a way that's easily adaptable. Let's use `AsyncSession` and `async def` methods.)
-     - Methods:
-       - `criar_lote(lote: LoteSISABSchema) -> LoteSISABSchema`
-       - `obter_lote(lote_id: UUID) -> Optional[LoteSISABSchema]`
-       - `atualizar_status(lote_id: UUID, novo_status: LoteStatusEnum) -> LoteSISABSchema`
-       - `registrar_log(lote_id: UUID, log: LogRetornoSISABSchema) -> LogRetornoSISABSchema`
-       - `listar_lotes_por_status(status: LoteStatusEnum) -> List[LoteSISABSchema]`
-       - `atualizar_registros(lote_id: UUID, sucesso: int, erro: int) -> LoteSISABSchema`
-   - I'll use SQLAlchemy 2.0 style: `select`, `insert`, `update`, `delete`.
+4.  **Design Repository:**
+   - Need async or sync? I'll use sync for simplicity but structure it to be easily adaptable. Actually, modern FastAPI uses async, but SQLAlchemy 2.0 recommends `AsyncSession` for async. I'll provide sync for broader compatibility unless specified, but I'll stick to sync with `Session` for simplicity, or explicitly use `AsyncSession` if needed. I'll go with sync `Session` but note it's easily adaptable. Actually, I'll use `sqlalchemy.orm.Session` as it's standard.
+   - Repository class `ConveniosRepository` with methods:
+     - `criar_operadora`, `atualizar_operadora`, `listar_operadoras`
+     - `criar_plano`, `listar_planos_por_operadora`
+     - `criar_guia_tiss`, `atualizar_status_guia`, `listar_guias_por_status`, `listar_historico_guias`
+     - `criar_recibo_particular`, `listar_recibos_por_guia`, `atualizar_recibo`
+   - I'll use Pydantic v2 schemas for input/output validation within the repository or assume they're passed as dicts/models. I'll define Pydantic models at the top of the file for clarity.
 
-6.  **Draft Code (Mental Refinement):**
-   Let's structure the file properly with imports, models, schemas, and repository.
-
-   *Imports:*
+5.  **Draft Code (Mental Refinement):**
    ```python
+   # Arquivo: backend/app/repositories/convenios_repo.py
    from __future__ import annotations
-   import uuid
    from datetime import datetime
    from enum import Enum
    from typing import Optional, List
-   from sqlalchemy import UUID, String, Integer, DateTime, Text, ForeignKey, func, select, update
-   from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
-   from pydantic import BaseModel, Field, ConfigDict, field_validator
-   from pydantic import EmailStr # Not needed
-   ```
+   from pydantic import BaseModel, Field, ConfigDict
+   from sqlalchemy import String, Text, Numeric, DateTime, Boolean, ForeignKey, Enum as SAEnum, func
+   from sqlalchemy.orm import Mapped, mapped_column, relationship, Session, DeclarativeBase
+   import uuid
 
-   *SQLAlchemy Base:*
-   ```python
    class Base(DeclarativeBase):
        pass
-   ```
 
-   *SQLAlchemy Models:*
-   ```python
-   class LoteSISAB(Base):
-       __tablename__ = "lotes_sisab"
-       id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-       numero_lote: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-       status: Mapped[str] = mapped_column(String(20), nullable=False, default="GERADO")
-       data_criacao: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+   class GuiaStatus(str, Enum):
+       GERADA = "GERADA"
+       ENVIADA = "ENVIADA"
+       FATURADA = "FATURADA"
+       GLOSADA = "GLOSADA"
+
+   # Pydantic Schemas
+   class OperadoraCreate(BaseModel):
+       nome: str = Field(..., min_length=2, max_length=100)
+       cns: str = Field(..., pattern=r"^\d{15}$")
+       cnpj: str = Field(..., pattern=r"^\d{14}$")
+
+   class PlanoCreate(BaseModel):
+       nome: str
+       codigo_ans: str
+       tipo: str = "AMB"
+
+   class GuiaTISSCreate(BaseModel):
+       plano_id: uuid.UUID
+       paciente_cpf: str
+       numero_guias: int = 1
+       xml_tiss: Optional[str] = None
+       json_tiss: Optional[str] = None
+
+   class ReciboParticularCreate(BaseModel):
+       guia_id: uuid.UUID
+       valor: float = Field(..., gt=0)
+       descricao: str
+       pdf_path: Optional[str] = None
+
+   # SQLAlchemy Models
+   class OperadoraModel(Base):
+       __tablename__ = "operadoras"
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       nome: Mapped[str] = mapped_column(String(100), unique=True)
+       cns: Mapped[str] = mapped_column(String(15), unique=True)
+       cnpj: Mapped[str] = mapped_column(String(14), unique=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       planos: Mapped[List["PlanoSaudeModel"]] = relationship(back_populates="operadora", lazy="selectin")
+
+   class PlanoSaudeModel(Base):
+       __tablename__ = "planos_saude"
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       operadora_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("operadoras.id"))
+       nome: Mapped[str] = mapped_column(String(100))
+       codigo_ans: Mapped[str] = mapped_column(String(20), unique=True)
+       tipo: Mapped[str] = mapped_column(String(10))
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       operadora: Mapped["OperadoraModel"] = relationship(back_populates="planos")
+       guias: Mapped[List["GuiaTISSModel"]] = relationship(back_populates="plano")
+
+   class GuiaTISSModel(Base):
+       __tablename__ = "guias_tiss"
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       plano_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("planos_saude.id"))
+       paciente_cpf: Mapped[str] = mapped_column(String(14))
+       numero_guias: Mapped[int] = mapped_column(default=1)
+       status: Mapped[GuiaStatus] = mapped_column(SAEnum(GuiaStatus, name="guia_status_enum"), default=GuiaStatus.GERADA)
+       data_emissao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
        data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-       data_processamento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-       total_registros: Mapped[int] = mapped_column(Integer, default=0)
-       registros_sucesso: Mapped[int] = mapped_column(Integer, default=0)
-       registros_erro: Mapped[int] = mapped_column(Integer, default=0)
-       cns_paciente: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
-       codigo_ciap2: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
-       codigo_cid10: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
-       metodo_soap: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-       xml_payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-       erro_sisab: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-       logs: Mapped[List["LogRetornoSISAB"]] = relationship(back_populates="lote", cascade="all, delete-orphan")
-   ```
+       data_faturamento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       data_glosa: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       xml_tiss: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       json_tiss: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       plano: Mapped["PlanoSaudeModel"] = relationship(back_populates="guias")
+       recibos: Mapped[List["ReciboParticularModel"]] = relationship(back_populates="guia")
 
-   *Log Model:*
-   ```python
-   class LogRetornoSISAB(Base):
-       __tablename__ = "logs_retorno_sisab"
-       id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-       lote_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("lotes_sisab.id"), nullable=False)
-       timestamp: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-       tipo: Mapped[str] = mapped_column(String(10), nullable=False)
-       mensagem: Mapped[str] = mapped_column(Text, nullable=False)
-       codigo_retorno: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-       descricao_retorno: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-       lote: Mapped["LoteSISAB"] = relationship(back_populates="logs")
-   ```
+   class ReciboParticularModel(Base):
+       __tablename__ = "recibos_particulares"
+       id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+       guia_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("guias_tiss.id"))
+       valor: Mapped[float] = mapped_column(Numeric(10, 2))
+       descricao: Mapped[str] = mapped_column(String(255))
+       data_emissao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       pdf_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       guia: Mapped["GuiaTISSModel"] = relationship(back_populates="recibos")
 
-   *Pydantic Schemas:*
-   Need to handle enums and validation.
-   ```python
-   class LoteStatusEnum(str, Enum):
-       GERADO = "GERADO"
-       ENVIADO = "ENVIADO"
-       PROCESSADO = "PROCESSADO"
-       REJEITADO = "REJEITADO"
-
-   class LoteSISABSchema(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: uuid.UUID
-       numero_lote: str
-       status: LoteStatusEnum
-       data_criacao: datetime
-       data_envio: Optional[datetime] = None
-       data_processamento: Optional[datetime] = None
-       total_registros: int = 0
-       registros_sucesso: int = 0
-       registros_erro: int = 0
-       cns_paciente: Optional[str] = None
-       codigo_ciap2: Optional[str] = None
-       codigo_cid10: Optional[str] = None
-       metodo_soap: Optional[str] = None
-       xml_payload: Optional[str] = None
-       erro_sisab: Optional[str] = None
-
-       @field_validator("cns_paciente")
-       @classmethod
-       def validate_cns(cls, v: Optional[str]) -> Optional[str]:
-           if v and len(v) != 15:
-               raise ValueError("CNS deve ter 15 dígitos")
-           return v
-
-       @field_validator("codigo_ciap2")
-       @classmethod
-       def validate_ciap2(cls, v: Optional[str]) -> Optional[str]:
-           if v and len(v) != 4:
-               raise ValueError("CIAP-2 deve ter 4 dígitos")
-           return v
-
-       @field_validator("codigo_cid10")
-       @classmethod
-       def validate_cid10(cls, v: Optional[str]) -> Optional[str]:
-           if v and len(v) != 4:
-               raise ValueError("CID-10 deve ter 4 caracteres")
-           return v
-
-   class LogRetornoSISABSchema(BaseModel):
-       model_config = ConfigDict(from_attributes=True)
-       id: uuid.UUID
-       lote_id: uuid.UUID
-       timestamp: datetime
-       tipo: str
-       mensagem: str
-       codigo_retorno: Optional[str] = None
-       descricao_retorno: Optional[str] = None
-   ```
-
-   *Repository Class:*
-   ```python
-   from sqlalchemy.ext.asyncio import AsyncSession
-   from sqlalchemy import select, update, insert
-   from sqlalchemy.exc import IntegrityError
-   from contextlib import asynccontextmanager
-
-   class RemessasSISABRepository:
-       def __init__(self, session: AsyncSession):
+   # Repository
+   class ConveniosRepository:
+       def __init__(self, session: Session):
            self.session = session
 
-       async def criar_lote(self, lote_data: LoteSISABSchema) -> LoteSISABSchema:
-           novo_lote = LoteSISAB(
-               numero_lote=lote_data.numero_lote,
-               status=lote_data.status.value,
-               total_registros=lote_data.total_registros,
-               cns_paciente=lote_data.cns_paciente,
-               codigo_ciap2=lote_data.codigo_ciap2,
-               codigo_cid10=lote_data.codigo_cid10,
-               metodo_soap=lote_data.metodo_soap,
-               xml_payload=lote_data.xml_payload
-           )
-           self.session.add(novo_lote)
-           await self.session.flush()
-           await self.session.refresh(novo_lote)
-           return LoteSISABSchema.model_validate(novo_lote)
+       # Operadoras
+       def criar_operadora(self, data: OperadoraCreate) -> OperadoraModel:
+           op = OperadoraModel(**data.model_dump())
+           self.session.add(op)
+           self.session.flush()
+           return op
 
-       async def obter_lote(self, lote_id: uuid.UUID) -> Optional[LoteSISABSchema]:
-           stmt = select(LoteSISAB).where(LoteSISAB.id == lote_id)
-           result = await self.session.execute(stmt)
-           lote = result.scalar_one_or_none()
-           return LoteSISABSchema.model_validate(lote) if lote else None
+       def listar_operadoras(self, ativo: Optional[bool] = None) -> List[OperadoraModel]:
+           query = self.session.query(OperadoraModel)
+           if ativo is not None:
+               query = query.filter(OperadoraModel.ativo == ativo)
+           return query.all()
 
-       async def atualizar_status(self, lote_id: uuid.UUID, novo_status: LoteStatusEnum) -> LoteSISABSchema:
-           stmt = (
-               update(LoteSISAB)
-               .where(LoteSISAB.id == lote_id)
-               .values(status=novo_status.value)
-           )
-           if novo_status == LoteStatusEnum.ENVIADO:
-               stmt = stmt.values(data_envio=datetime.utcnow())
-           elif novo_status == LoteStatusEnum.PROCESSADO:
-               stmt = stmt.values(data_processamento=datetime.utcnow())
-           await self.session.execute(stmt)
-           await self.session.commit()
-           return await self.obter_lote(lote_id)
+       # Planos
+       def criar_plano(self, data: PlanoCreate, operadora_id: uuid.UUID) -> PlanoSaudeModel:
+           plano = PlanoSaudeModel(**data.model_dump(), operadora_id=operadora_id)
+           self.session.add(plano)
+           self.session.flush()
+           return plano
 
-       async def registrar_log(self, lote_id: uuid.UUID, log_data: LogRetornoSISABSchema) -> LogRetornoSISABSchema:
-           novo_log = LogRetornoSISAB(
-               lote_id=lote_id,
-               tipo=log_data.tipo,
-               mensagem=log_data.mensagem,
-               codigo_retorno=log_data.codigo_retorno,
-               descricao_retorno=log_data.descricao_retorno
-           )
-           self.session.add(novo_log)
-           await self.session.flush()
-           await self.session.refresh(novo_log)
-           return LogRetornoSISABSchema.model_validate(novo_log)
+       def listar_planos_por_operadora(self, operadora_id: uuid.UUID) -> List[PlanoSaudeModel]:
+           return self.session.query(PlanoSaudeModel).filter(
+               PlanoSaudeModel.operadora_id == operadora_id,
+               PlanoSaudeModel.ativo == True
+           ).all()
 
-       async def atualizar_registros(self, lote_id: uuid.UUID, sucesso: int, erro: int) -> LoteSISABSchema:
-           stmt = (
-               update(LoteSISAB)
-               .where(LoteSISAB.id == lote_id)
-               .values(registros_sucesso=sucesso, registros_erro=erro)
-           )
-           await self.session.execute(stmt)
-           await self.session.commit()
-           return await self.obter_lote(lote_id)
+       # Guias TISS
+       def criar_guia(self, data: GuiaTISSCreate) -> GuiaTISSModel:
+           guia = GuiaTISSModel(**data.model_dump())
+           self.session.add(guia)
+           self.session.flush()
+           return guia
 
-       async def listar_lotes_por_status(self, status: LoteStatusEnum) -> List[LoteSISABSchema]:
-           stmt = select(LoteSISAB).where(LoteSISAB.status == status.value)
-           result = await self.session.execute(stmt)
-           return [LoteSISABSchema.model_validate(l) for l in result.scalars().all()]
+       def atualizar_status_guia(self, guia_id: uuid.UUID, novo_status: GuiaStatus) -> Optional[GuiaTISSModel]:
+           guia = self.session.get(GuiaTISSModel, guia_id)
+           if not guia:
+               return None
+           guia.status = novo_status
+           if novo_status == GuiaStatus.ENVIADA:
+               guia.data_envio = datetime.utcnow()
+           elif novo_status == GuiaStatus.FATURADA:
+               guia.data_faturamento = datetime.utcnow()
+           elif novo_status == GuiaStatus.GLOSADA:
+               guia.data_glosa = datetime.utcnow()
+           self.session.flush()
+           return guia
+
+       def listar_guias_por_status(self, status: GuiaStatus) -> List[GuiaTISSModel]:
+           return self.session.query(GuiaTISSModel).filter(
+               GuiaTISSModel.status == status,
+               GuiaTISSModel.ativo == True
+           ).all()
+
+       def historico_guias(self, plano_id: Optional[uuid.UUID] = None, paciente_cpf: Optional[str] = None) -> List[GuiaTISSModel]:
+           query = self.session.query(GuiaTISSModel).filter(GuiaTISSModel.ativo == True)
+           if plano_id:
+               query = query.filter(GuiaTISSModel.plano_id == plano_id)
+           if paciente_cpf:
+               query = query.filter(GuiaTISSModel.paciente_cpf == paciente_cpf)
+           return query.order_by(GuiaTISSModel.data_emissao.desc()).all()
+
+       # Recibos
+       def criar_recibo(self, data: ReciboParticularCreate) -> ReciboParticularModel:
+           recibo = ReciboParticularModel(**data.model_dump())
+           self.session.add(recibo)
+           self.session.flush()
+           return recibo
+
+       def listar_recibos_por_guia(self, guia_id: uuid.UUID) -> List[ReciboParticularModel]:
+           return self.session.query(ReciboParticularModel).filter(
+               ReciboParticularModel.guia_id == guia_id,
+               ReciboParticularModel.ativo == True
+           ).all()
+
+       def atualizar_recibo(self, recibo_id: uuid.UUID, valor: Optional[float] = None, descricao: Optional[str] = None, pdf_path: Optional[str] = None) -> Optional[ReciboParticularModel]:
+           recibo = self.session.get(ReciboParticularModel, recibo_id)
+           if not recibo:
+               return None
+           if valor is not None: recibo.valor = valor
+           if descricao is not None: recibo.descricao = descricao
+           if pdf_path is not None: recibo.pdf_path = pdf_path
+           self.session.flush()
+           return recibo
    ```
 
-7.  **Considerations & Refinements:**
-   - The prompt asks for "Python 3.12, tipagem estrita com Pydantic v2 e SQLAlchemy 2.0". I used `AsyncSession`. I should probably make it compatible with both or explicitly state it's async. I'll stick to async as it's standard for modern Python 3.12 APIs, but I'll add type hints properly.
-   - I need to ensure the code is complete and executable. I'll add necessary imports and structure it cleanly.
-   - I should also provide a pytest file to satisfy "cobertura de testes automatizados com pytest". The prompt says "Manter conformidade total e cobertura de testes automatizados com pytest." This implies I should provide the tests.
-   - I'll create `tests/test_remessas_sisab_repo.py`.
-   - I'll use `pytest-asyncio` for async tests.
-   - I'll use `pytest-mock` or `unittest.mock` for mocking the session.
-   - I'll ensure strict typing throughout.
+6.  **Check Constraints & Requirements:**
+   - *Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0*: Used `from __future__ import annotations`, `Mapped`, `mapped_column`, Pydantic v2 `BaseModel`, `Field`, `model_dump()`. Type hints are explicit.
+   - *Models & Queries*: Covers operadoras, planos, guias TISS (with status enum), recibos particulares.
+   - *TISS 4.01 / DMED*: Added XML/JSON TISS fields, status tracking, CPF for patient, ANS codes.
+   - *No SUS/SISAB/IoT*: Checked. Not included.
+   - *Production code in backend/app/*: Path matches.
+   - *Preserve 100% test suite*: I should ensure the code is testable and doesn't break existing patterns. I'll add a `__init__.py` stub if needed, but the prompt just asks for the file. I'll make sure it's self-contained and follows standard patterns.
+   - *Complete & Executable*: I'll add necessary imports and ensure it runs without external dependencies beyond standard ones. I'll also add a `__init__.py` for the repository package if needed, but the prompt asks specifically for `convenios_repo.py`.
+   - *Architecture*: I'll structure it cleanly. I should also consider that SQLAlchemy 2.0 recommends `select()` for queries, but `session.query()` is still valid. I'll switch to `select()` for modern SQLAlchemy 2.0 compliance.
+   - Let's refactor queries to use `select()` and `session.scalars()` for strict SQLAlchemy 2.0 style.
 
-   Let's draft the test file mentally:
-   - Fixtures for session (mocked or in-memory SQLite).
-   - Tests for each repository method.
-   - Validation tests for Pydantic schemas.
-   - Status transition tests.
-   - Log persistence tests.
-
-   I'll structure the response with two files:
-   1. `backend/app/repositories/remessas_sisab_repo.py`
-   2. `tests/test_remessas_sisab_repo.py`
-
-   Check constraints:
-   - Python 3.12: Use `from __future__ import annotations`, modern typing.
-   - Pydantic v2: `model_config = ConfigDict(from_attributes=True)`, `@field_validator`.
-   - SQLAlchemy 2.0: `Mapped`, `mapped_column`, `select`, `update`, async session.
-   - SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF validation included.
-   - Status enum: GERADO, ENVIADO, PROCESSADO, REJEITADO.
-   - Complete & executable.
-
-   One detail: `datetime.utcnow()` is deprecated in Python 3.12+. I should use `datetime.now(timezone.utc)` or `datetime.now(tz=timezone.utc)`. I'll fix that.
-   Also, SQLAlchemy 2.0 recommends `server_default=func.now()` but for Python-side defaults, `default=datetime.now(timezone.utc)` is better. I'll adjust.
-
-   Let's refine the SQLAlchemy models to use modern defaults:
+   Refactoring queries to SQLAlchemy 2.0 style:
    ```python
-   from datetime import datetime, timezone
+   from sqlalchemy import select
    # ...
-   data_criacao: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-   # ...
+   def listar_operadoras(self, ativo: Optional[bool] = None) -> List[OperadoraModel]:
+       stmt = select(OperadoraModel)
+       if ativo is not None:
+           stmt = stmt.where(OperadoraModel.ativo == ativo)
+       return self.session.scalars(stmt).all()
    ```
+   This is better.
 
-   Also, Pydantic v2 uses `model_config` correctly. I'll ensure all imports are correct.
+   Also, Pydantic v2 uses `model_dump()` instead of `dict()`. I used that.
+   I'll add `__init__.py` for the repo package to make it importable.
+   I'll ensure all type hints are correct.
+   I'll add docstrings and comments for clarity.
+   I'll make sure the file path comment is at the top.
 
-   I'll write the code carefully.
+   Let's draft the final version carefully.
 
-   Structure of response:
-   - File 1: `backend/app/repositories/rem
+   Structure:
+   - Imports
+   - Enums
+   - Pydantic Schemas
+   - SQLAlchemy Models
+   - Repository Class
+   - All in one file as requested.
+
+   Check TISS 4.01 specifics: The prompt mentions "histórico de guias TISS emitidas (status: GERADA, ENVIADA, FATURADA, GLOSADA)". I've covered that.
+   Check DMED/Receita Federal: Private receipts control. Covered.
+   Check Python 3.12: `from __future__ import annotations` ensures forward references work without quotes.
+   Check SQLAlchemy 2.0: `Mapped`, `mapped_column`, `select()`, `session.scalars()`.
+   Check Pydantic v2: `BaseModel`, `Field`, `model_dump()`.
+   Check Architecture: Clean, no external framework coupling, just SQLAlchemy + Pydantic.
+
+   One thing: The prompt says "Preservar 100% da suíte de testes verde." This implies I should be careful not to break existing interfaces. Since I'm creating a new file, I'll make the API explicit and stable. I'll also add a `__init__.py` for the repository package to ensure imports work.
+
+   I'll write the code now. I'll make sure it's production-ready, strictly typed, and follows all constraints.
+
+   Self-Correction/Refinement during thought:
+   - SQLAlchemy

@@ -81,3 +81,16 @@ class AtendimentoOffline(Base):
 
     def __repr__(self) -> str:  # pragma: no cover - representação técnica
         return f"AtendimentoOffline(id={self.id}, id_local='{self.id_local}', status={self.status.value})"
+
+
+class SyncState(Base):
+    """Estado do último timestamp de sincronização por dispositivo offline."""
+
+    __tablename__ = "sync_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    last_sync_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_agora_utc
+    )
+

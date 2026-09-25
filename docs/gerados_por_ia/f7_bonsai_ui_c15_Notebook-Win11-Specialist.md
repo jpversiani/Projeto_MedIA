@@ -1,457 +1,369 @@
-# Dashboard Executivo Interativo — MedIA
-
-## Estrutura do Projeto
-
-```
-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── api.py
-│   ├── static/
-│   │   └── dashboard_analytics.html
-│   └── services/
-│       ├── __init__.py
-│       └── analytics.py
-├── tests/
-│   ├── __init__.py
-│   ├── test_models.py
-│   ├── test_schemas.py
-│   ├── test_api.py
-│   └── test_services.py
-├── requirements.txt
-└── pytest.ini
-```
-
----
-
-## Arquivo: `backend/app/models.py`
-
-```python
-# Arquivo: backend/app/models.py
-"""
-Modelos SQLAlchemy 2.0 com tipagem estrita.
-Padrões SUS/APS: CIAP-2, CID-10, método SOAP, identificação por CNS/CPF.
-"""
-
-from __future__ import annotations
-
-import enum
-from datetime import datetime
-from decimal import Decimal
-from typing import Optional
-
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Enum,
-    Float,
-    Integer,
-    LargeBinary,
-    String,
-    Text,
-    UniqueConstraint,
-    func,
-)
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    mapped_column,
-    relationship,
-)
-
-
-class Base(DeclarativeBase):
-    """Base declarativa com suporte a timestamps."""
-
-    __abstract__ = True
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        server_default=func.now(),
-        onupdate=func.now(),
-    )
-
-
-class PatientType(enum.Enum):
-    """Identificação por CNS/CPF conforme SUS."""
-    CNS = "CNS"
-    CPF = "CPF"
-    FOREIGN = "FORNEIRO"
-
-
-class Patient(Base):
-    """
-    Modelo de Paciente com identificação por CNS/CPF.
-    Padrão SUS: identificação única por CNS ou CPF.
-    """
-
-    __tablename__ = "patients"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    patient_type: Mapped[PatientType] = mapped_column(
-        Enum(PatientType, values=[t.value for t in PatientType]),
-        nullable=False,
-    )
-    identifier: Mapped[str] = mapped_column(
-        String(20), nullable=False, unique=True
-    )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    gender: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-    date_of_birth: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="patient"
-    )
-    diagnoses: Mapped[list["Diagnosis"]] = relationship(
-        "Diagnosis", back_populates="patient"
-    )
-
-
-class Diagnosis(Base):
-    """
-    Diagnóstico com CID-10 e CIAP-2.
-    Padrão SUS: código CID-10 e CIAP-2 para classificação.
-    """
-
-    __tablename__ = "diagnoses"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    patient_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    patient: Mapped["Patient"] = relationship("Patient", back_populates="diagnoses")
-    cid10_code: Mapped[str] = mapped_column(
-        String(10), nullable=False, comment="CID-10"
-    )
-    ciap2_code: Mapped[Optional[str]] = mapped_column(
-        String(10), nullable=True, comment="CIAP-2"
-    )
-    diagnosis_name: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True
-    )
-    severity: Mapped[str] = mapped_column(
-        String(20), default="Médio", nullable=False
-    )
-    date_of_diagnosis: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="diagnoses"
-    )
-
-
-class Appointment(Base):
-    """
-    Agendamento com método SOAP.
-    Padrão SUS: registro de SOAP completo.
-    """
-
-    __tablename__ = "appointments"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    patient_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")
-    doctor_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    diagnosis_ids: Mapped[list[int]] = mapped_column(
-        JSONB, default=list, comment="IDs do diagnóstico"
-    )
-    soap_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    scheduled_time: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    actual_time: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    status: Mapped[str] = mapped_column(
-        String(20), default="Agendado", nullable=False
-    )
-    duration_minutes: Mapped[int] = mapped_column(
-        Integer, default=30, nullable=False
-    )
-    date_of_appointment: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-
-    diagnoses: Mapped[list["Diagnosis"]] = relationship(
-        "Diagnosis", back_populates="appointments"
-    )
-
-
-class Doctor(Base):
-    """
-    Médico com identificação por CNS.
-    Padrão SUS: identificação única por CNS.
-    """
-
-    __tablename__ = "doctors"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    cns: Mapped[str] = mapped_column(
-        String(20), nullable=False, unique=True
-    )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    specialty: Mapped[str] = mapped_column(String(100), nullable=False)
-    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="doctor"
-    )
-
-
-class Service(Base):
-    """
-    Serviço de saúde registrado no SUS.
-    """
-
-    __tablename__ = "services"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    code: Mapped[str] = mapped_column(String(50), nullable=False)
-    category: Mapped[str] = mapped_column(String(100), nullable=False)
-
-    appointments: Mapped[list["Appointment"]] = relationship(
-        "Appointment", back_populates="service"
-    )
-
-
-class ServiceAppointment(Base):
-    """
-    Relação entre serviço e agendamento.
-    """
-
-    __tablename__ = "service_appointments"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    appointment_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    appointment: Mapped["Appointment"] = relationship("Appointment")
-    service_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    service: Mapped["Service"] = relationship("Service")
-
-
-class HealthRecord(Base):
-    """
-    Registro de saúde para análise de KPIs.
-    """
-
-    __tablename__ = "health_records"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    patient_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    patient: Mapped["Patient"] = relationship("Patient")
-    appointment_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    appointment: Mapped["Appointment"] = relationship("Appointment")
-    service_id: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    service: Mapped["Service"] = relationship("Service")
-    appointment_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    appointment_hour: Mapped[int] = mapped_column(
-        Integer, nullable=False, comment="Horário do agendamento (0-23)"
-    )
-    duration_minutes: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False
-    )
-    patient_type: Mapped[PatientType] = mapped_column(
-        Enum(PatientType, values=[t.value for t in PatientType]),
-        nullable=False,
-    )
-    cid10_code: Mapped[Optional[str]] = mapped_column(
-        String(10), nullable=True
-    )
-    ciap2_code: Mapped[Optional[str]] = mapped_column(
-        String(10), nullable=True
-    )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint("patient_id", "appointment_id", name="uq_patient_appointment"),
-    )
-
-
-class KPI(Base):
-    """
-    KPI para dashboard executivo.
-    """
-
-    __tablename__ = "kpis"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str] = mapped_column(String(500), nullable=True)
-    target_value: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True
-    )
-    current_value: Mapped[float] = mapped_column(Float, nullable=False)
-    unit: Mapped[str] = mapped_column(String(20), default="unidades")
-    status: Mapped[str] = mapped_column(
-        String(20), default="Normal", nullable=False
-    )
-    last_updated: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-
-
-class HeatmapData(Base):
-    """
-    Dados para heatmap de calor dos horários de pico.
-    """
-
-    __tablename__ = "heatmap_data"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    hour: Mapped[int] = mapped_column(Integer, nullable=False)
-    value: Mapped[float] = mapped_column(Float, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint("date", "hour", name="uq_heatmap_date_hour"),
-    )
-
-
-class AnalyticsConfig(Base):
-    """
-    Configuração de analytics para dashboard.
-    """
-
-    __tablename__ = "analytics_config"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    dashboard_name: Mapped[str] = mapped_column(
-        String(100), nullable=False
-    )
-    refresh_interval_minutes: Mapped[int] = mapped_column(
-        Integer, default=15, nullable=False
-    )
-    show_heatmap: Mapped[bool] = mapped_column(Boolean, default=True)
-    show_line_chart: Mapped[bool] = mapped_column(Boolean, default=True)
-    show_kpis: Mapped[bool] = mapped_column(Boolean, default=True)
-    date_range_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    last_refreshed: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-```
-
----
-
-## Arquivo: `backend/app/schemas.py`
-
-```python
-# Arquivo: backend/app/schemas.py
-"""
-Esquemas Pydantic v2 com tipagem estrita.
-Validação de dados para API do dashboard.
-"""
-
-from __future__ import annotations
-
-from datetime import datetime
-from decimal import Decimal
-from enum import Enum
-from typing import Any, Optional, List
-
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_validator,
-)
-
-
-class PatientType(str, Enum):
-    """Identificação por CNS/CPF conforme SUS."""
-    CNS = "CNS"
-    CPF = "CPF"
-    FOREIGN = "FORNEIRO"
-
-
-class Severity(str, Enum):
-    """Nível de gravidade do diagnóstico."""
-    Baixo = "Baixo"
-    Médio = "Médio"
-    Alto = "Alto"
-    Crítico = "Crítico"
-
-
-class AppointmentStatus(str, Enum):
-    """Status do agendamento."""
-    Agendado = "Agendado"
-    EmProgrido = "Em Progrido"
-    Concluído = "Concluído"
-    Cancelado = "Cancelado"
-    Adiado = "Adiado"
-
-
-class KPIStatus(str, Enum):
-    """Status do KPI."""
-    Normal = "Normal"
-    Alerta = "Alerta"
-    Crítico = "Crítico"
-
-
-class PatientCreate(BaseModel):
-    """Esquema para criação de paciente."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    patient_type: PatientType
-    identifier: str = Field(..., min_length=1, max_length=20)
-    name: str = Field(..., min_length=1, max_length=255)
-    gender: Optional[str] = Field(None, max_length=10)
-    date_of_birth: Optional[datetime] = None
-    address: Optional[str] = Field(None, max_length=500)
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[str] = Field(None, max_length=255)
-
-    @field_validator("identifier", mode="before")
-    @classmethod
-    def validate_identifier(cls, v: Any) -> str:
-        """Validação do identificador (CNS ou CPF)."""
-        if not v:
-            raise ValueError("Identifier is required")
-        identifier = str(v).strip()
-        if len(identifier) < 1:
-            raise ValueError("Identifier must be at least 1 character")
-        return identifier
-
-
-class PatientUpdate(BaseModel):
-    """Esquema para
+```python:backend/app/static/dashboard_analytics.html
+# Arquivo: backend/app/static/dashboard_analytics.html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Executivo — MedIA | Atenção Primária</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d6efd;
+            --primary-dark: #0b5ed7;
+            --primary-light: #e9f0ff;
+            --success: #198754;
+            --success-light: #d1fae5;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --info: #0ea5e9;
+            --info-light: #dbeafe;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #334155;
+            --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            --gradient-accent: linear-gradient(135deg, #0d6efd 0%, #0ea5e9 100%);
+            --gradient-success: linear-gradient(135deg, #198754 0%, #059669 100%);
+            --gradient-warning: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+            --gradient-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            --shadow-glow: 0 0 20px rgba(13,110,253,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Header */
+        .dashboard-header {
+            background: var(--gradient-hero);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--gradient-accent);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .date-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+        }
+
+        .date-filter select {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            padding: 0.35rem 0.5rem;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .date-filter select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .refresh-btn {
+            background: var(--gradient-accent);
+            border: none;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Main content */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .stats-summary {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .stat-badge .stat-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        .stat-badge .stat-value {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .stat-badge .stat-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .period-selector {
+            display: flex;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 3px;
+        }
+
+        .period-selector button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .period-selector button:hover {
+            color: var(--text-primary);
+            background: var(--bg-card-hover);
+        }
+
+        .period-selector button.active {
+            background: var(--gradient-accent);
+            color: white;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--text-muted);
+        }
+
+        .kpi-card.primary {
+            --kpi-header: var(--gradient-accent);
+        }
+        .kpi-card.primary::before { background: var(--gradient-accent); }
+
+        .kpi-card.success {
+            --kpi-header: var(--gradient-success);
+        }
+        .kpi-card.success::before { background: var(--gradient-success); }
+
+        .kpi-card.warning {
+            --kpi-header: var(--gradient-warning);
+        }
+        .kpi-card.warning::before { background: var(--gradient-warning); }
+
+        .kpi-card.danger {
+            --kpi-header: var(--gradient-danger);
+        }
+        .kpi-card.danger::before { background: var(--gradient-danger); }
+
+        .kpi-card.info {
+            --kpi-header: var(--gradient-info);
+        }
+        .kpi-card.info::before { background: var(--gradient-info); }
+
+        .kpi-card .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-card.primary .card-icon { background: rgba(13,110,253,0.15); color: var(--primary); }
+        .kpi-card.success .card-icon { background: rgba(25,135,84,0.15); color: var(--success); }
+        .kpi-card.warning .card-icon { background: rgba(217,119,6,0.15); color: var(--warning); }
+        .kpi-card.danger .card-icon { background: rgba(220,38,38,0.15); color: var(--danger); }
+        .kpi-card.info .card-icon { background: rgba(14,165,233,0.15); color: var(--info); }
+
+        .kpi-card .card-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-card .card-value {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            line-height: 1.2;
+        }
+
+        .kpi-card .card-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+        }
+
+        .kpi-card .card-change.up {
+            color: var(--success);
+            background: rgba(25,135,84,0.1);
+        }
+
+        .kpi-card .card-change.down {
+            color: var(--

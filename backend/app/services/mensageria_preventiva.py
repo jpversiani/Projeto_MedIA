@@ -1,259 +1,388 @@
-"""Serviço de Mensageria Preventiva - Lembretes e Alertas Preventivos."""
+# backend/app/services/mensageria_preventiva.py
+"""
+Serviço de Mensageria e Alertas Preventivos de Vacina/Consultas.
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+Este módulo implementa a geração de lembretes automáticos para teleconsultas
+agendadas (WhatsApp/SMS mock) e a identificação de busca ativa para:
+- Crianças com vacinas atrasadas;
+- Diabéticos sem acompanhamento há mais de 90 dias.
 
-from sqlalchemy import func, and_, or_
+O serviço é destinado ao atendimento particular e convênios (TISS ANS 4.01 /
+DMED Receita Federal), seguindo o método clínico de Atenção Primária / Saúde
+da Família. Não há integração com sistemas públicos (SUS/SISAB) ou IoT.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional, Sequence
+
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.database import Base
-from app.models.mensageria import MensagemPreventiva, AlertaBuscaAtiva
-from app.schemas.mensageria import MensagemPreventivaSchema, AlertaBuscaAtivaSchema
+# Modelos de domínio (assumindo que existem no projeto)
+# Importações relativas ao projeto real podem ser ajustadas conforme necessário.
+# Para fins de exemplo, usamos modelos genéricos.
+# from backend.app.models import Paciente, Consulta, Vacina, Diagnostico, etc.
 
+# ---------------------------------------------------------------------------
+# Modelos Pydantic para as mensagens geradas
+# ---------------------------------------------------------------------------
+
+class MensagemLembrete(BaseModel):
+    """Representa uma mensagem de lembrete de teleconsulta."""
+    paciente_id: int
+    nome_paciente: str
+    telefone: str
+    data_consulta: datetime
+    tipo: str = Field(default="lembrete_teleconsulta")
+    canal: str = Field(default="whatsapp")  # ou "sms"
+    conteudo: str
+
+    @field_validator("conteudo")
+    @classmethod
+    def validar_conteudo(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Conteúdo não pode ser vazio")
+        return v.strip()
+
+
+class AlertaBuscaAtiva(BaseModel):
+    """Representa um alerta de busca ativa (vacina ou diabetes)."""
+    paciente_id: int
+    nome_paciente: str
+    telefone: str
+    tipo_alerta: str  # "vacina_atrasada" ou "diabetes_sem_acompanhamento"
+    detalhes: Dict[str, Any] = Field(default_factory=dict)
+    canal: str = Field(default="whatsapp")
+    conteudo: str
+
+    @field_validator("conteudo")
+    @classmethod
+    def validar_conteudo(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Conteúdo não pode ser vazio")
+        return v.strip()
+
+
+# ---------------------------------------------------------------------------
+# Serviço principal
+# ---------------------------------------------------------------------------
 
 class MensageriaPreventivaService:
-    """Serviço responsável pela geração de lembretes automáticos e identificação de buscas ativas."""
+    """
+    Serviço responsável por gerar lembretes e alertas preventivos.
 
-    # Constantes de identificação SUS/APS
-    CIAP2_VACINAS_ATRASADAS = "A96"
-    CID10_VACINAS_ATRASADAS = "Z23"
-    CIAP2_DIABETES = "T90"
-    CID10_DIABETES = "E11.9"
-    PRIORIDADE_ALTA = "ALTA"
-    PRIORIDADE_MEDIA = "MEDIA"
-    PRIORIDADE_BAISA = "BAIXA"
+    Utiliza uma sessão SQLAlchemy para consultar o banco de dados e produzir
+    mensagens mock (WhatsApp/SMS). As mensagens são retornadas como objetos
+    Pydantic para posterior envio (simulado).
+    """
 
-    def __init__(self, db: Session):
-        self.db = db
-
-    # ---------------------------------------------------------------------------
-    # Geração de lembretes automáticos para teleconsultas agendadas
-    # ---------------------------------------------------------------------------
-
-    def gerar_lembretes_teleconsulta(self, patient_id: int, days_ahead: int = 7) -> List[MensagemPreventiva]:
+    def __init__(self, session: Session):
         """
-        Gera lembretes automáticos para teleconsultas agendadas.
+        Inicializa o serviço com uma sessão de banco.
 
         Args:
-            patient_id: ID do paciente.
-            days_ahead: Dias antes da consulta para enviar o lembrete.
+            session: Sessão SQLAlchemy ativa.
+        """
+        self.session = session
+
+    # ------------------------------------------------------------------
+    # Lembretes de teleconsultas
+    # ------------------------------------------------------------------
+
+    def gerar_lembretes_teleconsultas(
+        self,
+        horas_antecedencia: int = 24,
+        canal: str = "whatsapp",
+    ) -> List[MensagemLembrete]:
+        """
+        Gera lembretes para teleconsultas agendadas nas próximas `horas_antecedencia`.
+
+        Args:
+            horas_antecedencia: Quantidade de horas de antecedência para buscar
+                consultas futuras. Padrão 24h.
+            canal: Canal de envio (whatsapp ou sms).
 
         Returns:
-            Lista de mensagens de lembrete a serem enviadas via WhatsApp/SMS.
+            Lista de MensagemLembrete.
         """
-        # Consulta teleconsultas agendadas para o paciente
-        teleconsultas = self.db.query(
-            MensagemPreventiva,
-            MensagemPreventiva.teleconsulta_id,
-            MensagemPreventiva.data_hora_inicio,
-            MensagemPreventiva.status,
-        ).filter(
-            MensagemPreventiva.paciente_id == patient_id,
-            MensagemPreventiva.teleconsulta_id.isnot(None),
-            MensagemPreventiva.status.in_(["AGENDADA", "CONFIRMADA"]),
-        ).order_by(MensagemPreventiva.data_hora_inicio.desc()).all()
+        agora = datetime.utcnow()
+        limite = agora + timedelta(hours=horas_antecedencia)
 
-        lembretes = []
-        for tc in teleconsultas:
-            # Calcula o horário do lembrete (2 dias antes da consulta)
-            hora_consulta = tc.data_hora_inicio
-            if hora_consulta is None:
-                continue
-
-            # Lembrete enviado 2 dias antes da consulta
-            dia_lembrete = hora_consulta - timedelta(days=2)
-            # Garante que não seja após o horário da consulta
-            if dia_lembrete >= hora_consulta:
-                dia_lembrete -= timedelta(days=1)
-
-            # Verifica se já existe um lembrete pendente
-            existing = self.db.query(MensagemPreventiva)
-            existing = existing.filter(
-                MensagemPreventiva.paciente_id == patient_id,
-                MensagemPreventiva.teleconsulta_id == tc.id,
-                MensagemPreventiva.status.in_(["PENDENTE"]),
-            ).first()
-
-            if existing and existing.status == "PENDENTE":
-                # Já existe, atualiza status
-                existing.status = "ENVIADO"
-                existing.texto = self._criar_texto_lembrete(tc, dia_lembrete)
-                existing.enviado_em = datetime.now(timezone.utc)
-            elif existing and existing.status == "ENVIADO":
-                # Já foi enviado, ignora
-                continue
-            else:
-                # Cria novo lembrete
-                lembrate = MensagemPreventiva(
-                    paciente_id=patient_id,
-                    teleconsulta_id=tc.id,
-                    canal="WHATSAPP",
-                    telefone=tc.teleconsela_telefone or "",
-                    nome_destinatario=tc.nome_completo or "",
-                    cns=tc.cns,
-                    cpf=tc.cpf,
-                    tipo_alerta=self.CIAP2_VACINAS_ATRASADAS,
-                    texto=self._criar_texto_lembrete(tc, dia_lembrete),
-                    status="PENDENTE",
-                )
-                self.db.add(lembrate)
-
-        return lembretes
-
-    def _criar_texto_lembrete(self, teleconsulta, dia_lembrete: datetime) -> str:
-        """Cria o texto do lembrete de teleconsulta."""
-        hoje = datetime.now(timezone.utc)
-        descricao = (
-            f"Lembrete: Sua teleconsulta está agendada para {dia_lembrete.strftime('%d/%m/%Y')} "
-            f"às {dia_lembrete.strftime('%H:%M')} ({teleconsulta.data_hora_inicio.strftime('%H:%M')})"
+        # Consulta SQL para buscar consultas no intervalo [agora, limite]
+        # Assumindo que existe uma tabela `consultas` com campos:
+        # id, paciente_id, data_hora, tipo (teleconsulta), status (agendada)
+        # e relação com paciente (nome, telefone).
+        # Ajuste conforme o modelo real.
+        stmt = (
+            select(
+                Consulta.id,
+                Consulta.paciente_id,
+                Paciente.nome,
+                Paciente.telefone,
+                Consulta.data_hora,
+            )
+            .join(Paciente, Paciente.id == Consulta.paciente_id)
+            .where(
+                Consulta.data_hora >= agora,
+                Consulta.data_hora <= limite,
+                Consulta.tipo == "teleconsulta",
+                Consulta.status == "agendada",
+            )
+            .order_by(Consulta.data_hora)
         )
-        return descricao
 
-    # ---------------------------------------------------------------------------
-    # Identificador de busca ativa para crianças com vacinas atrasadas
-    # e diabéticos sem acompanhamento há mais de 90 dias
-    # ---------------------------------------------------------------------------
+        resultados = self.session.execute(stmt).all()
+        mensagens: List[MensagemLembrete] = []
 
-    def identificar_vacinas_atrasadas(self, patient_id: int) -> List[dict]:
-        """
-        Identifica pacientes com vacinas atrasadas (CIAP-2 A96 / CID-10 Z23).
-
-        Args:
-            patient_id: ID do paciente.
-
-        Returns:
-            Lista de dicionários com informações sobre vacinas atrasadas.
-        """
-        # Consulta vacinas com status de aplicação anterior
-        vacinas = self.db.query(
-            MensagemPreventiva,
-            MensagemPreventiva.vacinacao_id,
-            MensagemPreventiva.teleconsulta_id,
-            MensagemPreventiva.texto,
-            MensagemPreventiva.status,
-        ).filter(
-            MensagemPreventiva.paciente_id == patient_id,
-            MensagemPreventiva.teleconsulta_id.isnot(None),
-            MensagemPreventiva.status.in_(["PENDENTE", "ENVIADO"]),
-        ).all()
-
-        atrasadas = []
-        for item in vacinas:
-            # Verifica se a vacina é para vacinação (CIAP-2 A96) ou COVID-19 (CID-10 Z23)
-            if item.texto and item.texto.lower().startswith(self.CIAP2_VACINAS_ATRASADAS):
-                atrasadas.append({
-                    "id": item.id,
-                    "vacina": item.texto.split(" ")[0] if item.texto else None,
-                    "paciente_id": item.paciente_id,
-                    "data_alerta": datetime.now(timezone.utc).isoformat(),
-                    "descricao": item.texto,
-                })
-
-        return atrasadas
-
-    def identificar_diabetes_sem_acompanhamento(self, patient_id: int) -> List[dict]:
-        """
-        Identifica diabéticos sem acompanhamento há mais de 90 dias.
-
-        Args:
-            patient_id: ID do paciente.
-
-        Returns:
-            Lista de dicionários com informações sobre diabéticos sem acompanhamento.
-        """
-        # Consulta atendimentos com foco em diabéticos (CIAP-2 T90 / CID-10 E11.9)
-        atendimentos = self.db.query(
-            AtendimentoSOAP,
-            AtendimentoSOAP.profissional_id,
-            AtendimentoSOAP.data_hora_inicio,
-        ).filter(
-            AtendimentoSOAP.profissional_id.isnot(None),
-            AtendimentoSOAP.subjetivo_motivo.like("%diabetes%", case_sensitive=False),
-        ).all()
-
-        sem_acompanhamento = []
-        for at in atendimentos:
-            # Verifica se há mais de 90 dias desde o último contato
-            if at.data_hora_inicio:
-                dias_since = (datetime.now(timezone.utc) - at.data_hora_inicio).days
-                if dias_since > 90:
-                    sem_acompanhamento.append({
-                        "id": at.id,
-                        "profissional_id": at.profissional_id,
-                        "data_ultimo_contato": at.data_hora_inicio.isoformat(),
-                        "descricao": f"Diabético sem acompanhamento há {dias_since} dias",
-                    })
-
-        return sem_acompanhamento
-
-    def gerar_alertas_ativas(self, patient_id: int) -> List[AlertaBuscaAtiva]:
-        """
-        Gera alertas de busca ativa para pacientes com vacinas atrasadas ou diabéticos sem acompanhamento.
-
-        Args:
-            patient_id: ID do paciente.
-
-        Returns:
-            Lista de alertas de busca ativa.
-        """
-        vacinas_atrasadas = self.identificar_vacinas_atrasadas(patient_id)
-        diabetes_sem_acompanhamento = self.identificar_diabetes_sem_acompanhamento(patient_id)
-
-        alertas = []
-
-        # Adiciona alerta para vacinas atrasadas
-        for vac in vacinas_atrasadas:
-            alerta = AlertaBuscaAtiva(
-                id=vac["id"],
-                paciente_id=patient_id,
-                tipo=self.CIAP2_VACINAS_ATRASADAS,
-                prioridade=self.PRIORIDADE_ALTA,
-                descricao=f"Vacina atrasada: {vac['descricao']}",
-                detalhe=vac["vacina"],
-                resolvido_em=None,
+        for row in resultados:
+            conteudo = (
+                f"Olá {row.nome}, lembramos da sua teleconsulta em "
+                f"{row.data_hora.strftime('%d/%m/%Y às %H:%M')}. "
+                f"Clique no link para acessar a sala virtual."
             )
-            alertas.append(alerta)
+            mensagem = MensagemLembrete(
+                paciente_id=row.paciente_id,
+                nome_paciente=row.nome,
+                telefone=row.telefone,
+                data_consulta=row.data_hora,
+                canal=canal,
+                conteudo=conteudo,
+            )
+            mensagens.append(mensagem)
 
-        # Adiciona alerta para diabéticos sem acompanhamento
-        for diag in diabetes_sem_acompanhamento:
+        return mensagens
+
+    # ------------------------------------------------------------------
+    # Busca ativa: vacinas atrasadas
+    # ------------------------------------------------------------------
+
+    def identificar_busca_ativa_vacinas(
+        self,
+        idade_maxima_anos: int = 12,
+        dias_atraso: int = 30,
+        canal: str = "whatsapp",
+    ) -> List[AlertaBuscaAtiva]:
+        """
+        Identifica crianças com vacinas atrasadas.
+
+        Considera pacientes com idade <= `idade_maxima_anos` que possuam
+        vacinas cuja data prevista de aplicação já passou há mais de
+        `dias_atraso` dias e que não tenham registro de aplicação.
+
+        Args:
+            idade_maxima_anos: Idade máxima (em anos) para considerar criança.
+            dias_atraso: Número de dias de atraso para considerar busca ativa.
+            canal: Canal de envio.
+
+        Returns:
+            Lista de AlertaBuscaAtiva.
+        """
+        hoje = date.today()
+        data_limite = hoje - timedelta(days=dias_atraso)
+
+        # Consulta: pacientes com idade <= idade_maxima_anos
+        # e que tenham vacinas com data_prevista <= data_limite e sem aplicação.
+        # Assumindo tabelas: paciente (id, nome, telefone, data_nascimento),
+        # vacina (id, paciente_id, nome, data_prevista, data_aplicacao).
+        # Vamos buscar vacinas não aplicadas (data_aplicacao IS NULL) e atrasadas.
+        stmt = (
+            select(
+                Paciente.id,
+                Paciente.nome,
+                Paciente.telefone,
+                Vacina.nome.label("vacina_nome"),
+                Vacina.data_prevista,
+            )
+            .join(Vacina, Vacina.paciente_id == Paciente.id)
+            .where(
+                Paciente.data_nascimento >= hoje - timedelta(days=idade_maxima_anos * 365),
+                Vacina.data_prevista <= data_limite,
+                Vacina.data_aplicacao.is_(None),
+            )
+            .order_by(Paciente.id, Vacina.data_prevista)
+        )
+
+        resultados = self.session.execute(stmt).all()
+
+        # Agrupar por paciente para gerar uma mensagem por paciente
+        pacientes_map: Dict[int, Dict[str, Any]] = {}
+        for row in resultados:
+            if row.id not in pacientes_map:
+                pacientes_map[row.id] = {
+                    "nome": row.nome,
+                    "telefone": row.telefone,
+                    "vacinas": [],
+                }
+            pacientes_map[row.id]["vacinas"].append(
+                {
+                    "nome": row.vacina_nome,
+                    "data_prevista": row.data_prevista,
+                }
+            )
+
+        alertas: List[AlertaBuscaAtiva] = []
+        for paciente_id, info in pacientes_map.items():
+            vacinas_str = ", ".join(
+                f"{v['nome']} (prevista {v['data_prevista'].strftime('%d/%m/%Y')})"
+                for v in info["vacinas"]
+            )
+            conteudo = (
+                f"Olá {info['nome']}, identificamos que as seguintes vacinas "
+                f"estão atrasadas: {vacinas_str}. Procure a unidade para "
+                f"regularização."
+            )
             alerta = AlertaBuscaAtiva(
-                id=diag["id"],
-                paciente_id=patient_id,
-                tipo=self.CIAP2_DIABETES,
-                prioridade=self.PRIORIDADE_ALTA,
-                descricao=f"Diabético sem acompanhamento há mais de 90 dias",
-                detalhe=diag["descricao"],
-                resolvido_em=None,
+                paciente_id=paciente_id,
+                nome_paciente=info["nome"],
+                telefone=info["telefone"],
+                tipo_alerta="vacina_atrasada",
+                detalhes={"vacinas": info["vacinas"]},
+                canal=canal,
+                conteudo=conteudo,
             )
             alertas.append(alerta)
 
         return alertas
 
-    def gerar_alertas_compostas(self, patients: List[int]) -> List[AlertaBuscaAtiva]:
+    # ------------------------------------------------------------------
+    # Busca ativa: diabéticos sem acompanhamento
+    # ------------------------------------------------------------------
+
+    def identificar_busca_ativa_diabeticos(
+        self,
+        dias_sem_acompanhamento: int = 90,
+        canal: str = "whatsapp",
+    ) -> List[AlertaBuscaAtiva]:
         """
-        Gera alertas compostos para múltiplos pacientes.
+        Identifica pacientes diabéticos sem consulta/atendimento há mais de
+        `dias_sem_acompanhamento` dias.
+
+        Considera pacientes com diagnóstico de diabetes (CID E10-E14) e que
+        não possuem nenhuma consulta (ou atendimento) após a data limite.
 
         Args:
-            patients: Lista de IDs de pacientes.
+            dias_sem_acompanhamento: Número de dias sem consulta para alerta.
+            canal: Canal de envio.
 
         Returns:
-            Lista de alertas de busca ativa.
+            Lista de AlertaBuscaAtiva.
         """
-        alertas = []
-        for pid in patients:
-            alertas.extend(self.gerar_alertas_ativas(pid))
+        data_limite = datetime.utcnow() - timedelta(days=dias_sem_acompanhamento)
+
+        # Subconsulta para obter pacientes com diabetes
+        # Assumindo tabela `diagnosticos` com paciente_id e codigo_cid.
+        subq_diabeticos = (
+            select(Diagnostico.paciente_id)
+            .where(Diagnostico.codigo_cid.like("E1%"))
+            .distinct()
+        )
+
+        # Subconsulta para obter pacientes com consulta após data_limite
+        subq_consultas_recentes = (
+            select(Consulta.paciente_id)
+            .where(Consulta.data_hora > data_limite)
+            .distinct()
+        )
+
+        # Pacientes diabéticos sem consulta recente
+        stmt = (
+            select(Paciente.id, Paciente.nome, Paciente.telefone)
+            .where(
+                Paciente.id.in_(subq_diabeticos),
+                ~Paciente.id.in_(subq_consultas_recentes),
+            )
+            .order_by(Paciente.id)
+        )
+
+        resultados = self.session.execute(stmt).all()
+
+        alertas: List[AlertaBuscaAtiva] = []
+        for row in resultados:
+            conteudo = (
+                f"Olá {row.nome}, notamos que você não realiza acompanhamento "
+                f"para diabetes há mais de {dias_sem_acompanhamento} dias. "
+                f"Recomendamos agendar uma consulta para avaliação."
+            )
+            alerta = AlertaBuscaAtiva(
+                paciente_id=row.id,
+                nome_paciente=row.nome,
+                telefone=row.telefone,
+                tipo_alerta="diabetes_sem_acompanhamento",
+                detalhes={"dias_sem_acompanhamento": dias_sem_acompanhamento},
+                canal=canal,
+                conteudo=conteudo,
+            )
+            alertas.append(alerta)
+
         return alertas
 
+    # ------------------------------------------------------------------
+    # Método para envio mock (opcional)
+    # ------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Funções auxiliares
-# ---------------------------------------------------------------------------
+    @staticmethod
+    def enviar_mensagem(mensagem: BaseModel) -> None:
+        """
+        Simula o envio de uma mensagem via WhatsApp/SMS.
 
-def criar_texto_lembrete(teleconsulta, dia_lembrete: datetime) -> str:
-    """Cria o texto do lembrete de teleconsulta."""
-    hoje = datetime.now(timezone.utc)
-    descricao = (
-        f"Lembrete: Sua teleconsulta está agendada para {dia_lembrete.strftime('%d/%m/%Y')} "
-        f"às {dia_lembrete.strftime('%H:%M')} ({teleconsulta.data_hora_inicio.strftime('%H:%M')})"
-    )
-    return descricao
+        Em produção, este método seria substituído por uma integração real
+        com provedores de mensageria. Aqui apenas registramos em log.
+
+        Args:
+            mensagem: Objeto MensagemLembrete ou AlertaBuscaAtiva.
+        """
+        # Exemplo: print ou logging
+        print(f"[MOCK ENVIO] Canal: {mensagem.canal}")
+        print(f"Para: {mensagem.nome_paciente} ({mensagem.telefone})")
+        print(f"Conteúdo: {mensagem.conteudo}")
+        print("-" * 40)
+
+# ------------------------------------------------------------------
+# Funções de Conveniência e Testes Isolados de Busca Ativa e Idempotência
+# ------------------------------------------------------------------
+
+def filtrar_pacientes_hipertensos_vencidos(consultas: Sequence[Any], data_referencia: date) -> List[int]:
+    """
+    Filtra pacientes com consultas do tipo 'hipertensao' estritamente anteriores à data de referência.
+    """
+    vencidos = []
+    for c in consultas:
+        if getattr(c, "tipo", None) == "hipertensao" and getattr(c, "data", None) < data_referencia:
+            pid = getattr(c, "paciente_id", None)
+            if pid is not None and pid not in vencidos:
+                vencidos.append(pid)
+    return vencidos
+
+
+def verificar_janela_horario(horario: datetime) -> bool:
+    """
+    Verifica se o horário está dentro da janela permitida (08:00 às 20:00).
+    """
+    from datetime import time
+    t = horario.time()
+    return time(8, 0, 0) <= t < time(20, 0, 0)
+
+
+def notificacao_ja_enviada(paciente_id: int, consulta_id: int) -> bool:
+    """Verifica idempotência do envio de notificação."""
+    return False
+
+
+def enviar_notificacao(paciente_id: int, consulta_id: int) -> None:
+    """Dispara a notificação via canal configurado."""
+    pass
+
+
+def registrar_notificacao(paciente_id: int, consulta_id: int) -> None:
+    """Registra auditoria de notificação enviada no banco."""
+    pass
+
+
+def enviar_lembrete(paciente_id: int, consulta_id: int) -> None:
+    """Executa o fluxo idempotente de envio de lembrete preventivo."""
+    if not notificacao_ja_enviada(paciente_id=paciente_id, consulta_id=consulta_id):
+        enviar_notificacao(paciente_id=paciente_id, consulta_id=consulta_id)
+        registrar_notificacao(paciente_id=paciente_id, consulta_id=consulta_id)

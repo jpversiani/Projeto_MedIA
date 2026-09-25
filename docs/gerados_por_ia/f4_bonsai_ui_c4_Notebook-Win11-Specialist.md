@@ -1,242 +1,236 @@
-```python
-# Arquivo: backend/app/models/convencion.py
-"""
-Modelos de dados para convênios e faturamento medical.
-Padrões SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF.
-"""
-
-from __future__ import annotations
-
-from datetime import date, datetime
-from decimal import Decimal
-from enum import Enum
-from typing import Optional
-
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Enum as SAEnum,
-    Float,
-    Integer,
-    String,
-    Text,
-    check,
-    Unique,
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from backend.app.models.base import Base
-
-
-class EstadoConvencion(Enum):
-    """Estado do convênio medical."""
-    ATIVADO = "ativo"
-    INATIVO = "inativo"
-    EXPIRO = "expirado"
-    SUSPENDIDO = "suspendido"
-
-
-class TipoAtendimento(Enum):
-    """Tipo de atendimento medical."""
-    URGENTE = "urgente"
-    URGENTE_2 = "urgente_2"
-    URGENTE_3 = "urgente_3"
-    URGENTE_4 = "urgente_4"
-    URGENTE_5 = "urgente_5"
-    URGENTE_6 = "urgente_6"
-    URGENTE_7 = "urgente_7"
-    URGENTE_8 = "urgente_8"
-    URGENTE_9 = "urgente_9"
-    URGENTE_10 = "urgente_10"
-    URGENTE_11 = "urgente_11"
-    URGENTE_12 = "urgente_12"
-    URGENTE_13 = "urgente_13"
-    URGENTE_14 = "urgente_14"
-    URGENTE_15 = "urgente_15"
-    URGENTE_16 = "urgente_16"
-    URGENTE_17 = "urgente_17"
-    URGENTE_18 = "urgente_18"
-    URGENTE_19 = "urgente_19"
-    URGENTE_20 = "urgente_20"
-    URGENTE_21 = "urgente_21"
-    URGENTE_22 = "urgente_22"
-    URGENTE_23 = "urgente_23"
-    URGENTE_24 = "urgente_24"
-    URGENTE_25 = "urgente_25"
-    URGENTE_26 = "urgente_26"
-    URGENTE_27 = "urgente_27"
-    URGENTE_28 = "urgente_28"
-    URGENTE_29 = "urgente_29"
-    URGENTE_30 = "urgente_30"
-    URGENTE_31 = "urgente_31"
-    URGENTE_32 = "urgente_32"
-    URGENTE_33 = "urgente_33"
-    URGENTE_34 = "urgente_34"
-    URGENTE_35 = "urgente_35"
-    URGENTE_36 = "urgente_36"
-    URGENTE_37 = "urgente_37"
-    URGENTE_38 = "urgente_38"
-    URGENTE_39 = "urgente_39"
-    URGENTE_40 = "urgente_40"
-    URGENTE_41 = "urgente_41"
-    URGENTE_42 = "urgente_42"
-    URGENTE_43 = "urgente_43"
-    URGENTE_44 = "urgente_44"
-    URGENTE_45 = "urgente_45"
-    URGENTE_46 = "urgente_46"
-    URGENTE_47 = "urgente_47"
-    URGENTE_48 = "urgente_48"
-    URGENTE_49 = "urgente_49"
-    URGENTE_50 = "urgente_50"
-    URGENTE_51 = "urgente_51"
-    URGENTE_52 = "urgente_52"
-    URGENTE_53 = "urgente_53"
-    URGENTE_54 = "urgente_54"
-    URGENTE_55 = "urgente_55"
-    URGENTE_56 = "urgente_56"
-    URGENTE_57 = "urgente_57"
-    URGENTE_58 = "urgente_58"
-    URGENTE_59 = "urgente_59"
-    URGENTE_60 = "urgente_60"
-    URGENTE_61 = "urgente_61"
-    URGENTE_62 = "urgente_62"
-    URGENTE_63 = "urgente_63"
-    URGENTE_64 = "urgente_64"
-    URGENTE_65 = "urgente_65"
-    URGENTE_66 = "urgente_66"
-    URGENTE_67 = "urgente_67"
-    URGENTE_68 = "urgente_68"
-    URGENTE_69 = "urgente_69"
-    URGENTE_70 = "urgente_70"
-    URGENTE_71 = "urgente_71"
-    URGENTE_72 = "urgente_72"
-    URGENTE_73 = "urgente_73"
-    URGENTE_74 = "urgente_74"
-    URGENTE_75 = "urgente_75"
-    URGENTE_76 = "urgente_76"
-    URGENTE_77 = "urgente_77"
-    URGENTE_78 = "urgente_78"
-    URGENTE_79 = "urgente_79"
-    URGENTE_80 = "urgente_80"
-    URGENTE_81 = "urgente_81"
-    URGENTE_82 = "urgente_82"
-    URGENTE_83 = "urgente_83"
-    URGENTE_84 = "urgente_84"
-    URGENTE_85 = "urgente_85"
-    URGENTE_86 = "urgente_86"
-    URGENTE_87 = "urgente_87"
-    URGENTE_88 = "urgente_88"
-    URGENTE_89 = "urgente_89"
-    URGENTE_90 = "urgente_90"
-    URGENTE_91 = "urgente_91"
-    URGENTE_92 = "urgente_92"
-    URGENTE_93 = "urgente_93"
-    URGENTE_94 = "urgente_94"
-    URGENTE_95 = "urgente_95"
-    URGENTE_96 = "urgente_96"
-    URGENTE_97 = "urgente_97"
-    URGENTE_98 = "urgente_98"
-    URGENTE_99 = "urgente_99"
-    URGENTE_100 = "urgente_100"
-    URGENTE_101 = "urgente_101"
-    URGENTE_102 = "urgente_102"
-    URGENTE_103 = "urgente_103"
-    URGENTE_104 = "urgente_104"
-    URGENTE_105 = "urgente_105"
-    URGENTE_106 = "urgente_106"
-    URGENTE_107 = "urgente_107"
-    URGENTE_108 = "urgente_108"
-    URGENTE_109 = "urgente_109"
-    URGENTE_110 = "urgente_110"
-    URGENTE_111 = "urgente_111"
-    URGENTE_112 = "urgente_112"
-    URGENTE_113 = "urgente_113"
-    URGENTE_114 = "urgente_114"
-    URGENTE_115 = "urgente_115"
-    URGENTE_116 = "urgente_116"
-    URGENTE_117 = "urgente_117"
-    URGENTE_118 = "urgente_118"
-    URGENTE_119 = "urgente_119"
-    URGENTE_120 = "urgente_120"
-    URGENTE_121 = "urgente_121"
-    URGENTE_122 = "urgente_122"
-    URGENTE_123 = "urgente_123"
-    URGENTE_124 = "urgente_124"
-    URGENTE_125 = "urgente_125"
-    URGENTE_126 = "urgente_126"
-    URGENTE_127 = "urgente_127"
-    URGENTE_128 = "urgente_128"
-    URGENTE_129 = "urgente_129"
-    URGENTE_130 = "urgente_130"
-    URGENTE_131 = "urgente_131"
-    URGENTE_132 = "urgente_132"
-    URGENTE_133 = "urgente_133"
-    URGENTE_134 = "urgente_134"
-    URGENTE_135 = "urgente_135"
-    URGENTE_136 = "urgente_136"
-    URGENTE_137 = "urgente_137"
-    URGENTE_138 = "urgente_138"
-    URGENTE_139 = "urgente_139"
-    URGENTE_140 = "urgente_140"
-    URGENTE_141 = "urgente_141"
-    URGENTE_142 = "urgente_142"
-    URGENTE_143 = "urgente_143"
-    URGENTE_144 = "urgente_144"
-    URGENTE_145 = "urgente_145"
-    URGENTE_146 = "urgente_146"
-    URGENTE_147 = "urgente_147"
-    URGENTE_148 = "urgente_148"
-    URGENTE_149 = "urgente_149"
-    URGENTE_150 = "urgente_150"
-    URGENTE_151 = "urgente_151"
-    URGENTE_152 = "urgente_152"
-    URGENTE_153 = "urgente_153"
-    URGENTE_154 = "urgente_154"
-    URGENTE_155 = "urgente_155"
-    URGENTE_156 = "urgente_156"
-    URGENTE_157 = "urgente_157"
-    URGENTE_158 = "urgente_158"
-    URGENTE_159 = "urgente_159"
-    URGENTE_160 = "urgente_160"
-    URGENTE_161 = "urgente_161"
-    URGENTE_162 = "urgente_162"
-    URGENTE_163 = "urgente_163"
-    URGENTE_164 = "urgente_164"
-    URGENTE_165 = "urgente_165"
-    URGENTE_166 = "urgente_166"
-    URGENTE_167 = "urgente_167"
-    URGENTE_168 = "urgente_168"
-    URGENTE_169 = "urgente_169"
-    URGENTE_170 = "urgente_170"
-    URGENTE_171 = "urgente_171"
-    URGENTE_172 = "urgente_172"
-    URGENTE_173 = "urgente_173"
-    URGENTE_174 = "urgente_174"
-    URGENTE_175 = "urgente_175"
-    URGENTE_176 = "urgente_176"
-    URGENTE_177 = "urgente_177"
-    URGENTE_178 = "urgente_178"
-    URGENTE_179 = "urgente_179"
-    URGENTE_180 = "urgente_180"
-    URGENTE_181 = "urgente_181"
-    URGENTE_182 = "urgente_182"
-    URGENTE_183 = "urgente_183"
-    URGENTE_184 = "urgente_184"
-    URGENTE_185 = "urgente_185"
-    URGENTE_186 = "urgente_186"
-    URGENTE_187 = "urgente_187"
-    URGENTE_188 = "urgente_188"
-    URGENTE_189 = "urgente_189"
-    URGENTE_190 = "urgente_190"
-    URGENTE_191 = "urgente_191"
-    URGENTE_192 = "urgente_192"
-    URGENTE_193 = "urgente_193"
-    URGENTE_194 = "urgente_194"
-    URGENTE_195 = "urgente_195"
-    URGENTE_196 = "urgente_196"
-    URGENTE_197 = "urgente_197"
-    URGENTE_198 = "urgente_198"
-    URGENTE_199 = "urgente_199"
-    URG
+```html:backend/app/static/painel_convenios.html
+<!DOCTYPE html>
+<html lang="pt-BR" class="min-h-screen bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Convenios e Recibos de Reembolso — MedIA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f0f1f5; }
+        .glass-panel {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .glass-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 14px;
+            padding: 24px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.25);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99,102,241,0.35);
+        }
+        .stat-card.green {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        }
+        .stat-card.red {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        }
+        .stat-card.amber {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        }
+        .stat-card.blue {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        }
+        .stat-card.purple {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        }
+        .stat-card.teal {
+            background: linear-gradient(135deg, #0891b2 0%, #14b8a6 100%);
+        }
+        .stat-card.cyan {
+            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #db2777 0%, #f43f5e 100%);
+        }
+        .stat-card.emerald {
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+        }
+        .stat-card.slate {
+            background: linear-gradient(135deg, #374151 0%, #64748b 100%);
+        }
+        .stat-card.amber {
+            background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.pink {
+            background: linear-gradient(135deg, #7f1d1d 0%, #ec4899 100%);
+        }
+        .stat-card.violet {
+            background: linear-gradient(135deg, #581c87 0%, #c084fc 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+        }
+        .stat-card.rose {
+            background: linear-gradient(

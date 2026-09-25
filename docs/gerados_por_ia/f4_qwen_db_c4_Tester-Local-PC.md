@@ -1,289 +1,285 @@
 Here's a thinking process:
 
-1.  **Understand User Request:**
+1.  **Understand User Role & Task:**
    - **Role:** Software Engineer (Tester)
-   - **Task:** Create `backend/app/repositories/convenios_repo.py` for a project called "MedIA".
-   - **Domain:** Repository of Health Plans/Operators (Convênios), TISS Guides (Guias TISS), and Financial Receipts (Lançamentos Financeiros).
-   - **Requirements:**
-     - Python 3.12, strict typing with Pydantic v2 and SQLAlchemy 2.0.
-     - SUS/APS standards: CIAP-2, CID-10, SOAP method, CNS/CPF identification.
-     - Full compliance and automated test coverage with pytest.
+   - **Task:** Create `backend/app/repositories/convenios_repo.py` for the MedIA project.
+   - **Domain:** Health insurance (convênios), TISS guides (TISS 4.01), Financial receipts (private billing).
+   - **Architecture/Constraints:**
+     - Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0.
+     - Models & queries for: operators/plans, TISS guide history (status: GERADA, ENVIADA, FATURADA, GLOSADA), private receipts control.
+     - No SUS/SISAB or IoT code.
+     - Production code in `backend/app/`, tests in `backend/tests/`.
+     - Preserve 100% test suite (green).
      - Provide complete, executable code.
-     - Specify file paths clearly.
-   - **Key Entities to Model:**
-     - Operadoras/Planos de Saúde (Health Operators/Plans)
-     - Guias TISS (TISS Guides) with status: GERADA, ENVIADA, FATURADA, GLOSADA
-     - Recibos Particulares (Private Receipts)
-     - References to CIAP-2, CID-10, SOAP, CNS/CPF
-   - **Architecture/Standards:**
-     - SQLAlchemy 2.0 (declarative, async/sync? I'll use sync for simplicity but note it can be adapted, or use async if preferred. I'll stick to sync for broader compatibility, but SQLAlchemy 2.0 style is key).
-     - Pydantic v2 for DTOs/validations.
-     - Strict typing.
-     - pytest coverage.
+     - Specify file path at the top of each code block.
 
-2.  **Deconstruct Requirements & Plan Structure:**
-   - I need to create:
-     - `backend/app/repositories/convenios_repo.py` (main file requested)
-     - Models (SQLAlchemy 2.0)
-     - Pydantic schemas (v2)
-     - Repository functions/queries
-     - Pytest tests
-   - Since the prompt asks for `backend/app/repositories/convenios_repo.py`, I'll focus on that, but I should also provide the necessary models/schemas if they aren't assumed to exist, or structure it so it's self-contained for testing. I'll create a complete module with models, schemas, repository, and tests in a logical way, but I'll clearly mark the main file as requested. Actually, the prompt says "crie backend/app/repositories/convenios_repo.py: modelos e consultas SQLAlchemy 2.0...". I'll put everything in that file for simplicity, or split logically but clearly indicate paths. I'll stick to one main file for the repo, and provide tests separately.
-   - Let's define the entities:
-     - `OperadoraSaude`: id, nome, cnpj, contato, status
-     - `PlanoSaude`: id, operadora_id, nome, codigo_ans, tipo (ambulatorial, hospitalar, etc.)
-     - `GuiaTISS`: id, plano_id, paciente_cns, paciente_cpf, data_emissao, status (enum), ciap2_codes (JSON/list), cid10_codes (JSON/list), soap_data (JSON), xml_tiss (text), created_at, updated_at
-     - `LancamentoFinanceiro`: id, guia_id, tipo (particular, convenio), valor, descricao, status, data_lancamento
-   - I'll use SQLAlchemy 2.0 declarative style with `Mapped`, `mapped_column`, `relationship`.
-   - I'll use Pydantic v2 for DTOs.
-   - I'll implement repository functions using SQLAlchemy 2.0 session patterns.
-   - I'll write comprehensive pytest tests.
+2.  **Deconstruct Requirements:**
+   - **Models Needed:**
+     - `Operadora` (Health Insurance Operator)
+     - `PlanoSaude` (Health Insurance Plan)
+     - `GuiaTISS` (TISS Guide) with status enum
+     - `ReciboParticular` (Private Receipt)
+   - **Queries/Repository Methods:**
+     - CRUD for operators/plans
+     - Guide history/status tracking
+     - Receipt control
+   - **Tech Stack:** SQLAlchemy 2.0 (declarative, async/sync? I'll assume sync for simplicity unless specified, but I'll use `sqlalchemy.orm` with `Mapped` and `mapped_column` for modern SQLAlchemy 2.0 style), Pydantic v2 for schemas, Python 3.12 type hints.
+   - **Structure:** The file should contain models, enums, and repository functions/classes. Since it's a repository file, I'll structure it with SQLAlchemy models and a repository class/function set.
 
-3.  **Draft - `backend/app/repositories/convenios_repo.py`:**
-   - Imports: `uuid`, `datetime`, `enum`, `list`, `dict`, `Optional`, `Any`, `Session` from sqlalchemy, `Column`, `String`, `Integer`, `Float`, `DateTime`, `Boolean`, `Enum`, `Text`, `JSON`, `relationship`, `mapped_column`, `Mapped`, `DeclarativeBase`, `select`, `update`, `delete`, `insert`, `sessionmaker`, `create_engine` (for testing), `pydantic` models.
-   - Define Enums: `GuiaStatus`, `LancamentoTipo`, `LancamentoStatus`
-   - Define Base class: `class Base(DeclarativeBase): pass`
-   - Define Models:
-     - `Operadora`
-     - `Plano`
-     - `GuiaTISS`
-     - `LancamentoFinanceiro`
-   - Define Pydantic Schemas (v2):
-     - `OperadoraCreate`, `OperadoraRead`
-     - `PlanoCreate`, `PlanoRead`
-     - `GuiaTISSCreate`, `GuiaTISSRead`
-     - `LancamentoFinanceiroCreate`, `LancamentoFinanceiroRead`
-   - Define Repository class/functions:
-     - `ConveniosRepository` with methods like `create_operadora`, `get_operadora`, `create_plano`, `get_plano`, `create_guia`, `update_guia_status`, `get_guias_by_status`, `create_lancamento`, `get_lancamentos`, etc.
-     - Use SQLAlchemy 2.0 syntax: `session.execute(select(...))`, `session.execute(update(...))`, etc.
-   - Ensure strict typing and Pydantic v2 compliance.
-   - Add comments for SUS/APS standards (CIAP-2, CID-10, SOAP, CNS/CPF).
+3.  **Design Models (SQLAlchemy 2.0 style):**
+   - Use `sqlalchemy.orm.Mapped`, `mapped_column`, `MappedAsDataclass` or standard declarative. I'll stick to standard declarative with `__tablename__` and `mapped_column` for clarity.
+   - Enums: `GuiaStatus` (GERADA, ENVIADA, FATURADA, GLOSADA)
+   - Relationships: Operadora -> Planos, Plano -> Guias, Guia -> Recibos (or direct to Plano/Paciente? I'll keep it simple: Guia links to Plano and has receipts).
+   - Let's define:
+     - `Operadora`: id, nome, cns (ANS code), cnpj, ativo
+     - `PlanoSaude`: id, operadora_id, nome, codigo_ans, tipo (AMB, HOSP, etc.), ativo
+     - `GuiaTISS`: id, plano_id, paciente_cpf, numero_guias, status, data_emissao, data_envio, data_faturamento, data_glosa, xml_tiss, json_tiss, ativo
+     - `ReciboParticular`: id, guia_id, valor, descricao, data_emissao, pdf_path, ativo
 
-   Let's write it out carefully.
+   Wait, TISS 4.01 has specific fields, but I'll keep it practical for the repository layer. I'll add necessary columns for the domain.
 
-   *Self-Correction/Refinement during drafting:*
-   - SQLAlchemy 2.0 uses `mapped_column` instead of `Column`. I'll use `Mapped` and `mapped_column`.
-   - Pydantic v2 uses `model_config = ConfigDict(from_attributes=True)` for ORM compatibility.
-   - I'll make the repository methods async or sync? The prompt doesn't specify, but sync is fine for examples. I'll use sync for simplicity but note it's compatible with async. Actually, I'll stick to sync to keep it straightforward, but I'll make sure it's SQLAlchemy 2.0 style.
-   - I need to ensure the code is complete and executable. I'll include a test database setup in the pytest file.
-   - I'll structure the repo file with clear sections: Enums, Models, Schemas, Repository.
-   - I'll add validation for CNS/CPF in Pydantic schemas.
-   - I'll ensure CIAP-2, CID-10, SOAP are represented as JSON/arrays in the model, with Pydantic validation.
+4.  **Design Repository:**
+   - Need async or sync? I'll use sync for simplicity but structure it to be easily adaptable. Actually, modern FastAPI uses async, but SQLAlchemy 2.0 recommends `AsyncSession` for async. I'll provide sync for broader compatibility unless specified, but I'll stick to sync with `Session` for simplicity, or explicitly use `AsyncSession` if needed. I'll go with sync `Session` but note it's easily adaptable. Actually, I'll use `sqlalchemy.orm.Session` as it's standard.
+   - Repository class `ConveniosRepository` with methods:
+     - `criar_operadora`, `atualizar_operadora`, `listar_operadoras`
+     - `criar_plano`, `listar_planos_por_operadora`
+     - `criar_guia_tiss`, `atualizar_status_guia`, `listar_guias_por_status`, `listar_historico_guias`
+     - `criar_recibo_particular`, `listar_recibos_por_guia`, `atualizar_recibo`
+   - I'll use Pydantic v2 schemas for input/output validation within the repository or assume they're passed as dicts/models. I'll define Pydantic models at the top of the file for clarity.
 
-   Let's draft the code mentally first, then write it out.
-
-   **Models:**
+5.  **Draft Code (Mental Refinement):**
    ```python
-   class Operadora(Base):
+   # Arquivo: backend/app/repositories/convenios_repo.py
+   from __future__ import annotations
+   from datetime import datetime
+   from enum import Enum
+   from typing import Optional, List
+   from pydantic import BaseModel, Field, ConfigDict
+   from sqlalchemy import String, Text, Numeric, DateTime, Boolean, ForeignKey, Enum as SAEnum, func
+   from sqlalchemy.orm import Mapped, mapped_column, relationship, Session, DeclarativeBase
+   import uuid
+
+   class Base(DeclarativeBase):
+       pass
+
+   class GuiaStatus(str, Enum):
+       GERADA = "GERADA"
+       ENVIADA = "ENVIADA"
+       FATURADA = "FATURADA"
+       GLOSADA = "GLOSADA"
+
+   # Pydantic Schemas
+   class OperadoraCreate(BaseModel):
+       nome: str = Field(..., min_length=2, max_length=100)
+       cns: str = Field(..., pattern=r"^\d{15}$")
+       cnpj: str = Field(..., pattern=r"^\d{14}$")
+
+   class PlanoCreate(BaseModel):
+       nome: str
+       codigo_ans: str
+       tipo: str = "AMB"
+
+   class GuiaTISSCreate(BaseModel):
+       plano_id: uuid.UUID
+       paciente_cpf: str
+       numero_guias: int = 1
+       xml_tiss: Optional[str] = None
+       json_tiss: Optional[str] = None
+
+   class ReciboParticularCreate(BaseModel):
+       guia_id: uuid.UUID
+       valor: float = Field(..., gt=0)
+       descricao: str
+       pdf_path: Optional[str] = None
+
+   # SQLAlchemy Models
+   class OperadoraModel(Base):
        __tablename__ = "operadoras"
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       nome: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-       cnpj: Mapped[str] = mapped_column(String(14), unique=True, nullable=False)
-       contato_email: Mapped[str] = mapped_column(String(255))
-       status: Mapped[bool] = mapped_column(Boolean, default=True)
-       planos: Mapped[list["Plano"]] = relationship(back_populates="operadora", cascade="all, delete-orphan")
+       nome: Mapped[str] = mapped_column(String(100), unique=True)
+       cns: Mapped[str] = mapped_column(String(15), unique=True)
+       cnpj: Mapped[str] = mapped_column(String(14), unique=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       planos: Mapped[List["PlanoSaudeModel"]] = relationship(back_populates="operadora", lazy="selectin")
 
-   class Plano(Base):
-       __tablename__ = "planos"
+   class PlanoSaudeModel(Base):
+       __tablename__ = "planos_saude"
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
        operadora_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("operadoras.id"))
-       nome: Mapped[str] = mapped_column(String(100), nullable=False)
-       codigo_ans: Mapped[str] = mapped_column(String(6), unique=True, nullable=False)
-       tipo: Mapped[str] = mapped_column(String(20)) # ambulatorial, hospitalar, etc.
-       operadora: Mapped["Operadora"] = relationship(back_populates="planos")
-       guias: Mapped[list["GuiaTISS"]] = relationship(back_populates="plano", cascade="all, delete-orphan")
+       nome: Mapped[str] = mapped_column(String(100))
+       codigo_ans: Mapped[str] = mapped_column(String(20), unique=True)
+       tipo: Mapped[str] = mapped_column(String(10))
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       operadora: Mapped["OperadoraModel"] = relationship(back_populates="planos")
+       guias: Mapped[List["GuiaTISSModel"]] = relationship(back_populates="plano")
 
-   class GuiaTISS(Base):
+   class GuiaTISSModel(Base):
        __tablename__ = "guias_tiss"
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-       plano_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("planos.id"))
-       paciente_cns: Mapped[str] = mapped_column(String(15))
-       paciente_cpf: Mapped[str] = mapped_column(String(11))
+       plano_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("planos_saude.id"))
+       paciente_cpf: Mapped[str] = mapped_column(String(14))
+       numero_guias: Mapped[int] = mapped_column(default=1)
+       status: Mapped[GuiaStatus] = mapped_column(SAEnum(GuiaStatus, name="guia_status_enum"), default=GuiaStatus.GERADA)
        data_emissao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       status: Mapped[GuiaStatus] = mapped_column(Enum(GuiaStatus), default=GuiaStatus.GERADA)
-       ciap2_codes: Mapped[list[str]] = mapped_column(JSON, default=list)
-       cid10_codes: Mapped[list[str]] = mapped_column(JSON, default=list)
-       soap_data: Mapped[dict] = mapped_column(JSON, default=dict)
-       xml_tiss: Mapped[str] = mapped_column(Text)
-       plano: Mapped["Plano"] = relationship(back_populates="guias")
-       lancamentos: Mapped[list["LancamentoFinanceiro"]] = relationship(back_populates="guia", cascade="all, delete-orphan")
+       data_envio: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       data_faturamento: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       data_glosa: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+       xml_tiss: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       json_tiss: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       plano: Mapped["PlanoSaudeModel"] = relationship(back_populates="guias")
+       recibos: Mapped[List["ReciboParticularModel"]] = relationship(back_populates="guia")
 
-   class LancamentoFinanceiro(Base):
-       __tablename__ = "lancamentos_financeiros"
+   class ReciboParticularModel(Base):
+       __tablename__ = "recibos_particulares"
        id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
        guia_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("guias_tiss.id"))
-       tipo: Mapped[LancamentoTipo] = mapped_column(Enum(LancamentoTipo))
-       valor: Mapped[float] = mapped_column(Float, nullable=False)
+       valor: Mapped[float] = mapped_column(Numeric(10, 2))
        descricao: Mapped[str] = mapped_column(String(255))
-       status: Mapped[LancamentoStatus] = mapped_column(Enum(LancamentoStatus), default=LancamentoStatus.PENDENTE)
-       data_lancamento: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-       guia: Mapped["GuiaTISS"] = relationship(back_populates="lancamentos")
+       data_emissao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+       pdf_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+       ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+       guia: Mapped["GuiaTISSModel"] = relationship(back_populates="recibos")
+
+   # Repository
+   class ConveniosRepository:
+       def __init__(self, session: Session):
+           self.session = session
+
+       # Operadoras
+       def criar_operadora(self, data: OperadoraCreate) -> OperadoraModel:
+           op = OperadoraModel(**data.model_dump())
+           self.session.add(op)
+           self.session.flush()
+           return op
+
+       def listar_operadoras(self, ativo: Optional[bool] = None) -> List[OperadoraModel]:
+           query = self.session.query(OperadoraModel)
+           if ativo is not None:
+               query = query.filter(OperadoraModel.ativo == ativo)
+           return query.all()
+
+       # Planos
+       def criar_plano(self, data: PlanoCreate, operadora_id: uuid.UUID) -> PlanoSaudeModel:
+           plano = PlanoSaudeModel(**data.model_dump(), operadora_id=operadora_id)
+           self.session.add(plano)
+           self.session.flush()
+           return plano
+
+       def listar_planos_por_operadora(self, operadora_id: uuid.UUID) -> List[PlanoSaudeModel]:
+           return self.session.query(PlanoSaudeModel).filter(
+               PlanoSaudeModel.operadora_id == operadora_id,
+               PlanoSaudeModel.ativo == True
+           ).all()
+
+       # Guias TISS
+       def criar_guia(self, data: GuiaTISSCreate) -> GuiaTISSModel:
+           guia = GuiaTISSModel(**data.model_dump())
+           self.session.add(guia)
+           self.session.flush()
+           return guia
+
+       def atualizar_status_guia(self, guia_id: uuid.UUID, novo_status: GuiaStatus) -> Optional[GuiaTISSModel]:
+           guia = self.session.get(GuiaTISSModel, guia_id)
+           if not guia:
+               return None
+           guia.status = novo_status
+           if novo_status == GuiaStatus.ENVIADA:
+               guia.data_envio = datetime.utcnow()
+           elif novo_status == GuiaStatus.FATURADA:
+               guia.data_faturamento = datetime.utcnow()
+           elif novo_status == GuiaStatus.GLOSADA:
+               guia.data_glosa = datetime.utcnow()
+           self.session.flush()
+           return guia
+
+       def listar_guias_por_status(self, status: GuiaStatus) -> List[GuiaTISSModel]:
+           return self.session.query(GuiaTISSModel).filter(
+               GuiaTISSModel.status == status,
+               GuiaTISSModel.ativo == True
+           ).all()
+
+       def historico_guias(self, plano_id: Optional[uuid.UUID] = None, paciente_cpf: Optional[str] = None) -> List[GuiaTISSModel]:
+           query = self.session.query(GuiaTISSModel).filter(GuiaTISSModel.ativo == True)
+           if plano_id:
+               query = query.filter(GuiaTISSModel.plano_id == plano_id)
+           if paciente_cpf:
+               query = query.filter(GuiaTISSModel.paciente_cpf == paciente_cpf)
+           return query.order_by(GuiaTISSModel.data_emissao.desc()).all()
+
+       # Recibos
+       def criar_recibo(self, data: ReciboParticularCreate) -> ReciboParticularModel:
+           recibo = ReciboParticularModel(**data.model_dump())
+           self.session.add(recibo)
+           self.session.flush()
+           return recibo
+
+       def listar_recibos_por_guia(self, guia_id: uuid.UUID) -> List[ReciboParticularModel]:
+           return self.session.query(ReciboParticularModel).filter(
+               ReciboParticularModel.guia_id == guia_id,
+               ReciboParticularModel.ativo == True
+           ).all()
+
+       def atualizar_recibo(self, recibo_id: uuid.UUID, valor: Optional[float] = None, descricao: Optional[str] = None, pdf_path: Optional[str] = None) -> Optional[ReciboParticularModel]:
+           recibo = self.session.get(ReciboParticularModel, recibo_id)
+           if not recibo:
+               return None
+           if valor is not None: recibo.valor = valor
+           if descricao is not None: recibo.descricao = descricao
+           if pdf_path is not None: recibo.pdf_path = pdf_path
+           self.session.flush()
+           return recibo
    ```
 
-   **Pydantic Schemas (v2):**
-   Need to validate CNS (15 digits) and CPF (11 digits). I'll use `field_validator`.
-   CIAP-2 and CID-10 validation: CIAP-2 is typically 1-3 letters + 1-2 digits. CID-10 is 1 letter + 2 digits. I'll add basic regex validators.
-   SOAP: Subjective, Objective, Assessment, Plan. I'll validate structure.
+6.  **Check Constraints & Requirements:**
+   - *Python 3.12, strict typing, Pydantic v2, SQLAlchemy 2.0*: Used `from __future__ import annotations`, `Mapped`, `mapped_column`, Pydantic v2 `BaseModel`, `Field`, `model_dump()`. Type hints are explicit.
+   - *Models & Queries*: Covers operadoras, planos, guias TISS (with status enum), recibos particulares.
+   - *TISS 4.01 / DMED*: Added XML/JSON TISS fields, status tracking, CPF for patient, ANS codes.
+   - *No SUS/SISAB/IoT*: Checked. Not included.
+   - *Production code in backend/app/*: Path matches.
+   - *Preserve 100% test suite*: I should ensure the code is testable and doesn't break existing patterns. I'll add a `__init__.py` stub if needed, but the prompt just asks for the file. I'll make sure it's self-contained and follows standard patterns.
+   - *Complete & Executable*: I'll add necessary imports and ensure it runs without external dependencies beyond standard ones. I'll also add a `__init__.py` for the repository package if needed, but the prompt asks specifically for `convenios_repo.py`.
+   - *Architecture*: I'll structure it cleanly. I should also consider that SQLAlchemy 2.0 recommends `select()` for queries, but `session.query()` is still valid. I'll switch to `select()` for modern SQLAlchemy 2.0 compliance.
+   - Let's refactor queries to use `select()` and `session.scalars()` for strict SQLAlchemy 2.0 style.
 
-   **Repository:**
-   Standard CRUD + status updates + financial controls.
-   I'll use `session.execute(select(...))` pattern.
+   Refactoring queries to SQLAlchemy 2.0 style:
+   ```python
+   from sqlalchemy import select
+   # ...
+   def listar_operadoras(self, ativo: Optional[bool] = None) -> List[OperadoraModel]:
+       stmt = select(OperadoraModel)
+       if ativo is not None:
+           stmt = stmt.where(OperadoraModel.ativo == ativo)
+       return self.session.scalars(stmt).all()
+   ```
+   This is better.
 
-   **Tests:**
-   Use `pytest`, `sqlalchemy`, `tempfile` for SQLite in-memory or file-based.
-   Test models, schemas, repo methods.
-   Ensure coverage.
+   Also, Pydantic v2 uses `model_dump()` instead of `dict()`. I used that.
+   I'll add `__init__.py` for the repo package to make it importable.
+   I'll ensure all type hints are correct.
+   I'll add docstrings and comments for clarity.
+   I'll make sure the file path comment is at the top.
 
-   Let's write it out carefully, ensuring all constraints are met.
-   I'll structure the response with clear file paths.
-   I'll make sure the code is Python 3.12 compatible, uses strict typing, Pydantic v2, SQLAlchemy 2.0.
-   I'll add comments for SUS/APS standards.
-   I'll provide the repo file and the test file.
+   Let's draft the final version carefully.
 
-   *Self-Correction/Verification during thought:*
-   - SQLAlchemy 2.0 `mapped_column` requires `from sqlalchemy.orm import mapped_column`.
-   - `Enum` in SQLAlchemy 2.0: `mapped_column(Enum(...))` is fine, but sometimes `TypeDecorator` or `String` is safer for portability. I'll stick to `Enum` but note it. Actually, SQLAlchemy 2.0 recommends `Enum` from `sqlalchemy`.
-   - Pydantic v2: `model_config = ConfigDict(from_attributes=True)` is correct.
-   - CNS validation: 15 digits. CPF: 11 digits.
-   - CIAP-2: `[A-Z]{1,3}\d{1,2}`
-   - CID-10: `[A-Z]\d{2}`
-   - SOAP: dict with keys `s`, `o`, `a`, `p`.
-   - I'll implement these validators.
-   - Repository will be a class with methods taking `Session`.
-   - I'll write comprehensive tests.
-
-   Let's draft the code. 
-   I'll structure it as:
-   1. `backend/app/repositories/convenios_repo.py`
-   2. `backend/tests/test_convenios_repo.py`
-   I'll ensure it's complete and executable.
-   I'll use `typing` module for strict types.
-   I'll add type hints everywhere.
-   I'll make sure the code runs with `pytest`.
-
-   *Code Structure Generation:*
-   (Mental walkthrough of the code to ensure correctness)
-   - Imports: `uuid`, `datetime`, `enum`, `typing`, `sqlalchemy`, `pydantic`, `pytest`, `sqlalchemy.orm`, `sqlalchemy.ext.asyncio` (optional, but I'll stick to sync for simplicity unless specified. I'll use sync).
-   - Enums: `GuiaStatus`, `LancamentoTipo`, `LancamentoStatus`
-   - Base: `DeclarativeBase`
-   - Models: as above
-   - Schemas: Pydantic v2 with validators
-   - Repo: `class ConveniosRepository:`
-   - Tests: `pytest` with `sessionmaker`, `create_engine`, `Base.metadata.create_all`
-   - All strict typing.
-   - Comments for SUS/APS.
-   - Ready.
-
-   I will now generate the response. 
-   I'll make sure to explicitly state the file paths as requested.
-   I'll ensure the code is self-contained and executable.
-   I'll add necessary imports and configuration.
-   I'll verify Pydantic v2 syntax (`model_config`, `field_validator`, `ConfigDict`).
-   I'll verify SQLAlchemy 2.0 syntax (`mapped_column`, `Mapped`, `select`, `session.execute`).
-   I'll verify Python 3.12 compatibility (no deprecated features).
-   All good. Proceed. 
-   Output matches the response. 
    Structure:
-   - `backend/app/repositories/convenios_repo.py`
-   - `backend/tests/test_convenios_repo.py`
-   - Instructions for running.
-   - Clear comments.
-   - Strict typing.
-   - Pydantic v2.
-   - SQLAlchemy 2.0.
-   - SUS/APS standards noted.
-   - pytest coverage.
-   Done. 
-   Generating. 
-   *[Self-Correction/Refinement during generation prep]*
-   - I should make sure the repository methods are properly typed and use SQLAlchemy 2.0 patterns.
-   - I'll add `session.commit()` and `session.refresh()` where needed.
-   - I'll use `typing.Annotated` if needed, but standard types are fine.
-   - I'll ensure the test file sets up a real DB session for each test.
-   - I'll add coverage markers.
-   - All set. 
-   Output matches the final response. 
-   Proceeds. 
-   [Output Generation] -> *See response.* 
-   *(Note: I'll carefully format the code blocks with the exact paths as requested.)*
-   *(I'll also ensure the Pydantic schemas validate CNS/CPF/CIAP-2/CID-10/SOAP as requested.)*
-   *(I'll make sure the repository uses SQLAlchemy 2.0 `select`/`execute` pattern.)*
-   *(I'll add pytest tests with proper fixtures.)*
-   *(All constraints met.)*
-Aqui está a implementação completa, seguindo rigorosamente as diretrizes: Python 3.12, tipagem estrita, Pydantic v2, SQLAlchemy 2.0, conformidade com padrões SUS/APS e cobertura de testes com pytest.
+   - Imports
+   - Enums
+   - Pydantic Schemas
+   - SQLAlchemy Models
+   - Repository Class
+   - All in one file as requested.
 
-### 1. Arquivo Principal: Repositório, Modelos e Schemas
-```python
-# Arquivo: backend/app/repositories/convenios_repo.py
-"""
-Repositório de Convênios, Guias TISS e Lançamentos Financeiros.
-Conformidade SUS/APS: CIAP-2, CID-10, SOAP, CNS/CPF.
-Stack: Python 3.12, SQLAlchemy 2.0, Pydantic v2.
-"""
+   Check TISS 4.01 specifics: The prompt mentions "histórico de guias TISS emitidas (status: GERADA, ENVIADA, FATURADA, GLOSADA)". I've covered that.
+   Check DMED/Receita Federal: Private receipts control. Covered.
+   Check Python 3.12: `from __future__ import annotations` ensures forward references work without quotes.
+   Check SQLAlchemy 2.0: `Mapped`, `mapped_column`, `select()`, `session.scalars()`.
+   Check Pydantic v2: `BaseModel`, `Field`, `model_dump()`.
+   Check Architecture: Clean, no external framework coupling, just SQLAlchemy + Pydantic.
 
-from __future__ import annotations
+   One thing: The prompt says "Preservar 100% da suíte de testes verde." This implies I should be careful not to break existing interfaces. Since I'm creating a new file, I'll make the API explicit and stable. I'll also add a `__init__.py` for the repository package to ensure imports work.
 
-import uuid
-import re
-import enum
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence, TypeVar
+   I'll write the code now. I'll make sure it's production-ready, strictly typed, and follows all constraints.
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    String,
-    Text,
-    func,
-    select,
-    update,
-    delete,
-)
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    mapped_column,
-    relationship,
-    Session,
-)
-
-# =============================================================================
-# Enums de Domínio
-# =============================================================================
-class GuiaStatus(enum.Enum):
-    GERADA = "GERADA"
-    ENVIADA = "ENVIADA"
-    FATURADA = "FATURADA"
-    GLOSADA = "GLOSADA"
-
-class LancamentoTipo(enum.Enum):
-    PARTICULAR = "PARTICULAR"
-    CONVENIO = "CONVENIO"
-    REEMBOLSO = "REEMBOLSO"
-
-class LancamentoStatus(enum.Enum):
-    PENDENTE = "PENDENTE"
-    APROVADO = "APROVADO"
-    REJEITADO = "REJEITADO"
-    ESTORRADO = "ESTORRADO"
-
-# =============================================================================
-# Base SQLAlchemy 2.0
-# =============================================================================
-class Base(DeclarativeBase):
-    pass
-
-# =============================================================================
-# Modelos ORM (SQLAlchemy 2.0)
-# =============================================================================
-class Operadora(Base):
-    __tablename__ = "operadoras"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    nome: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    cnpj: Mapped[str] = mapped_column(String(14), unique=True, nullable=False)
-    contato_email
+   Self-Correction/Refinement during thought:
+   - SQLAlchemy
