@@ -17,6 +17,7 @@ from app.api.v1.clinica import router as clinica_router
 from app.api.v1.agenda_medica import router as agenda_medica_router
 from app.api.v1.prescricao_cfm import router as prescricao_cfm_router
 from app.api.v1.financeiro_medico import router as financeiro_medico_router
+from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 
 api_router = APIRouter()
 
@@ -39,3 +40,5 @@ api_router.include_router(convenios_router)
 api_router.include_router(tiss_router)
 api_router.include_router(dmed_router)
 api_router.include_router(clinica_router)
+api_router.include_router(fluxo_atendimento_router)
+
