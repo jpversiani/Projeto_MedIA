@@ -16,20 +16,23 @@ function trocarAba(aba) {
   document.getElementById("aba-cidadaos").classList.add("hidden");
   document.getElementById("aba-soap").classList.add("hidden");
 
-  document.getElementById("btn-menu-fila").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50";
-  document.getElementById("btn-menu-cidadaos").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50";
-  document.getElementById("btn-menu-soap").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50";
+  const baseClass = "w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all";
+  const activeClass = "w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 transition-all";
+
+  document.getElementById("btn-menu-fila").className = baseClass;
+  document.getElementById("btn-menu-cidadaos").className = baseClass;
+  document.getElementById("btn-menu-soap").className = baseClass;
 
   if (aba === 'fila') {
     document.getElementById("aba-fila").classList.remove("hidden");
-    document.getElementById("btn-menu-fila").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-800";
+    document.getElementById("btn-menu-fila").className = activeClass;
     carregarFila();
   } else if (aba === 'cidadaos') {
     document.getElementById("aba-cidadaos").classList.remove("hidden");
-    document.getElementById("btn-menu-cidadaos").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-800";
+    document.getElementById("btn-menu-cidadaos").className = activeClass;
   } else if (aba === 'soap') {
     document.getElementById("aba-soap").classList.remove("hidden");
-    document.getElementById("btn-menu-soap").className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-800";
+    document.getElementById("btn-menu-soap").className = activeClass;
   }
 }
 
