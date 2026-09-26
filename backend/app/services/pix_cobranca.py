@@ -108,3 +108,8 @@ class MotorPixCobranca:
             "hash_seguranca": hash_id,
             "data_geracao": datetime.now(timezone.utc).isoformat(),
         }
+
+
+# Alias canônico para importação padronizada nos demais módulos
+pix_service = MotorPixCobranca
+
