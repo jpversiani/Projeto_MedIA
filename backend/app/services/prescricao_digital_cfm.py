@@ -208,3 +208,8 @@ class MotorPrescricaoCFM:
         if not registro:
             return None
         return registro["dados_consulta_farmacia"]
+
+
+# Alias canônico para importação padronizada nos demais serviços
+prescricao_service = MotorPrescricaoCFM
+
