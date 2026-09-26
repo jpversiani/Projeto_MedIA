@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MedIA Health OS — Intelligent Clinical Copilot & Family Health Platform</title>
+  <title>MedIA Practice & Telemedicina OS — Consultório & Home Office</title>
   
-  <!-- Fontes de Vanguarda -->
+  <!-- Fontes de Vanguarda: Plus Jakarta Sans, Inter, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -23,12 +23,12 @@
           },
           colors: {
             brand: {
-              50: '#eef6ff',
-              100: '#d9eaff',
+              50: '#f0f7ff',
+              100: '#e0effe',
               500: '#2563eb',
               600: '#1d4ed8',
               700: '#1e40af',
-              900: '#0f172a',
+              900: '#0b132b',
             }
           }
         }
@@ -41,12 +41,6 @@
       font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    .badge-vermelho { background-color: rgba(244, 63, 94, 0.12); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.3); }
-    .badge-amarelo { background-color: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-verde { background-color: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-azul { background-color: rgba(59, 130, 246, 0.12); color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.3); }
-    
-    /* Scrollbar minimalista de produto moderno */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
@@ -55,88 +49,91 @@
 </head>
 <body class="bg-[#f8fafc] text-slate-800 flex flex-col h-screen overflow-hidden antialiased">
 
-  <!-- Top Navigation Bar (Vanguard HealthTech Style) -->
-  <header class="bg-[#090d16] text-white px-6 py-3 border-b border-slate-800/80 flex items-center justify-between z-30 shadow-lg shadow-black/20">
+  <!-- Top Navigation Bar: Minimalista, Singelo e Tecnológico -->
+  <header class="bg-[#0b1120] text-white px-6 py-3 border-b border-slate-800/80 flex items-center justify-between z-30 shadow-md">
     <div class="flex items-center space-x-6">
       
-      <!-- Brand Logo & Live Status -->
-      <div class="flex items-center space-x-3">
-        <a href="/" title="Voltar à Landing Page" class="flex items-center gap-2 group text-decoration-none">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/30 group-hover:scale-105 transition-transform">
-            <div class="w-full h-full bg-[#090d16] rounded-[11px] flex items-center justify-center">
-              <span class="text-white font-extrabold text-base tracking-tighter bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">M</span>
-            </div>
+      <!-- Brand Logo -->
+      <a href="/" title="MedIA Practice" class="flex items-center gap-2.5 group text-decoration-none">
+        <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+          <span class="text-white font-extrabold text-sm tracking-tighter">M</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">MedIA</span>
+            <span class="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">Practice OS</span>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-base font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">MedIA</span>
-              <span class="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">Health OS</span>
-            </div>
-            <p class="text-[10px] text-slate-400 font-medium">Saúde da Família & Prática Clínica Avançada</p>
-          </div>
-        </a>
-      </div>
+          <p class="text-[10px] text-slate-400 font-medium">Consultório & Telemedicina • CFM 2.314/2022</p>
+        </div>
+      </a>
 
       <!-- Separator -->
       <div class="h-6 w-[1px] bg-slate-800 hidden md:block"></div>
 
-      <!-- Multi-Tenancy Workspace Selector (Linear/Vercel Style) -->
-      <div class="hidden md:flex items-center space-x-2.5 bg-slate-900/90 border border-slate-700/60 rounded-xl px-3.5 py-1.5 shadow-inner">
-        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-        <div class="flex flex-col">
-          <label class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold leading-none mb-0.5">Unidade / Workspace</label>
-          <select id="select-clinica-ativa" onchange="alternarClinica(this.value)" class="bg-transparent text-slate-100 text-xs font-semibold focus:outline-none cursor-pointer pr-2">
-            <option value="1" class="text-slate-900 bg-white">Consultório Particular MedIA — Montes Claros (HQ Privado)</option>
-            <option value="2" class="text-slate-900 bg-white">Centro Integrado de Saúde da Família — Capelinha (ESF Territorial)</option>
-          </select>
-        </div>
+      <!-- Modo de Atuação: Consultório Presencial vs Home Office Telemedicina -->
+      <div class="hidden sm:flex items-center p-1 bg-slate-900 border border-slate-700/80 rounded-xl text-xs">
+        <button id="btn-modo-consultorio" onclick="alternarModoTrabalho('CONSULTORIO')" class="px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5 text-slate-300 hover:text-white">
+          <i class="fa-solid fa-building text-[11px]"></i>
+          <span>Consultório (Presencial)</span>
+        </button>
+        <button id="btn-modo-telemedicina" onclick="alternarModoTrabalho('TELEMEDICINA')" class="px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5 bg-blue-600 text-white shadow-sm">
+          <i class="fa-solid fa-house-laptop text-[11px]"></i>
+          <span>Home Office (Telemedicina)</span>
+        </button>
+      </div>
+
+      <!-- Seletor de Especialidade Médica -->
+      <div class="hidden lg:flex items-center space-x-2 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1 text-xs">
+        <label class="text-[10px] uppercase font-bold text-slate-400">Especialidade:</label>
+        <select id="select-especialidade" onchange="selecionarEspecialidade(this.value)" class="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer pr-2">
+          <option value="clinica_medica" class="bg-slate-900 text-white">Clínica Médica / Geral</option>
+          <option value="cardiologia" class="bg-slate-900 text-white">Cardiologia</option>
+          <option value="psiquiatria" class="bg-slate-900 text-white">Psiquiatria & Saúde Mental</option>
+          <option value="dermatologia" class="bg-slate-900 text-white">Dermatologia</option>
+          <option value="pediatria" class="bg-slate-900 text-white">Pediatria</option>
+          <option value="endocrinologia" class="bg-slate-900 text-white">Endocrinologia & Metabologia</option>
+        </select>
       </div>
 
     </div>
 
-    <!-- Right Controls: Audit Ledger, Doctor Identity & Menu -->
+    <!-- Right Controls: Médico, CFM e Ledger -->
     <div class="flex items-center space-x-4">
       
-      <!-- Live Cryptographic Ledger Button -->
-      <button onclick="abrirModalAuditoria()" title="Visualizar Trilha de Auditoria Criptográfica (LGPD Art. 11 & CFM 2.314/2022)" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-slate-200 transition-all hover:shadow-md">
+      <!-- Live CFM / LGPD Ledger -->
+      <button onclick="abrirModalAuditoria()" title="Conformidade LGPD Art. 11 e CFM 2.314/2022" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-slate-900 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-slate-300 transition-all">
         <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
-        <span>Ledger LGPD</span>
-        <span class="font-mono text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded">SHA-256</span>
+        <span>CFM 2.314/2022</span>
+        <span class="font-mono text-[9px] bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">Ativo</span>
       </button>
 
-      <!-- Physician Identity & SSO Profile -->
+      <!-- Identificação do Médico -->
       <div class="text-right">
-        <div class="font-semibold text-xs sm:text-sm text-slate-100 flex items-center justify-end space-x-2">
-          <span id="top-profissional">Dr. João Paulo Versiani</span>
-          <span id="top-crm-badge" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">CRM-MG 78421</span>
+        <div class="font-semibold text-xs sm:text-sm text-slate-100 flex items-center justify-end space-x-1.5">
+          <span id="top-medico-nome">Dr. João Paulo Versiani</span>
+          <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">CRM-MG 78421</span>
         </div>
-        <div class="text-[11px] text-slate-400 flex items-center justify-end space-x-2 mt-0.5">
-          <span id="top-sso-badge" class="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-blue-300 border border-slate-700 flex items-center font-medium">
-            <i class="fa-brands fa-google mr-1.5 text-[9px] text-amber-400"></i> Google Workspace SSO
-          </span>
-          <span id="top-unidade" class="hidden lg:inline text-[11px] text-slate-400">• Norte de Minas</span>
+        <div class="text-[11px] text-slate-400 flex items-center justify-end space-x-1">
+          <span class="font-mono text-[10px] text-slate-300">RQE 39412</span>
+          <span>• Consultório Particular & Telemedicina</span>
         </div>
       </div>
 
-      <!-- User Menu Dropdown -->
+      <!-- Menu Dropdown -->
       <div class="relative group">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center border border-blue-400/30 shadow-md cursor-pointer group-hover:scale-105 transition-transform">
-          <i class="fa-solid fa-user-doctor text-white text-sm"></i>
+        <div class="w-8 h-8 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center cursor-pointer group-hover:scale-105 transition-transform text-white">
+          <i class="fa-solid fa-user-doctor text-xs"></i>
         </div>
-        <div class="absolute right-0 mt-2 w-56 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200/80 py-2 hidden group-hover:block z-50 text-xs">
-          <div class="px-4 py-2 border-b border-slate-100 font-bold text-slate-700 flex items-center justify-between">
-            <span>Sessão Autenticada</span>
-            <span class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Ativa</span>
-          </div>
-          <a href="/" class="flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium transition-colors">
-            <i class="fa-solid fa-house w-5 text-slate-400"></i> Landing Page do Produto
+        <div class="absolute right-0 mt-2 w-52 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 py-2 hidden group-hover:block z-50 text-xs">
+          <a href="/" class="flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium">
+            <i class="fa-solid fa-house w-5 text-slate-400"></i> Landing Page
           </a>
-          <button onclick="abrirModalAuditoria()" class="w-full flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium transition-colors">
-            <i class="fa-solid fa-fingerprint w-5 text-slate-400"></i> Trilha de Auditoria LGPD
+          <button onclick="abrirModalAuditoria()" class="w-full flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium">
+            <i class="fa-solid fa-fingerprint w-5 text-slate-400"></i> Trilha de Auditoria CFM
           </button>
           <div class="border-t border-slate-100 my-1"></div>
-          <button onclick="fazerLogout()" class="w-full flex items-center px-4 py-2 hover:bg-rose-50 text-rose-600 font-semibold transition-colors">
-            <i class="fa-solid fa-arrow-right-from-bracket w-5 text-rose-400"></i> Sair / Trocar Conta
+          <button onclick="fazerLogout()" class="w-full flex items-center px-4 py-2 hover:bg-rose-50 text-rose-600 font-semibold">
+            <i class="fa-solid fa-arrow-right-from-bracket w-5 text-rose-400"></i> Sair
           </button>
         </div>
       </div>
@@ -147,534 +144,640 @@
   <!-- Main Viewport Workspace -->
   <div class="flex flex-1 overflow-hidden">
     
-    <!-- Modern Sidebar Workspace Dock -->
-    <aside class="w-64 bg-[#0c1222] border-r border-slate-800/80 flex flex-col justify-between shadow-xl z-20">
+    <!-- Sidebar Navegação Limpa do Médico -->
+    <aside class="w-60 bg-[#0d1527] border-r border-slate-800 flex flex-col justify-between shadow-xl z-20">
       
-      <div class="p-4 space-y-6">
+      <div class="p-3.5 space-y-4">
         
-        <!-- Section: Clinical Core -->
         <div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2.5">Clínica & Cuidado</div>
+          <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Prática Clínica</div>
           <div class="space-y-1">
-            <button onclick="trocarAba('fila')" id="btn-menu-fila" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 transition-all">
-              <i class="fa-solid fa-list-check w-4 text-center"></i>
-              <span>Fila & Triagem IA</span>
-              <span id="badge-contador-fila" class="ml-auto bg-white/20 text-white text-[10px] font-mono px-2 py-0.5 rounded-full">0</span>
+            
+            <button onclick="trocarAba('agenda')" id="btn-menu-agenda" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-md shadow-blue-500/20 transition-all">
+              <i class="fa-solid fa-calendar-day w-4 text-center"></i>
+              <span>Agenda do Dia</span>
+              <span id="badge-contador-agenda" class="ml-auto bg-white/20 text-white text-[10px] font-mono px-2 py-0.5 rounded-full">5</span>
             </button>
             
-            <button onclick="trocarAba('cidadaos')" id="btn-menu-cidadaos" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
-              <i class="fa-solid fa-heart-pulse w-4 text-center"></i>
-              <span>Saúde da Família (1.501)</span>
+            <button onclick="trocarAba('telemedicina')" id="btn-menu-telemedicina" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-video w-4 text-center"></i>
+              <span>Telemedicina CFM</span>
+              <span class="ml-auto text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">HD</span>
             </button>
-            
-            <button onclick="trocarAba('soap')" id="btn-menu-soap" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
-              <i class="fa-solid fa-wand-magic-sparkles w-4 text-center"></i>
-              <span>Copiloto SOAP</span>
+
+            <button onclick="trocarAba('prontuario')" id="btn-menu-prontuario" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-notes-medical w-4 text-center"></i>
+              <span>Prontuário & SOAP</span>
             </button>
+
           </div>
         </div>
 
-        <!-- Section: Advanced Modules -->
         <div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2.5">Módulos Saúde 4.0</div>
+          <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Gestão do Consultório</div>
           <div class="space-y-1">
-            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
-              <i class="fa-solid fa-file-prescription w-4 text-center"></i>
-              <span>Receita ICP-Brasil</span>
-              <span class="ml-auto text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">CFM</span>
-            </a>
             
-            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
-              <i class="fa-solid fa-video w-4 text-center"></i>
-              <span>Telemedicina WebRTC</span>
-              <span class="ml-auto text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">HD</span>
-            </a>
+            <button onclick="trocarAba('pacientes')" id="btn-menu-pacientes" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-users w-4 text-center"></i>
+              <span>Meus Pacientes</span>
+            </button>
+            
+            <button onclick="trocarAba('honorarios')" id="btn-menu-honorarios" class="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-receipt w-4 text-center"></i>
+              <span>Honorários & DMED</span>
+              <span class="ml-auto text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">IRPF</span>
+            </button>
 
-            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
-              <i class="fa-solid fa-file-invoice-dollar w-4 text-center"></i>
-              <span>TISS ANS 4.01</span>
-              <span class="ml-auto text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">XML</span>
-            </a>
           </div>
         </div>
 
       </div>
 
-      <!-- Cluster Worker & API Dock Card -->
-      <div class="p-4 border-t border-slate-800/80 bg-slate-900/60">
-        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2">
+      <!-- Dock Inferior: Especialidade Ativa & Atendimento Rápido -->
+      <div class="p-3.5 border-t border-slate-800 bg-slate-900/60">
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 space-y-1.5">
           <div class="flex items-center justify-between text-[11px] text-slate-300 font-semibold">
             <span class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Cluster Autônomo
+              <i id="dock-especialidade-icone" class="fa-solid fa-stethoscope text-blue-400 text-xs"></i>
+              <span id="dock-especialidade-nome">Clínica Médica</span>
             </span>
-            <span class="text-[10px] font-mono text-slate-500">11 IAs</span>
           </div>
-          <p class="text-[10px] text-slate-400 leading-tight">
-            PC GPU (35B) • TUF 16 (27B) • PC CPU (7B) • Space Bunny (1M)
+          <p id="dock-especialidade-desc" class="text-[10px] text-slate-400 leading-tight">
+            Consultas presenciais e telemedicina conforme CFM 2.314/2022.
           </p>
-        </div>
-        
-        <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 px-1">
-          <span>MedIA Engine v0.5</span>
-          <a href="/docs" target="_blank" class="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors">
-            <i class="fa-solid fa-terminal text-[10px]"></i> API Docs
-          </a>
         </div>
       </div>
 
     </aside>
 
-    <!-- Main Workspace Content Canvas -->
-    <main class="flex-1 overflow-y-auto p-8" id="conteudo-principal">
+    <!-- Canvas Principal -->
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8" id="conteudo-principal">
 
       <!-- ========================================== -->
-      <!-- ABA 1: FILA DE ATENDIMENTO & TRIAGEM IA   -->
+      <!-- ABA 1: AGENDA DO DIA (PRESENCIAL & TELE)   -->
       <!-- ========================================== -->
-      <section id="aba-fila" class="space-y-6">
+      <section id="aba-agenda" class="space-y-6">
         
-        <!-- Header & Action -->
+        <!-- Header da Agenda -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2.5">
-              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Fila & Triagem Clínica Inteligente</h2>
-              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                Tempo Real
-              </span>
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Agenda de Consultas</h2>
+              <span id="label-data-hoje" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Hoje</span>
             </div>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1">Classificação de Risco Manchester AI, sinais vitais integrados e priorização médica contínua</p>
-          </div>
-          
-          <button onclick="abrirModalAcolhimento()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]">
-            <i class="fa-solid fa-user-plus text-xs"></i>
-            <span>Novo Acolhimento / Triagem</span>
-          </button>
-        </div>
-
-        <!-- Vanguard Metric Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
-            <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-clock"></i>
-            </div>
-            <div>
-              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tempo Médio Espera</div>
-              <div class="text-xl font-bold text-slate-900 font-mono">14 min <span class="text-xs text-emerald-600 font-normal font-sans">-28% vs meta</span></div>
-            </div>
-          </div>
-
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
-            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-users"></i>
-            </div>
-            <div>
-              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Acolhidos Hoje</div>
-              <div class="text-xl font-bold text-slate-900 font-mono">42 <span class="text-xs text-slate-400 font-normal font-sans">atendimentos</span></div>
-            </div>
-          </div>
-
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
-            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-shield-heart"></i>
-            </div>
-            <div>
-              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Base Territorial Real</div>
-              <div class="text-xl font-bold text-slate-900 font-mono">1.501 <span class="text-xs text-slate-400 font-normal font-sans">famílias ativas</span></div>
-            </div>
-          </div>
-
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
-            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-brain"></i>
-            </div>
-            <div>
-              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Score Manchester IA</div>
-              <div class="text-xl font-bold text-slate-900 font-mono">98.4% <span class="text-xs text-emerald-600 font-normal font-sans">acurácia clínica</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Vanguard Data Table -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Fila Ativa de Pacientes</div>
-            <div class="text-xs text-slate-400 font-mono">Triagem Automatizada com Sinais Vitais</div>
-          </div>
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50/70 border-b border-slate-200/60 text-slate-500 uppercase text-[11px] font-bold tracking-wider">
-              <tr>
-                <th class="px-5 py-3.5">Classificação</th>
-                <th class="px-5 py-3.5">Paciente & Queixa</th>
-                <th class="px-5 py-3.5">Identificação</th>
-                <th class="px-5 py-3.5">Demanda</th>
-                <th class="px-5 py-3.5">Sinais Vitais</th>
-                <th class="px-5 py-3.5">Chegada</th>
-                <th class="px-5 py-3.5 text-right">Ação Clínica</th>
-              </tr>
-            </thead>
-            <tbody id="tabela-fila-corpo" class="divide-y divide-slate-100">
-              <!-- Preenchido dinamicamente via app.js -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- ABA 2: SAÚDE DA FAMÍLIA (1.501 CIDADÃOS)   -->
-      <!-- ========================================== -->
-      <section id="aba-cidadaos" class="space-y-6 hidden">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Saúde da Família & Gestão Territorial</h2>
-              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">1.501 Cidadãos Reais</span>
-            </div>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1">Acompanhamento longitudinal contínuo da coorte do Norte de MG (Montes Claros, Capelinha, Bocaiúva)</p>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Consultas presenciais no consultório e teleconsultas em home office</p>
           </div>
           
           <div class="flex items-center space-x-2">
-            <div class="relative">
-              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" id="filtro-cidadao" placeholder="Buscar por Nome, CPF ou Registro..." class="pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs w-72 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm">
+            <!-- Filtro Rápido -->
+            <div class="flex bg-white border border-slate-200 rounded-xl p-1 text-xs shadow-sm">
+              <button onclick="filtrarAgenda('TODAS')" id="btn-filtro-todas" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold shadow-sm transition">Todas</button>
+              <button onclick="filtrarAgenda('PRESENCIAL')" id="btn-filtro-presencial" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition">Presencial</button>
+              <button onclick="filtrarAgenda('TELEMEDICINA')" id="btn-filtro-tele" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition">Telemedicina</button>
             </div>
-            <button onclick="carregarCidadaos()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors">
-              Buscar
+            
+            <button onclick="abrirModalNovoAgendamento()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Novo Agendamento</span>
             </button>
           </div>
         </div>
 
-        <!-- Quick Stratification Filter Chips -->
-        <div class="flex flex-wrap items-center gap-2 text-xs">
-          <span class="text-slate-400 font-semibold uppercase text-[10px] mr-1">Linhas de Cuidado:</span>
-          <button onclick="document.getElementById('filtro-cidadao').value=''; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow-sm">Todos (1.501)</button>
-          <button onclick="document.getElementById('filtro-cidadao').value='Silva'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Hipertensão (HAS)</button>
-          <button onclick="document.getElementById('filtro-cidadao').value='Santos'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Diabetes Mellitus (DM)</button>
-          <button onclick="document.getElementById('filtro-cidadao').value='Oliveira'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Gestantes & Puericultura</button>
+        <!-- Cards de Métricas da Agenda -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total de Pacientes</div>
+              <div id="stat-total-consultas" class="text-lg font-bold text-slate-900 font-mono">5 <span class="text-xs text-slate-500 font-normal font-sans">agendados</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base">
+              <i class="fa-solid fa-house-laptop"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Telemedicina Hoje</div>
+              <div id="stat-total-tele" class="text-lg font-bold text-slate-900 font-mono">3 <span class="text-xs text-emerald-600 font-normal font-sans">remotas</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-base">
+              <i class="fa-solid fa-building"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Consultório Físico</div>
+              <div id="stat-total-presencial" class="text-lg font-bold text-slate-900 font-mono">2 <span class="text-xs text-slate-500 font-normal font-sans">presenciais</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
+              <i class="fa-solid fa-circle-dollar-to-slot"></i>
+            </div>
+            <div>
+              <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Honorários Previstos</div>
+              <div id="stat-total-honorarios" class="text-lg font-bold text-slate-900 font-mono">R$ 1.780,00</div>
+            </div>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cards-cidadaos">
-          <!-- Cards de cidadãos injetados via app.js -->
+        <!-- Tabela / Lista Elegante de Agendamentos -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Consultas Programadas</div>
+            <div class="text-xs text-slate-400 font-mono">Acesso Direto à Sala ou Prontuário</div>
+          </div>
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50/70 border-b border-slate-200/60 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+              <tr>
+                <th class="px-5 py-3.5">Horário</th>
+                <th class="px-5 py-3.5">Modalidade</th>
+                <th class="px-5 py-3.5">Paciente & Queixa</th>
+                <th class="px-5 py-3.5">Especialidade</th>
+                <th class="px-5 py-3.5">Status</th>
+                <th class="px-5 py-3.5">Honorário</th>
+                <th class="px-5 py-3.5 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-agenda-corpo" class="divide-y divide-slate-100">
+              <!-- Renderizado via app.js -->
+            </tbody>
+          </table>
         </div>
+
       </section>
 
       <!-- ========================================== -->
-      <!-- ABA 3: PRONTUÁRIO SOAP COM COPILOTO IA     -->
+      <!-- ABA 2: SALA DE TELEMEDICINA CFM 2.314/2022 -->
       <!-- ========================================== -->
-      <section id="aba-soap" class="space-y-6 hidden">
+      <section id="aba-telemedicina" class="space-y-6 hidden">
         
-        <!-- Active Patient Health Banner (Forward Health style) -->
-        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center space-x-4">
-            <div class="w-13 h-13 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20">
-              <span id="soap-paciente-iniciais">CF</span>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Sala de Telemedicina WebRTC</h2>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Em conformidade CFM 2.314/2022
+              </span>
             </div>
-            <div>
-              <div class="flex items-center space-x-2.5">
-                <h3 class="text-xl font-bold text-slate-900 tracking-tight" id="soap-paciente-nome">Selecione um paciente na fila</h3>
-                <span id="soap-paciente-tags" class="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 rounded-full font-semibold hidden">Hipertenso</span>
-                <span class="text-xs bg-blue-50 text-blue-700 border border-blue-200/60 px-2.5 py-0.5 rounded-full font-medium">Saúde da Família</span>
-              </div>
-              <p class="text-xs text-slate-500 font-mono mt-0.5" id="soap-paciente-sub">ID: -- | Nasc: -- | Alergias: --</p>
-            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Atendimento remoto seguro com carimbo de tempo, TCLE eletrônico e prerrogativa presencial</p>
           </div>
-          
-          <div class="flex items-center gap-3">
-            <div class="text-right">
-              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Protocolo Clínico</span>
-              <div class="text-xs font-bold text-blue-600 flex items-center gap-1 justify-end">
-                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> Copiloto SOAP Ativo
-              </div>
-            </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="copiarLinkPaciente()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-link text-xs"></i>
+              <span>Copiar Link do Paciente</span>
+            </button>
+            <button onclick="enviarWhatsAppPaciente()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 transition">
+              <i class="fa-brands fa-whatsapp text-sm"></i>
+              <span>Enviar pelo WhatsApp</span>
+            </button>
           </div>
         </div>
 
-        <!-- Split Grid: SOAP Structured Flow (Left) + AI Clinical Assistant (Right) -->
+        <!-- Grid de Telemedicina: Vídeo à Esquerda + Painel Clínico/CFM à Direita -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          <!-- Left Column: S & O (6 cols) -->
-          <div class="lg:col-span-6 space-y-5">
+          <!-- Lado Esquerdo: Player de Vídeo e Controles (7 cols) -->
+          <div class="lg:col-span-7 space-y-4">
             
-            <!-- S: Subjetivo -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2.5">
-                  <span class="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs flex items-center justify-center font-bold">S</span>
-                  <h4 class="font-bold text-slate-800 text-sm">Subjetivo (Anamnese & Queixa)</h4>
-                </div>
-                <span class="text-[10px] text-slate-400 font-mono">Relato do Paciente</span>
+            <div class="relative w-full aspect-video bg-slate-950 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
+              <!-- Vídeo Remoto do Paciente -->
+              <video id="medico-video-remoto" autoplay playsinline class="w-full h-full object-cover"></video>
+              
+              <div id="medico-aviso-esperando" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-center p-6 space-y-3">
+                <div class="w-12 h-12 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                <div class="text-sm font-semibold text-slate-200">Sala Virtual Ativa • Aguardando Paciente</div>
+                <div class="text-xs text-slate-400 font-mono" id="label-codigo-sala-atual">sala_mariana_psi01</div>
+                <button onclick="simularEntradaPaciente()" class="mt-2 px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-medium transition">
+                  <i class="fa-solid fa-play mr-1"></i> Conectar Transmissão Paciente
+                </button>
               </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo Principal da Consulta</label>
-                <input type="text" id="soap-motivo" placeholder="Ex: Cefaleia holocraniana há 3 dias com picos pressóricos..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm">
+
+              <!-- Vídeo Local do Médico (Picture-in-Picture) -->
+              <div class="absolute bottom-4 right-4 w-36 aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-xl">
+                <video id="medico-video-local" autoplay playsinline muted class="w-full h-full object-cover"></video>
               </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Histórico da Doença Atual (HDA) / Rastreio Familiar</label>
-                <textarea id="soap-subjetivo-notas" rows="3" placeholder="Evolução dos sintomas, histórico familiar de HAS/DM, uso irregular de anti-hipertensivos..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"></textarea>
+
+              <!-- Badge do Temporizador de Chamada -->
+              <div class="absolute top-4 left-4 bg-slate-900/90 border border-slate-700/80 px-3 py-1 rounded-xl text-xs font-mono font-semibold flex items-center space-x-2 text-white shadow-md">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span id="tempo-teleconsulta">00:00:00</span>
               </div>
             </div>
 
-            <!-- O: Objetivo -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2.5">
-                  <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">O</span>
-                  <h4 class="font-bold text-slate-800 text-sm">Objetivo (Sinais Vitais & Exame Físico)</h4>
-                </div>
-                <span class="text-[10px] text-slate-400 font-mono">Triagem Integrada</span>
+            <!-- Controles de Mídia -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
+              <div class="flex items-center space-x-2">
+                <button onclick="alternarAudioMedico()" id="btn-medico-audio" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+                  <i class="fa-solid fa-microphone text-xs"></i>
+                </button>
+                <button onclick="alternarVideoMedico()" id="btn-medico-video" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+                  <i class="fa-solid fa-video text-xs"></i>
+                </button>
+                <button onclick="compartilharTela()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition" title="Compartilhar Tela">
+                  <i class="fa-solid fa-display text-xs"></i>
+                </button>
               </div>
-              <div class="grid grid-cols-3 gap-2.5 text-xs font-mono">
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">PA:</span> <span id="soap-pa" class="font-bold text-slate-800">--</span></div>
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">FC:</span> <span id="soap-fc" class="font-bold text-slate-800">-- bpm</span></div>
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">Temp:</span> <span id="soap-temp" class="font-bold text-slate-800">-- °C</span></div>
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">SpO2:</span> <span id="soap-spo2" class="font-bold text-slate-800">-- %</span></div>
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">Glicemia:</span> <span id="soap-glicemia" class="font-bold text-slate-800">-- mg/dL</span></div>
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">IMC:</span> <span id="soap-imc" class="font-bold text-slate-800">--</span></div>
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Achados do Exame Físico Dirigido</label>
-                <textarea id="soap-exame-fisico" rows="3" placeholder="Estado geral, ausculta cardíaca em 2T sem sopros, murmúrio vesicular presente..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"></textarea>
+
+              <!-- Botão Art. 3º CFM: Indicar Presencial -->
+              <div class="flex items-center space-x-2">
+                <button onclick="acionarConversaoPresencial()" class="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition" title="Art. 3º CFM 2.314/2022">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                  <span>Indicar Presencial</span>
+                </button>
+                <button onclick="finalizarTeleconsulta()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/20 flex items-center space-x-1.5 transition">
+                  <i class="fa-solid fa-phone-slash"></i>
+                  <span>Encerrar Teleconsulta</span>
+                </button>
               </div>
             </div>
 
           </div>
 
-          <!-- Right Column: A & P + Copiloto IA (6 cols) -->
-          <div class="lg:col-span-6 space-y-5">
+          <!-- Lado Direito: Caixa de Conformidade CFM + Anotações Rápidas (5 cols) -->
+          <div class="lg:col-span-5 space-y-4">
             
-            <!-- A: Avaliação -->
+            <!-- Box CFM 2.314/2022 -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
               <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2.5">
-                  <span class="w-6 h-6 rounded-lg bg-amber-500 text-white text-xs flex items-center justify-center font-bold">A</span>
-                  <h4 class="font-bold text-slate-800 text-sm">Avaliação (CIAP-2 & CID-10)</h4>
+                <div class="flex items-center space-x-2">
+                  <i class="fa-solid fa-clipboard-check text-blue-600 text-sm"></i>
+                  <h4 class="font-bold text-slate-900 text-xs sm:text-sm">Auditoria CFM 2.314/2022</h4>
                 </div>
-                <span class="text-[10px] text-slate-400 font-mono">Diagnóstico Estruturado</span>
+                <span class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold">100% Conforme</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <span class="text-slate-600">Termo TCLE (Art. 4º):</span>
+                  <span id="badge-tcle-status" class="font-semibold text-emerald-600 flex items-center gap-1">
+                    <i class="fa-solid fa-circle-check text-[10px]"></i> Aceite Confirmado
+                  </span>
+                </div>
+                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <span class="text-slate-600">Identificação Médica:</span>
+                  <span class="font-mono text-[11px] text-slate-700 font-bold">CRM-MG 78421 • RQE 39412</span>
+                </div>
+                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <span class="text-slate-600">Guarda de Dados & Sigilo:</span>
+                  <span class="font-mono text-[10px] text-blue-600 font-semibold">SHA-256 Chained (LGPD Art. 11)</span>
+                </div>
+              </div>
+
+              <button onclick="visualizarTCLE()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+                Visualizar Texto do TCLE Assinado
+              </button>
+            </div>
+
+            <!-- Bloco de Notas Rápidas da Teleconsulta -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h4 class="font-bold text-slate-900 text-xs sm:text-sm">Evolução Durante a Chamada</h4>
+                <button onclick="transferirParaProntuario()" class="text-[11px] text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">
+                  <span>Ir para Prontuário</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </button>
+              </div>
+              <textarea id="notas-rapidas-telemedicina" rows="5" placeholder="Digite notas clínicas em tempo real... Ex: Paciente refere melhora dos sintomas, sem queixas de efeitos colaterais..." class="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 shadow-sm"></textarea>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- ABA 3: PRONTUÁRIO & SOAP MULTI-ESPECIALIDADE -->
+      <!-- ========================================== -->
+      <section id="aba-prontuario" class="space-y-6 hidden">
+        
+        <!-- Banner do Paciente Ativo -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-md shadow-blue-500/20">
+              <span id="prontuario-iniciais">MS</span>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2.5">
+                <h3 class="text-lg font-bold text-slate-900 tracking-tight" id="prontuario-nome">Mariana Souza Alencar</h3>
+                <span id="prontuario-tag-modalidade" class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full font-semibold">Telemedicina</span>
+                <span id="prontuario-tag-especialidade" class="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium">Psiquiatria & Saúde Mental</span>
+              </div>
+              <p class="text-xs text-slate-500 font-mono mt-0.5" id="prontuario-sub">CPF: 123.456.789-01 • Nasc: 14/05/1992 (34 anos) • Convênio: Particular</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <button onclick="emitirReceitaDigital()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-file-prescription text-xs"></i>
+              <span>Prescrição Digital QR Code</span>
+            </button>
+            <button onclick="emitirAtestadoDigital()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-stamp text-xs"></i>
+              <span>Atestado Médico</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Split Grid SOAP -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Lado Esquerdo: S e O (6 cols) -->
+          <div class="lg:col-span-6 space-y-4">
+            
+            <!-- S: Subjetivo -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs flex items-center justify-center font-bold">S</span>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">Subjetivo & Queixa Principal</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Anamnese Estruturada</span>
               </div>
               
               <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar Código Internacional (CIAP-2 ou CID-10)</label>
-                <div class="flex space-x-2">
-                  <input type="text" id="input-busca-terminologia" placeholder="Digite código ou termo (ex: K86, I10, Cefaleia)..." class="flex-1 text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
-                  <button onclick="buscarTerminologias()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors">Buscar</button>
-                </div>
-                <div id="resultados-busca-terminologias" class="mt-2 max-h-36 overflow-y-auto space-y-1 hidden border border-slate-200 p-2 rounded-xl bg-slate-50 text-xs"></div>
-              </div>
-
-              <!-- Lista de Problemas Selecionados -->
-              <div class="space-y-1.5" id="lista-problemas-selecionados">
-                <div class="text-xs text-slate-400 italic">Nenhum diagnóstico anexado ainda.</div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo / Queixa Principal</label>
+                <input type="text" id="soap-motivo" placeholder="Ex: Ajuste de medicação, ansiedade persistente e insônia intermediária..." class="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 shadow-sm">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Raciocínio Clínico e Hipóteses</label>
-                <textarea id="soap-avaliacao-notas" rows="2" placeholder="Evolução clínica, diagnóstico diferencial e metas terapêuticas..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Histórico da Doença Atual (HDA)</label>
+                <textarea id="soap-subjetivo-hda" rows="4" placeholder="Evolução dos sintomas, gatilhos, adesão aos fármacos prévios, impacto no trabalho/sono..." class="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 shadow-sm"></textarea>
+              </div>
+            </div>
+
+            <!-- O: Objetivo / Exame Dirigido -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">O</span>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">Objetivo (Sinais Vitais & Exame Dirigido)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Template Especialidade</span>
+              </div>
+
+              <!-- Sinais Vitais Rápidos -->
+              <div class="grid grid-cols-4 gap-2 text-xs font-mono">
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[9px]">PA:</span> <input type="text" id="vitais-pa" value="120/80" class="w-full bg-transparent font-bold text-slate-800 focus:outline-none"></div>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[9px]">FC:</span> <input type="text" id="vitais-fc" value="74 bpm" class="w-full bg-transparent font-bold text-slate-800 focus:outline-none"></div>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[9px]">Temp:</span> <input type="text" id="vitais-temp" value="36.4 °C" class="w-full bg-transparent font-bold text-slate-800 focus:outline-none"></div>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[9px]">SpO2:</span> <input type="text" id="vitais-spo2" value="98%" class="w-full bg-transparent font-bold text-slate-800 focus:outline-none"></div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Exame Físico Dirigido / Ectoscopia HD</label>
+                <textarea id="soap-exame-dirigido" rows="4" class="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 shadow-sm"></textarea>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Lado Direito: A e P (6 cols) -->
+          <div class="lg:col-span-6 space-y-4">
+            
+            <!-- A: Avaliação -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-amber-500 text-white text-xs flex items-center justify-center font-bold">A</span>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">Avaliação & Diagnóstico (CID-10)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Classificação Internacional</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Hipóteses Diagnósticas Selecionadas</label>
+                <div id="diagnosticos-chips" class="flex flex-wrap gap-2 mb-2">
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold">
+                    <span class="font-mono">F41.1</span> - Transtorno de Ansiedade Generalizada
+                    <button class="text-blue-400 hover:text-blue-600"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+                  </span>
+                </div>
+                <input type="text" id="busca-cid10" placeholder="Buscar código ou doença (ex: I10, F32, E11, Cefaleia)..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 shadow-sm">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Raciocínio Clínico e Conduta</label>
+                <textarea id="soap-raciocinio" rows="2" placeholder="Diagnóstico sindrômico, metas terapêuticas para as próximas 4 semanas..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 shadow-sm"></textarea>
               </div>
             </div>
 
             <!-- P: Plano -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2.5">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div class="flex items-center space-x-2">
                   <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">P</span>
-                  <h4 class="font-bold text-slate-800 text-sm">Plano (Prescrição, Exames & Conduta)</h4>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">Plano Terapêutico & Prescrição</h4>
                 </div>
                 <span class="text-[10px] text-slate-400 font-mono">CFM 2.314/2022</span>
               </div>
-              
+
               <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Prescrição Terapêutica (Medicamentos e Posologia)</label>
-                <textarea id="soap-prescricao" rows="2" placeholder="Ex: Losartana Potássica 50mg - 1 cp VO 1x ao dia pela manhã..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 font-mono"></textarea>
+                <textarea id="soap-prescricao" rows="3" placeholder="1. Escitalopram 10mg - Tomar 1 comprimido pela manhã por 30 dias.&#10;2. Melatonina 3mg - Tomar 1 cp 30min antes de deitar..." class="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 shadow-sm font-mono"></textarea>
               </div>
-              
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Exames Solicitados</label>
-                <input type="text" id="soap-exames" placeholder="Ex: Hemograma completo, Glicemia em jejum, Perfil lipídico, ECG..." class="w-full text-xs border border-slate-200 rounded-xl p-2 focus:outline-none focus:border-blue-500">
-              </div>
-              
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Orientações de Saúde da Família e Retorno</label>
-                <textarea id="soap-conduta" rows="2" placeholder="Dieta hipossódica, atividade física leve, retorno agendado com ACS em 30 dias..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500"></textarea>
-              </div>
-            </div>
 
-            <!-- Action Buttons Footer -->
-            <div class="flex items-center justify-end space-x-3 pt-2">
-              <button onclick="limparFormularioSOAP()" class="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 transition-colors">Limpar</button>
-              <button onclick="finalizarAtendimentoSOAP()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]">
-                <i class="fa-solid fa-circle-check text-xs"></i>
-                <span>Finalizar Atendimento SOAP</span>
-              </button>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Exames Solicitados & Encaminhamentos</label>
+                <input type="text" id="soap-exames" placeholder="Ex: Hemograma completo, TSH, T4L, Ferritina, Vitamina D..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 shadow-sm">
+              </div>
+
+              <div class="flex items-center justify-end space-x-3 pt-2">
+                <button onclick="limparProntuario()" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold transition">Limpar</button>
+                <button onclick="concluirConsulta()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 transition">
+                  <i class="fa-solid fa-check text-xs"></i>
+                  <span>Concluir Atendimento & Salvar</span>
+                </button>
+              </div>
+
             </div>
 
           </div>
 
         </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- ABA 4: MEUS PACIENTES (CONSULTÓRIO PRIVADO) -->
+      <!-- ========================================== -->
+      <section id="aba-pacientes" class="space-y-6 hidden">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Meus Pacientes</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Prontuários cadastrados e histórico clínico do consultório</p>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="input-busca-paciente" placeholder="Buscar por Nome ou CPF..." class="pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs w-64 focus:outline-none focus:border-blue-500 shadow-sm">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cards-pacientes-grid">
+          <!-- Injetado dinamicamente via app.js -->
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- ABA 5: HONORÁRIOS & RECIBOS FISCAIS (DMED) -->
+      <!-- ========================================== -->
+      <section id="aba-honorarios" class="space-y-6 hidden">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Honorários & Gestão Fiscal DMED</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Controle de pagamentos de consultas particulares e geração de recibos dedutíveis de IRPF</p>
+          </div>
+
+          <button onclick="gerarLoteDMED()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-file-invoice text-xs"></i>
+            <span>Gerar Arquivo Magnético DMED (Receita Federal)</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Lançamentos Financeiros do Mês</div>
+            <div class="text-xs text-slate-400 font-mono">100% Compatível com Receita Federal</div>
+          </div>
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50/70 border-b border-slate-200/60 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+              <tr>
+                <th class="px-5 py-3.5">Recibo nº</th>
+                <th class="px-5 py-3.5">Paciente</th>
+                <th class="px-5 py-3.5">CPF</th>
+                <th class="px-5 py-3.5">Modalidade</th>
+                <th class="px-5 py-3.5">Valor Total</th>
+                <th class="px-5 py-3.5">DMED Status</th>
+                <th class="px-5 py-3.5 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-honorarios-corpo" class="divide-y divide-slate-100">
+              <!-- Renderizado via app.js -->
+            </tbody>
+          </table>
+        </div>
+
       </section>
 
     </main>
   </div>
 
-  <!-- MODAL: NOVO ACOLHIMENTO / TRIAGEM -->
-  <div id="modal-acolhimento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+  <!-- MODAL: NOVO AGENDAMENTO DE CONSULTA -->
+  <div id="modal-novo-agendamento" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-        <div class="flex items-center space-x-2.5">
-          <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <i class="fa-solid fa-user-plus text-sm"></i>
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-calendar-plus text-xs"></i>
           </div>
-          <h3 class="text-base font-bold text-slate-900">Acolhimento & Triagem Clínica</h3>
+          <h3 class="text-sm sm:text-base font-bold text-slate-900">Novo Agendamento de Consulta</h3>
         </div>
-        <button onclick="fecharModalAcolhimento()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button onclick="fecharModalNovoAgendamento()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      
+
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block font-semibold text-slate-600 mb-1">Cidadão (Base de 1.501 Pacientes)</label>
-          <select id="modal-select-cidadao" class="w-full border border-slate-200 rounded-xl p-2.5 bg-slate-50 focus:outline-none focus:border-blue-500"></select>
+          <label class="block font-semibold text-slate-600 mb-1">Nome Completo do Paciente</label>
+          <input type="text" id="novo-paciente-nome" placeholder="Ex: Lucas Henrique Silveira" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
         </div>
         
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-semibold text-slate-600 mb-1">Classificação Manchester</label>
-            <select id="modal-risco" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
-              <option value="VERDE">Verde (Pouco urgente)</option>
-              <option value="AZUL">Azul (Não urgente)</option>
-              <option value="AMARELO">Amarelo (Urgência)</option>
-              <option value="VERMELHO">Vermelho (Emergência)</option>
+            <label class="block font-semibold text-slate-600 mb-1">CPF</label>
+            <input type="text" id="novo-paciente-cpf" placeholder="000.000.000-00" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">WhatsApp (com DDD)</label>
+            <input type="text" id="novo-paciente-tel" placeholder="38999887766" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">Tipo</label>
+            <select id="novo-tipo" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
+              <option value="TELEMEDICINA">Telemedicina</option>
+              <option value="PRESENCIAL">Presencial</option>
             </select>
           </div>
           <div>
-            <label class="block font-semibold text-slate-600 mb-1">Tipo de Demanda</label>
-            <select id="modal-demanda" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
-              <option value="ESPONTANEA">Demanda Espontânea</option>
-              <option value="AGENDADA">Consulta Agendada</option>
-              <option value="URGENCIA">Urgência Clínica</option>
-            </select>
+            <label class="block font-semibold text-slate-600 mb-1">Horário</label>
+            <input type="text" id="novo-horario" value="15:30" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">Valor (R$)</label>
+            <input type="number" id="novo-valor" value="350" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 font-mono">
           </div>
         </div>
-        
+
         <div>
-          <label class="block font-semibold text-slate-600 mb-1">Motivo do Acolhimento / Queixa Inicial</label>
-          <input type="text" id="modal-motivo" placeholder="Ex: Dor precordial atípica, cefaleia intensa..." class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
+          <label class="block font-semibold text-slate-600 mb-1">Motivo / Queixa Inicial</label>
+          <input type="text" id="novo-motivo" placeholder="Ex: Consulta de retorno, avaliação de exames..." class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
         </div>
-
-        <div class="border-t border-slate-100 pt-3">
-          <div class="font-bold text-slate-700 mb-2 uppercase text-[10px] tracking-wider">Sinais Vitais na Triagem</div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="text-[10px] text-slate-400">PA Sistólica</label>
-              <input type="number" id="modal-pa-sis" placeholder="120" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">PA Diastólica</label>
-              <input type="number" id="modal-pa-dia" placeholder="80" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">FC (bpm)</label>
-              <input type="number" id="modal-fc" placeholder="75" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">Temp (°C)</label>
-              <input type="number" step="0.1" id="modal-temp" placeholder="36.5" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">SpO2 (%)</label>
-              <input type="number" id="modal-spo2" placeholder="98" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">Glicemia (mg/dL)</label>
-              <input type="number" id="modal-glicemia" placeholder="95" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">Peso (kg)</label>
-              <input type="number" step="0.1" id="modal-peso" placeholder="72.0" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-400">Altura (cm)</label>
-              <input type="number" id="modal-altura" placeholder="170" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-        <button onclick="fecharModalAcolhimento()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
-        <button onclick="salvarAcolhimento()" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20">Salvar na Fila</button>
+        <button onclick="fecharModalNovoAgendamento()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600">Cancelar</button>
+        <button onclick="salvarNovoAgendamento()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20">Agendar Consulta</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: TRILHA DE AUDITORIA CRIPTOGRÁFICA LGPD ART. 11 -->
+  <!-- MODAL: TCLE CFM 2.314/2022 -->
+  <div id="modal-tcle-view" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="text-sm sm:text-base font-bold text-slate-900">Termo TCLE — Resolução CFM 2.314/2022</h3>
+        <button onclick="fecharModalTCLE()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div id="tcle-texto-conteudo" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs font-mono max-h-72 overflow-y-auto leading-relaxed text-slate-700 whitespace-pre-wrap"></div>
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button onclick="fecharModalTCLE()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AUDITORIA CRIPTOGRÁFICA LGPD / CFM -->
   <div id="modal-auditoria" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-[#0b1220] rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-800">
-      
-      <div class="bg-slate-900/90 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+      <div class="bg-slate-900 px-6 py-4 flex items-center justify-between border-b border-slate-800 text-white">
         <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-            <i class="fa-solid fa-fingerprint text-base"></i>
-          </div>
+          <i class="fa-solid fa-fingerprint text-emerald-400 text-lg"></i>
           <div>
-            <h3 class="font-bold text-sm sm:text-base flex items-center space-x-2 text-white">
-              <span>Trilha de Auditoria Criptográfica</span>
-              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border border-emerald-500/40">SHA-256 Chained</span>
-            </h3>
-            <p class="text-[11px] text-slate-400">Conformidade com LGPD Art. 11 (Dados Pessoais Sensíveis) & CFM 2.314/2022</p>
+            <h3 class="font-bold text-sm">Trilha de Auditoria Criptográfica (CFM 2.314/2022 & LGPD)</h3>
+            <p class="text-[11px] text-slate-400 font-mono">SHA-256 Chained Ledger de Telemedicina</p>
           </div>
         </div>
-        <button onclick="fecharModalAuditoria()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
+        <button onclick="fecharModalAuditoria()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-
-      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-[#090d16]">
-        <div class="flex items-center justify-between bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
-          <div class="text-xs text-slate-300">
-            <span class="font-semibold text-emerald-400">Cadeia de Custódia Imutável:</span> Cada registro contém o hash criptográfico do registro anterior, garantindo integridade e não-repúdio probatório perante auditorias.
-          </div>
-          <button onclick="carregarTrilhaAuditoria()" class="px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
-            <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
-            <span>Atualizar</span>
-          </button>
+      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-[#090d16] text-xs font-mono text-slate-300">
+        <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl text-emerald-400 text-[11px]">
+          Todos os atendimentos, teleconsultas e emissões possuem hash encadeado e carimbo de tempo inviolável perante o CFM.
         </div>
-
-        <div class="bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
-              <tr>
-                <th class="px-4 py-3">Timestamp / Ação</th>
-                <th class="px-4 py-3">Usuário & Unidade</th>
-                <th class="px-4 py-3">Recurso</th>
-                <th class="px-4 py-3">Hash SHA-256 Chained</th>
-              </tr>
-            </thead>
-            <tbody id="tabela-auditoria-corpo" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-              <tr>
-                <td colspan="4" class="px-4 py-8 text-center text-slate-500 font-sans">Carregando trilha de auditoria...</td>
-              </tr>
-            </tbody>
-          </table>
+        <div id="tabela-auditoria-conteudo" class="space-y-2">
+          <!-- Renderizado via app.js -->
         </div>
       </div>
-
-      <div class="px-6 py-3.5 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
-        <div>Eventos imutáveis assinados com carimbo de tempo.</div>
-        <button onclick="fecharModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold transition">Fechar</button>
+      <div class="px-6 py-3 bg-slate-950 border-t border-slate-800 flex justify-end">
+        <button onclick="fecharModalAuditoria()" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-semibold">Fechar</button>
       </div>
     </div>
   </div>
 
   <script src="/static/app.js"></script>
   <script src="/static/js/command_bar.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js')
-          .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
-          .catch(err => console.warn('[PWA] Falha ao registrar Service Worker:', err));
-      });
-    }
-  </script>
 </body>
 </html>
