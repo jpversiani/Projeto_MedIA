@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual Operacional dos Fluxos Clínicos — MedIA Practice & Telemedicina OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- Header Superior -->
+  <header class="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="/app" class="flex items-center space-x-3 group">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
+            <i class="fa-solid fa-notes-medical text-lg"></i>
+          </div>
+          <div>
+            <div class="font-display font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-2">
+              MedIA <span class="text-blue-600 font-bold">Practice OS</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Manual v2.0</span>
+            </div>
+            <p class="text-xs text-slate-500">Guia de Procedimentos & Fluxos Clínicos Multiperfil</p>
+          </div>
+        </a>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <a href="/app" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition shadow-xs">
+          <i class="fa-solid fa-arrow-left text-slate-400"></i> Voltar ao Cockpit
+        </a>
+        <a href="/telemedicina_paciente.html" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-sm">
+          <i class="fa-solid fa-video"></i> Sala de Telemedicina
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- Hero Banner -->
+    <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden mb-10">
+      <div class="relative z-10 max-w-3xl space-y-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-blue-200">
+          <i class="fa-solid fa-shield-halved text-emerald-400"></i> Resolução CFM nº 2.314/2022 & CID-11 OMS
+        </div>
+        <h1 class="font-display text-2xl sm:text-4xl font-extrabold tracking-tight">
+          Manual Oficial de Utilização dos Fluxos Clínicos
+        </h1>
+        <p class="text-sm sm:text-base text-slate-300 leading-relaxed font-light">
+          Roteiro operacional passo a passo para o <strong>médico</strong> (antes, durante e após a consulta), 
+          <strong>recepção</strong>, <strong>paciente</strong>, <strong>administrador</strong> e <strong>farmacêutico</strong>.
+        </p>
+      </div>
+      <div class="absolute -right-10 -bottom-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    </div>
+
+    <!-- Navegação por Abas de Perfil -->
+    <div class="flex items-center gap-2 border-b border-slate-200 pb-3 mb-8 overflow-x-auto">
+      <button onclick="mostrarAba('medico')" id="btn-medico" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-blue-600 text-white shadow-sm">
+        <i class="fa-solid fa-user-doctor"></i> 👨‍⚕️ Perfil Médico (Jornada Completa)
+      </button>
+      <button onclick="mostrarAba('recepcao')" id="btn-recepcao" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+        <i class="fa-solid fa-id-card-clip"></i> 👩‍💼 Recepção / Secretária
+      </button>
+      <button onclick="mostrarAba('paciente')" id="btn-paciente" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+        <i class="fa-solid fa-hospital-user"></i> 🧑‍🦱 Paciente / Teleconsulta
+      </button>
+      <button onclick="mostrarAba('admin')" id="btn-admin" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+        <i class="fa-solid fa-chart-pie"></i> 📊 Administrador / Fiscal
+      </button>
+      <button onclick="mostrarAba('farmacia')" id="btn-farmacia" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-600 hover:bg-slate-100 border border-slate-200">
+        <i class="fa-solid fa-prescription-bottle-medical"></i> 💊 Farmacêutico / Validador
+      </button>
+    </div>
+
+    <!-- ABA 1: MÉDICO (JORNADA COMPLETA) -->
+    <div id="conteudo-medico" class="space-y-8">
+      
+      <!-- Fases da Jornada do Médico -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- FASE 1: PRÉ-CONSULTA -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:border-blue-400 transition">
+          <div class="flex items-center justify-between">
+            <span class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm font-display">1</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">Pré-Consulta</span>
+          </div>
+          <h3 class="font-display font-bold text-slate-900 text-base">Preparação & Briefing</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Atividades executadas antes de iniciar a sessão clínica presencial ou remota.
+          </p>
+          <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-100 pt-3">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Agenda Híbrida:</strong> Filtro entre consultório presencial e telemedicina home office.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Link & TCLE:</strong> Envio por WhatsApp com consentimento eletrônico (CFM 2.314/2022).</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Cobrança Pix EMV:</strong> Pagamento antecipado com baixa e conciliação automática.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Briefing de 60s:</strong> Resumo de pré-anamnese, queixas e alergias do paciente.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- FASE 2: INTRA-CONSULTA -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:border-indigo-400 transition">
+          <div class="flex items-center justify-between">
+            <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm font-display">2</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">Intra-Consulta</span>
+          </div>
+          <h3 class="font-display font-bold text-slate-900 text-base">Atendimento & Propedêutica</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Condução soberana do ato médico com prontuário estruturado e ferramentas digitais.
+          </p>
+          <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-100 pt-3">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Carimbo Temporal:</strong> Registro imutável de início e término conforme Art. 6º CFM.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>WebRTC com PIP:</strong> Vídeo chamada de alta definição lado a lado com o prontuário.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>CID-11 Dual-Coding:</strong> Busca de diagnósticos OMS com equivalência CID-10 imediata.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Prescrição Digital:</strong> Assinatura ICP-Brasil com QR Code validador público.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- FASE 3: PÓS-CONSULTA -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:border-emerald-400 transition">
+          <div class="flex items-center justify-between">
+            <span class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm font-display">3</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">Pós-Consulta</span>
+          </div>
+          <h3 class="font-display font-bold text-slate-900 text-base">Fechamento & Livro Caixa</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Automação de documentos, conciliação fiscal e acompanhamento do retorno.
+          </p>
+          <ul class="text-xs text-slate-600 space-y-2 border-t border-slate-100 pt-3">
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Despacho WhatsApp:</strong> Link seguro para download das receitas pelo paciente.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Recibo Fiscal DMED:</strong> Comprovante para dedução legal no IRPF do paciente.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Livro Caixa / Carnê-Leão:</strong> Escrituração contábil e estimativa de DARF 0190.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="fa-solid fa-check text-emerald-500 mt-0.5"></i>
+              <span><strong>Retorno Programado:</strong> Lembrete automático agendado para 30, 45 ou 60 dias.</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Guia Passo a Passo Detalhado -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-6">
+        <h3 class="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-route text-blue-600"></i> Passo a Passo da Consulta Médica no Sistema
+        </h3>
+
+        <div class="space-y-6 text-sm text-slate-700">
+          <div class="border-l-2 border-blue-500 pl-4 space-y-1">
+            <h4 class="font-bold text-slate-900">Passo 1: Acessar o Cockpit Clínico</h4>
+            <p class="text-xs text-slate-600">
+              No topo da tela inicial, selecione sua especialidade médica no menu suspenso (ex: <em>Cardiologia, Psiquiatria, Dermatologia, Clínica Geral</em>). Os templates de anamnese e exame clínico serão configurados automaticamente.
+            </p>
+          </div>
+
+          <div class="border-l-2 border-blue-500 pl-4 space-y-1">
+            <h4 class="font-bold text-slate-900">Passo 2: Abrir a Consulta e Iniciar Atendimento</h4>
+            <p class="text-xs text-slate-600">
+              Na aba de <strong>Agenda</strong>, selecione o paciente agendado. Ao clicar no botão azul <strong>"Iniciar Atendimento"</strong>, o carimbo temporal oficial da Resolução CFM nº 2.314/2022 é acionado e a sala virtual do paciente é conectada.
+            </p>
+          </div>
+
+          <div class="border-l-2 border-blue-500 pl-4 space-y-1">
+            <h4 class="font-bold text-slate-900">Passo 3: Evolução SOAP com Diagnóstico Dual-Coding (CID-11 & CID-10)</h4>
+            <p class="text-xs text-slate-600">
+              Preencha o Subjetivo (S), Objetivo (O), e na seção de Avaliação (A), busque a patologia desejada. O sistema trará o código moderno da <strong>CID-11 da OMS</strong> junto da correspondência para faturamento TISS da <strong>CID-10</strong>.
+            </p>
+          </div>
+
+          <div class="border-l-2 border-blue-500 pl-4 space-y-1">
+            <h4 class="font-bold text-slate-900">Passo 4: Emissão da Prescrição e Finalização</h4>
+            <p class="text-xs text-slate-600">
+              Prescreva os medicamentos. Ao clicar em <strong>"Finalizar Consulta"</strong>, os documentos são assinados digitalmente e o paciente recebe na hora a notificação no WhatsApp com o código verificador público <code class="font-mono bg-slate-100 px-1 py-0.5 rounded text-blue-700">CFM-XXXX-XXXX-XXXX</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ABA 2: RECEPÇÃO -->
+    <div id="conteudo-recepcao" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-4">
+        <h3 class="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-id-card-clip text-indigo-600"></i> Guia da Recepção e Secretária
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          A secretária ou recepcionista gerencia o fluxo de entrada dos pacientes no consultório presencial e a confirmação das teleconsultas.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+            <div class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-calendar-plus text-blue-600"></i> Novo Agendamento
+            </div>
+            <p class="text-xs text-slate-600">
+              Cadastre o nome, CPF e telefone do paciente, definindo o valor da consulta particular ou a operadora de convênio credenciada.
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+            <div class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-qrcode text-emerald-600"></i> Baixa do Pix & Recibos
+            </div>
+            <p class="text-xs text-slate-600">
+              Apresente o QR Code Pix gerado na tela ou receba via cartão de crédito. Dê baixa com 1 clique para liberar a entrada do paciente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 3: PACIENTE -->
+    <div id="conteudo-paciente" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-4">
+        <h3 class="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-hospital-user text-teal-600"></i> Experiência do Paciente na Teleconsulta
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          O paciente não precisa baixar aplicativos nem criar senhas complicadas. Toda a experiência ocorre pelo navegador móvel.
+        </p>
+        <div class="space-y-3 pt-2">
+          <div class="p-3.5 rounded-xl bg-teal-50/50 border border-teal-200 flex items-start gap-3">
+            <span class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">1</span>
+            <div>
+              <div class="font-bold text-xs text-slate-900">Link Direto no WhatsApp</div>
+              <div class="text-xs text-slate-600">O paciente clica no link e entra imediatamente na sala de espera virtual.</div>
+            </div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-teal-50/50 border border-teal-200 flex items-start gap-3">
+            <span class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">2</span>
+            <div>
+              <div class="font-bold text-xs text-slate-900">Termo de Telemedicina (TCLE) com 1 Clique</div>
+              <div class="text-xs text-slate-600">Concorda com as diretrizes da Resolução CFM nº 2.314/2022 de forma simples e transparente.</div>
+            </div>
+          </div>
+          <div class="p-3.5 rounded-xl bg-teal-50/50 border border-teal-200 flex items-start gap-3">
+            <span class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">3</span>
+            <div>
+              <div class="font-bold text-xs text-slate-900">Download de Receitas e Recibo IRPF</div>
+              <div class="text-xs text-slate-600">Recebe no final da chamada a receita assinada digitalmente para compra em farmácias físicas e online.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 4: ADMIN / FISCAL -->
+    <div id="conteudo-admin" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-4">
+        <h3 class="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-purple-600"></i> Gestão Fiscal & Contábil da Clínica
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          Ferramentas automáticas para apuração de honorários médicos, Livro Caixa e conformidade com a Receita Federal.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+          <div class="p-4 rounded-xl bg-purple-50/50 border border-purple-200 space-y-1">
+            <div class="font-bold text-xs text-purple-900">Livro Caixa / Carnê-Leão</div>
+            <div class="text-xs text-slate-600">Segregação de receitas presenciais e de telemedicina com apuração da DARF 0190.</div>
+          </div>
+          <div class="p-4 rounded-xl bg-purple-50/50 border border-purple-200 space-y-1">
+            <div class="font-bold text-xs text-purple-900">Arquivo Magnético DMED</div>
+            <div class="text-xs text-slate-600">Exportação anual consolidada dos comprovantes emitidos para a Receita Federal.</div>
+          </div>
+          <div class="p-4 rounded-xl bg-purple-50/50 border border-purple-200 space-y-1">
+            <div class="font-bold text-xs text-purple-900">Trilha de Auditoria LGPD</div>
+            <div class="text-xs text-slate-600">Logs imutáveis de acessos aos prontuários encadeados criptograficamente por SHA-256.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 5: FARMÁCIA -->
+    <div id="conteudo-farmacia" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 space-y-4">
+        <h3 class="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-prescription-bottle-medical text-amber-600"></i> Validador Público para Farmácias
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          Farmácias e drogarias de todo o país podem verificar a legitimidade das receitas digitais emitidas pelo MedIA Practice OS sem quebra de sigilo médico.
+        </p>
+        <div class="p-4 rounded-xl bg-amber-50/50 border border-amber-200 space-y-2">
+          <div class="font-mono text-xs font-bold text-amber-900">Validador: CFM-XXXX-XXXX-XXXX</div>
+          <p class="text-xs text-slate-600">
+            A farmácia digita o código validador ou lê o QR Code da receita e recebe instantaneamente a confirmação:
+            nome do médico, número do CRM-UF, data de emissão, validade e lista de medicamentos autorizados.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+    MedIA Practice & Telemedicina OS &copy; 2026 — Desenvolvido em Conformidade com a Resolução CFM nº 2.314/2022 e Padrão OMS CID-11 MMS.
+  </footer>
+
+  <script>
+    function mostrarAba(perfil) {
+      // Esconde todos os conteúdos
+      ['medico', 'recepcao', 'paciente', 'admin', 'farmacia'].forEach(p => {
+        const conteudo = document.getElementById(`conteudo-${p}`);
+        const btn = document.getElementById(`btn-${p}`);
+        if (conteudo) conteudo.classList.add('hidden');
+        if (btn) {
+          btn.className = "tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-600 hover:bg-slate-100 border border-slate-200";
+        }
+      });
+
+      // Mostra o selecionado
+      const ativoConteudo = document.getElementById(`conteudo-${perfil}`);
+      const ativoBtn = document.getElementById(`btn-${perfil}`);
+      if (ativoConteudo) ativoConteudo.classList.remove('hidden');
+      if (ativoBtn) {
+        ativoBtn.className = "tab-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-blue-600 text-white shadow-sm";
+      }
+    }
+  </script>
+</body>
+</html>
