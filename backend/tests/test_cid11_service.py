@@ -51,6 +51,16 @@ def test_cid11_service_busca_por_sinonimo():
     assert any(item["codigo"] == "QD85" for item in res_burnout)
 
 
+def test_cid11_service_busca_sem_acento():
+    """Garante busca tolerante a termos sem acentuação (ex: hipertensao -> Hipertensão)."""
+    res = cid11_service.buscar("hipertensao")
+    assert any(item["codigo"] == "BA00" for item in res)
+
+    res_dep = cid11_service.buscar("depressao")
+    assert any(item["codigo"] == "6A70" for item in res_dep)
+
+
+
 def test_cid11_service_busca_por_capitulo():
     """Testa filtro por capítulo."""
     res = cid11_service.buscar(capitulo="06")
