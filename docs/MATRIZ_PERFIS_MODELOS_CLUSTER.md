@@ -261,11 +261,12 @@
 ## 🛡️ 5. Políticas de Fallback e Resiliência
 
 1. **Se o Nó Local GPU (Qwen 3.6 35B) estiver ocupado:**
-   - Fallback de inferência imediato para o **Qwen 2.5 7B** (CPU) para manter custo zero.
+   - Fallback de inferência imediato para o **Qwen 2.5 7B** (CPU) para manter custo zero (R$ 0,00).
 2. **Se o Nó LAN Notebook (Bonsai 27B) estiver desconectado:**
    - Fallback para o **DeepSeek v4 Flash** ou **GLM 5.3 Flash** na nuvem Free Tier.
-3. **Se o OpenRouter atingir Rate-Limit na versão `:free`:**
-   - O orquestrador redireciona automaticamente para os nós locais da rede (PC Zorin ou Notebook TUF 16) sem interromper a execução do usuário.
+3. **Se o OpenRouter atingir Cota Momentânea ou Rate-Limit na versão `:free` (HTTP 429/402):**
+   - O orquestrador aciona imediatamente o fallback para a **API Key com os créditos disponíveis** na conta OpenRouter (~$3.05 de saldo verificado), migrando dinamicamente do sufixo `:free` para o endpoint padrão do modelo (ex: `z-ai/glm-5.3-flash`, `xiaomi/mimo-v2.6-flash`, etc.).
+   - Se o modelo específico não estiver disponível ou persistir o limite, realiza fallback para os modelos mais velozes e econômicos (`deepseek/deepseek-v4-flash-0731`) ou para os nós locais da rede (PC Zorin GPU/CPU e Notebook TUF 16), garantindo **zero interrupção** do fluxo de desenvolvimento.
 
 ---
 *Este documento deve ser consultado a cada nova atribuição de tarefas pelo orquestrador e guardado como referência permanente.*
