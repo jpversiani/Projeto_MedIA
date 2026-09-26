@@ -35,8 +35,8 @@
 | **DeepSeek v4 Flash** | OpenRouter<br>`FREE TIER / LOW COST` | Autocomplete & Engenheiro QA | Menor latência (TTFT mínimo); menor custo de entrada (US$ 0,038/M); HumanEval 94.5% | Visão de longo horizonte em refatorações massivas de monorepos | Autocomplete de rotas FastAPI, geração em massa de testes unitários Pytest e mocks |
 | **Ling 3.0 Flash Santé** | OpenRouter<br>`FREE TIER` | Diretor Clínico & Protocolos SOAP | Especialista biomédico isolado; prontuários, farmacologia, interações e diagnósticos CFM | Programação tradicional de software e lógica de infraestrutura | Validação de consistência clínica, codificação CID-10/CIAP-2, auditoria de receitas |
 | **Laguna S 2.1** | OpenRouter / Local<br>`FREE / OPEN-WEIGHT` | Engenheiro de Monorepo & Contexto | Lê bases inteiras de código sem corromper memória; estabilidade máxima; open-weight | Micro-tarefas isoladas fora de contexto; dificuldade nativa de validação JSON pura | Auditoria cross-file em repositórios inteiros, indexação de contexto e detecção de drift |
-| **Nex-N2.5-Pro** | OpenRouter<br>`FREE TIER` | Agente Visual & Computer Use | Campeão em Computer Use (OSWorld 56.4); clica, visualiza telas e navega em interfaces e SO | TTFT muito elevado (397B); alta taxa de erro em dados estruturados/JSONs (~26%) | Navegação visual E2E, validação de layouts no navegador e testes de UI de ponta a ponta |
 | **NVIDIA Nemotron 3 Ultra** | OpenRouter<br>`FREE TIER / CLOUD` | Estrategista de Hard Prompts & Design | Colosso de 550B para prompts de extrema dificuldade (LMSYS Hard); contexto massivo; pipelines complexas | Overkill para tarefas simples; latência e dependência total de nuvem | Decomposição de metas monumentais, orquestração de segundo nível e Design System 4.0 |
+| **Space Bunny Alpha** | OpenRouter (`stealth`)<br>`FREE PREVIEW ($0)` | Especialista em 1M Contexto & Coding Agêntico | Contexto de 1M tokens; até 524k output; multimodal (texto+img+vídeo); reasoning ajustável; tool calling e JSON; 70-95 t/s | Modelo stealth (anônimo) com retenção de logs pelo provedor; reasoning sempre ativo | Refatorações massivas em repositórios inteiros, ingestão de documentações monumentais e testes agênticos |
 
 ---
 
@@ -229,6 +229,35 @@
   - Alerta de interações medicamentosas e contraindicações em prescrições digitais.
   - Conformidade com as diretrizes do CFM (Resolução 2.314/2022).
 - **Diretriz de Prompting:** Prompts focados em casos clínicos, sintomas, posologia e hipóteses diagnósticas.
+
+---
+
+### 12. Space Bunny Alpha (Stealth / Família MiniMax M3.1)
+- **ID OpenRouter:** `stealth/space-bunny-alpha`
+- **Perfil:** Especialista em Contexto Longo (1 Milhão de Tokens), Coding Agêntico & Multimodalidade
+- **Hospedagem:** OpenRouter (`stealth/space-bunny-alpha`) / OpenCode
+- **Custo:** **Gratuito ($0 input e $0 output)** durante a fase de preview ativo.
+- **Especificações Técnicas:**
+  - **Janela de Contexto:** 1.000.000 de tokens (1M).
+  - **Teto Máximo de Saída (Max Output):** Até 524.288 tokens.
+  - **Modalidades:** Texto + Imagem + Vídeo $\rightarrow$ Texto.
+  - **Reasoning:** Nativo e sempre ativo. Níveis configuráveis: `low`, `medium` (padrão), `high`, `xhigh`, `max`.
+  - **Capacidades Agênticas:** Suporte total a *Tool Calling*, *Structured Output* (JSON Schema estrito) e *Function Calling*.
+  - **Velocidade:** Alta taxa de geração (~70 a 95 tokens/segundo).
+  - **Origem / Fingerprinting:** Modelo *stealth* anônimo, com assinaturas de tokenizer compatíveis com a família MiniMax (M3 / M3.1).
+- **Onde Ganha (Superpoderes):**
+  - **Contexto de 1M:** Capacidade inigualável para absorver repositórios completos, monorepos, documentações normativas do SUS/CFM e históricos longos de auditoria em um único prompt.
+  - **Coding e Agência:** Alta pontuação em extração de dados e chamadas de ferramentas (*Official A: 128/157 - 81,5%* e *AI Benchy: ~7.0/10*).
+  - **Processamento Multimodal Amplo:** Capaz de receber vídeo e imagens de interfaces, diagramas e exames diagnósticos diretamente no fluxo.
+- **Onde Perde (Vulnerabilidades e Restrições):**
+  - **Privacidade & Retenção:** Sendo modelo stealth no OpenRouter, o provedor pode reter prompts e completions (sem treinar). **Proibido o envio de dados reais desanonimizados de pacientes.**
+  - **Reasoning Obrigatório:** Pode despender tempo e gerar caminhos de raciocínio desnecessariamente longos para micro-perguntas factuais.
+  - **Instabilidade de Origem:** Por ser stealth em preview, pode sofrer ajustes repentinos de versão ou rate limits temporários de servidor.
+- **Atribuições no Cluster:**
+  - Análise e refatoração de monorepos inteiros (lendo todas as pastas do backend e frontend simultaneamente).
+  - Ingestão e cruzamento de grandes bases documentais (normas TISS, manuais do e-SUS, resoluções CFM).
+  - Testes agênticos com tool calling encadeado e saída JSON estruturada.
+- **Diretriz de Prompting:** Enviar contextos amplos e detalhados. Ajustar o parâmetro de reasoning para `medium` para código e `high` para arquiteturas complexas.
 
 ---
 
