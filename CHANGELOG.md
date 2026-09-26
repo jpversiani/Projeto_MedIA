@@ -2792,3 +2792,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Modelos Participantes:** laguna_s_2_1, nemotron_3_ultra, qwen_2_5_7b_cpu
 - **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
 - **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
+
+### [Onda 8] - Frente 8: PWA, Service Worker & Sincronização Offline-First (2026-09-26 11:40:59)
+- **Escopo:** `offline`
+- **Modelos Participantes:** bonsai_27b, qwen_3_6_35b, qwen_2_5_7b_cpu
+- **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
+- **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
