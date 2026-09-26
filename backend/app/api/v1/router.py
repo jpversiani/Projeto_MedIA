@@ -14,6 +14,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.tiss import router as tiss_router
 from app.api.v1.dmed import router as dmed_router
 from app.api.v1.clinica import router as clinica_router
+from app.api.v1.agenda_medica import router as agenda_medica_router
 
 api_router = APIRouter()
 
@@ -25,6 +26,7 @@ api_router.include_router(atendimentos_router)
 api_router.include_router(terminologias_router)
 api_router.include_router(estabelecimentos_router)
 api_router.include_router(telemedicina_router)
+api_router.include_router(agenda_medica_router)
 api_router.include_router(prontuario_router)
 api_router.include_router(copiloto_router)
 api_router.include_router(telemedicina_ws_router)
