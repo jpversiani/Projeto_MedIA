@@ -7,7 +7,7 @@ from app.models.atendimento import AtendimentoSOAP, AtendimentoProblema
 Atendimento = AtendimentoSOAP  # Alias para compatibilidade com serviços legados e testes
 from app.models.atendimento_offline import AtendimentoOffline, StatusSincronizacao, SyncState
 from app.models.prontuario import ProntuarioProblema
-from app.models.terminologia import CIAP2, CID10
+from app.models.terminologia import CIAP2, CID10, CID11
 from app.models.telemedicina import SalaVirtual, Teleconsulta, DocumentoEmitido
 from app.models.farmacia import Receita, ReceitaItem, Dispensacao, DispensacaoItem
 from app.models.copiloto import CopilotoAuditoria
