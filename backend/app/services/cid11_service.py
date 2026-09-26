@@ -417,15 +417,21 @@ class CID11Service:
     ) -> List[Dict[str, Any]]:
         """
         Pesquisa códigos CID-11 por código exato, parte do código, título ou sinônimos clínicos.
+        Suporta busca insensível a acentuação e caixa.
         """
+        import unicodedata
+
+        def normalizar(t: str) -> str:
+            return "".join(c for c in unicodedata.normalize("NFKD", t) if not unicodedata.combining(c)).lower().strip()
+
         resultados: List[ItemCID11] = []
-        termo_limpo = termo.strip().lower() if termo else None
+        termo_limpo = normalizar(termo) if termo else None
 
         for item in self._catalogo:
             # Filtro por capítulo se fornecido
             if capitulo:
-                cap_limpo = capitulo.strip().lower()
-                if cap_limpo not in item.capitulo.lower() and cap_limpo != item.capitulo_numero:
+                cap_limpo = normalizar(capitulo)
+                if cap_limpo not in normalizar(item.capitulo) and cap_limpo != item.capitulo_numero:
                     continue
 
             # Se não houver termo de busca, traz os registros
@@ -441,11 +447,11 @@ class CID11Service:
             # Busca por código CID-10 correspondente
             elif item.cid10_equivalente and termo_limpo in item.cid10_equivalente.lower():
                 resultados.append(item)
-            # Busca por título
-            elif termo_limpo in item.titulo.lower():
+            # Busca por título (sem acento)
+            elif termo_limpo in normalizar(item.titulo):
                 resultados.append(item)
-            # Busca por sinônimos
-            elif any(termo_limpo in sin.lower() for sin in item.sinonimos):
+            # Busca por sinônimos (sem acento)
+            elif any(termo_limpo in normalizar(sin) for sin in item.sinonimos):
                 resultados.append(item)
 
             if len(resultados) >= limit:
