@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teleconsulta Segura — MedIA Health</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between">
+  
+  <!-- Header do Paciente -->
+  <header class="px-6 py-4 border-b border-slate-800/80 bg-slate-900/90 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md">
+        M
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-slate-100">MedIA Teleconsulta</h1>
+        <p class="text-[10px] text-emerald-400 font-medium">Conexão Segura Criptografada • CFM 2.314/2022</p>
+      </div>
+    </div>
+    <div class="text-right">
+      <span class="text-xs font-semibold text-slate-200 block" id="doc-nome">Dr. João Paulo Versiani</span>
+      <span class="text-[10px] text-slate-400 font-mono">CRM-MG 78421 | RQE 39412</span>
+    </div>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-4xl w-full mx-auto">
+    
+    <!-- ETAPA 1: TCLE (Consentimento Livre e Esclarecido CFM) -->
+    <div id="etapa-tcle" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl space-y-5">
+      <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-xl border border-blue-500/20">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-white tracking-tight">Termo de Consentimento para Telemedicina</h2>
+        <p class="text-xs text-slate-400 mt-1">Conforme Resolução CFM nº 2.314/2022 e LGPD (Lei 13.709/2018)</p>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-2 max-h-52 overflow-y-auto font-mono text-[11px] leading-relaxed">
+        <p>• Esta teleconsulta médica é realizada através de canal audiovisual seguro e criptografado.</p>
+        <p>• O paciente está ciente de que o atendimento a distância possui limitações pela impossibilidade do exame físico presencial.</p>
+        <p>• O médico possui autonomia e prerrogativa técnica para determinar o comparecimento presencial se julgar clinicamente necessário (Art. 3º CFM).</p>
+        <p>• Receitas, atestados e pedidos de exames serão emitidos com assinatura eletrônica e QR Code oficial.</p>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <input type="checkbox" id="chk-concordo" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 bg-slate-950 border-slate-700 cursor-pointer">
+        <label for="chk-concordo" class="text-xs text-slate-300 cursor-pointer">Li e concordo com os termos da teleconsulta</label>
+      </div>
+
+      <button onclick="conectarSala()" id="btn-entrar" disabled class="w-full py-3.5 bg-blue-600 disabled:bg-slate-800 disabled:text-slate-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-lg shadow-blue-600/20 transition-all cursor-pointer">
+        Entrar na Sala Virtual
+      </button>
+    </div>
+
+    <!-- ETAPA 2: SALA DE VÍDEO (WebRTC) -->
+    <div id="etapa-video" class="hidden w-full max-w-3xl flex flex-col items-center space-y-4">
+      <div class="relative w-full aspect-video bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
+        <!-- Vídeo Remoto (Médico) -->
+        <video id="video-medico" autoplay playsinline class="w-full h-full object-cover"></video>
+        <div id="aviso-esperando" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-center p-6 space-y-3">
+          <div class="w-12 h-12 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+          <div class="text-sm font-semibold text-slate-200">Aguardando o médico iniciar a transmissão...</div>
+          <div class="text-xs text-slate-400">Você já está conectado na sala segura. Permaneça na linha.</div>
+        </div>
+
+        <!-- Vídeo Local (Paciente - Picture in Picture) -->
+        <div class="absolute bottom-4 right-4 w-32 sm:w-44 aspect-video bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 shadow-lg">
+          <video id="video-paciente" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        </div>
+      </div>
+
+      <!-- Controles de Áudio e Vídeo -->
+      <div class="flex items-center space-x-4 bg-slate-900/90 border border-slate-800 rounded-2xl px-6 py-3 shadow-lg">
+        <button onclick="alternarAudio()" id="btn-audio" class="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-microphone text-sm"></i>
+        </button>
+        <button onclick="alternarVideo()" id="btn-video" class="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-video text-sm"></i>
+        </button>
+        <button onclick="encerrarChamada()" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center space-x-2 transition">
+          <i class="fa-solid fa-phone-slash"></i>
+          <span>Encerrar</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="py-3 text-center text-[11px] text-slate-500 border-t border-slate-900">
+    MedIA Health • Plataforma em conformidade com o Conselho Federal de Medicina (CFM)
+  </footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const codigoSala = urlParams.get('sala') || 'sala_padrao';
+
+    const chk = document.getElementById('chk-concordo');
+    const btnEntrar = document.getElementById('btn-entrar');
+    chk.addEventListener('change', () => {
+      btnEntrar.disabled = !chk.checked;
+    });
+
+    let localStream = null;
+
+    async function conectarSala() {
+      document.getElementById('etapa-tcle').classList.add('hidden');
+      document.getElementById('etapa-video').classList.remove('hidden');
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const videoLocal = document.getElementById('video-paciente');
+        videoLocal.srcObject = localStream;
+      } catch (e) {
+        console.warn('Dispositivo de mídia não autorizado:', e);
+      }
+    }
+
+    function alternarAudio() {
+      if (!localStream) return;
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        const icon = document.querySelector('#btn-audio i');
+        icon.className = audioTrack.enabled ? 'fa-solid fa-microphone text-sm' : 'fa-solid fa-microphone-slash text-sm text-rose-400';
+      }
+    }
+
+    function alternarVideo() {
+      if (!localStream) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        const icon = document.querySelector('#btn-video i');
+        icon.className = videoTrack.enabled ? 'fa-solid fa-video text-sm' : 'fa-solid fa-video-slash text-sm text-rose-400';
+      }
+    }
+
+    function encerrarChamada() {
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+      }
+      alert('Sua teleconsulta foi finalizada. Obrigado!');
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>
