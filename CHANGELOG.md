@@ -1898,3 +1898,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Modelos Participantes:** bonsai_27b, mimo_2_6_flash, qwen_3_6_35b, qwen_2_5_7b_cpu
 - **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
 - **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
+
+### [Onda 3] - Frente 3: Faturamento TISS ANS 4.01.00 & Guias de Consulta/SADT (2026-09-26 10:19:38)
+- **Escopo:** `tiss`
+- **Modelos Participantes:** space_bunny_alpha, glm_5_3_flash_pc, qwen_2_5_7b_cpu, deepseek_v4_flash
+- **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
+- **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
