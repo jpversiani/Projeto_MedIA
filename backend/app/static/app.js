@@ -52,38 +52,43 @@ async function carregarFila() {
     itens.forEach(item => {
       const cid = item.cidadao;
       const riscoCores = {
-        'VERMELHO': 'badge-vermelho',
-        'AMARELO': 'badge-amarelo',
-        'VERDE': 'badge-verde',
-        'AZUL': 'badge-azul'
+        'VERMELHO': 'bg-rose-500/15 text-rose-600 border border-rose-500/30',
+        'AMARELO': 'bg-amber-500/15 text-amber-600 border border-amber-500/30',
+        'VERDE': 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30',
+        'AZUL': 'bg-blue-500/15 text-blue-600 border border-blue-500/30'
       };
-      const badgeCls = riscoCores[item.classificacao_risco] || 'badge-verde';
+      const badgeCls = riscoCores[item.classificacao_risco] || 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
       const vitais = `PA: ${item.pressao_sistolica || '--'}/${item.pressao_diastolica || '--'} | FC: ${item.frequencia_cardiaca || '--'} | Temp: ${item.temperatura ? item.temperatura + '°C' : '--'}`;
       const hora = new Date(item.data_hora_entrada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       const tr = document.createElement("tr");
-      tr.className = "hover:bg-slate-50 transition";
+      tr.className = "hover:bg-slate-50/80 transition-colors group";
       tr.innerHTML = `
-        <td class="px-5 py-3.5">
-          <span class="px-2.5 py-1 rounded text-xs font-bold ${badgeCls}">${item.classificacao_risco}</span>
+        <td class="px-5 py-4">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${badgeCls}">
+            <span class="w-1.5 h-1.5 rounded-full ${item.classificacao_risco === 'VERMELHO' ? 'bg-rose-500 animate-pulse' : 'bg-current'}"></span>
+            ${item.classificacao_risco}
+          </span>
         </td>
-        <td class="px-5 py-3.5">
-          <div class="font-semibold text-slate-800">${cid ? cid.nome_completo : 'Paciente sem cadastro'}</div>
-          <div class="text-xs text-slate-400">${item.motivo_acolhimento || 'Sem queixa informada'}</div>
+        <td class="px-5 py-4">
+          <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors text-sm">${cid ? cid.nome_completo : 'Paciente sem cadastro'}</div>
+          <div class="text-xs text-slate-500 truncate max-w-xs mt-0.5">${item.motivo_acolhimento || 'Triagem inicial de demanda'}</div>
         </td>
-        <td class="px-5 py-3.5 text-xs text-slate-600">
-          <div>CNS: ${cid && cid.cns ? cid.cns : '--'}</div>
-          <div>CPF: ${cid && cid.cpf ? cid.cpf : '--'}</div>
+        <td class="px-5 py-4 text-xs font-mono text-slate-600">
+          <div class="flex items-center gap-1 text-slate-800 font-medium"><span>CPF:</span> ${cid && cid.cpf ? cid.cpf : '--'}</div>
+          <div class="text-slate-400 text-[11px]">ID Família: ${cid && cid.cns ? cid.cns.slice(-6) : '--'}</div>
         </td>
-        <td class="px-5 py-3.5 text-xs text-slate-600">
-          <span class="bg-slate-100 px-2 py-0.5 rounded">${item.tipo_demanda}</span>
+        <td class="px-5 py-4 text-xs">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200/60">${item.tipo_demanda}</span>
         </td>
-        <td class="px-5 py-3.5 text-xs text-slate-600">${vitais}</td>
-        <td class="px-5 py-3.5 text-xs text-slate-500 font-mono">${hora}</td>
-        <td class="px-5 py-3.5 text-right">
-          <button onclick="iniciarAtendimento(${item.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1 ml-auto">
-            <i class="fa-solid fa-stethoscope"></i>
-            <span>Atender (SOAP)</span>
+        <td class="px-5 py-4 text-xs font-mono text-slate-600">
+          <span class="px-2 py-1 bg-slate-100 rounded border border-slate-200/80">${vitais}</span>
+        </td>
+        <td class="px-5 py-4 text-xs text-slate-400 font-mono">${hora}</td>
+        <td class="px-5 py-4 text-right">
+          <button onclick="iniciarAtendimento(${item.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] ml-auto">
+            <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+            <span>Copiloto SOAP</span>
           </button>
         </td>
       `;
@@ -103,7 +108,7 @@ async function carregarCidadaos() {
     // Atualizar dropdown do modal de acolhimento
     const select = document.getElementById("modal-select-cidadao");
     if (select) {
-      select.innerHTML = cidadaosCache.map(c => `<option value="${c.id}">${c.nome_completo} (CPF: ${c.cpf || 'Sem CPF'} | CNS: ${c.cns || '--'})</option>`).join("");
+      select.innerHTML = cidadaosCache.map(c => `<option value="${c.id}">${c.nome_completo} (CPF: ${c.cpf || 'Sem CPF'} | ID Família: ${c.cns || '--'})</option>`).join("");
     }
 
     // Atualizar cards
@@ -113,24 +118,25 @@ async function carregarCidadaos() {
 
     cidadaosCache.forEach(c => {
       const card = document.createElement("div");
-      card.className = "bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2";
+      card.className = "bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400/60 shadow-sm hover:shadow-md transition-all space-y-3 group";
       card.innerHTML = `
         <div class="flex items-start justify-between">
           <div>
-            <h4 class="font-bold text-slate-800">${c.nome_completo}</h4>
-            <div class="text-xs text-slate-400">Nasc: ${c.data_nascimento} | Sexo: ${c.sexo}</div>
+            <h4 class="font-bold text-slate-900 group-hover:text-blue-600 transition-colors text-sm">${c.nome_completo}</h4>
+            <div class="text-[11px] text-slate-400 font-mono mt-0.5">Nasc: ${c.data_nascimento} • ${c.sexo === 'M' ? 'Masc' : 'Fem'}</div>
           </div>
-          <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">ID ${c.id}</span>
+          <span class="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full font-mono font-semibold">#${c.id}</span>
         </div>
-        <div class="text-xs text-slate-600 space-y-0.5 pt-1">
-          <div><span class="font-medium">CPF:</span> ${c.cpf || '--'} | <span class="font-medium">CNS:</span> ${c.cns || '--'}</div>
-          <div><span class="font-medium">Mãe:</span> ${c.nome_mae || '--'}</div>
-          <div><span class="font-medium">Endereço:</span> ${c.logradouro || ''}, ${c.numero || ''} - ${c.bairro || ''}</div>
+        <div class="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-100">
+          <div class="font-mono text-[11px] text-slate-700"><span class="text-slate-400 font-sans">CPF:</span> ${c.cpf || '--'}</div>
+          <div class="text-[11px] text-slate-500 truncate"><span class="text-slate-400">Território:</span> ${c.bairro || 'Montes Claros/MG'}</div>
+          <div class="text-[11px] text-slate-400 truncate">${c.logradouro || ''}, ${c.numero || ''}</div>
         </div>
-        <div class="flex flex-wrap gap-1 pt-2">
-          ${c.hipertenso ? '<span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Hipertenso</span>' : ''}
-          ${c.diabetico ? '<span class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Diabético</span>' : ''}
-          ${c.alergias ? `<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Alergia: ${c.alergias}</span>` : ''}
+        <div class="flex flex-wrap gap-1.5 pt-1">
+          ${c.hipertenso ? '<span class="text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md">HAS Risco</span>' : ''}
+          ${c.diabetico ? '<span class="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md">DM Controlada</span>' : ''}
+          ${c.alergias ? `<span class="text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md">Alergia: ${c.alergias}</span>` : ''}
+          <span class="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/50 px-2 py-0.5 rounded-md">Saúde da Família</span>
         </div>
       `;
       container.appendChild(card);
