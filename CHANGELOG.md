@@ -5942,3 +5942,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Modelos Participantes:** qwen_3_6_35b, glm_5_3_flash_pc, qwen_2_5_7b_cpu
 - **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
 - **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
+
+### [Onda 5] - Frente 5: Agendamento Multiclínica & Fila Inteligente Manchester (2026-09-26 16:24:21)
+- **Escopo:** `agenda`
+- **Modelos Participantes:** bonsai_27b, ling_3_0_flash_sante, qwen_2_5_7b_cpu
+- **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
+- **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
