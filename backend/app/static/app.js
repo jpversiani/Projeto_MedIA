@@ -626,3 +626,93 @@ function fazerLogout() {
     window.location.href = "/";
   }
 }
+
+// =========================================================================
+// INTEGRAÇÃO CID-11 (OMS) COM DUAL-CODING CID-10
+// =========================================================================
+
+function inicializarBuscaCID11() {
+  const inputBusca = document.getElementById("busca-cid10");
+  const dropdown = document.getElementById("dropdown-cid11");
+  const chipsContainer = document.getElementById("diagnosticos-chips");
+
+  if (!inputBusca || !dropdown) return;
+
+  let debounceTimeout = null;
+
+  inputBusca.addEventListener("input", (e) => {
+    const termo = e.target.value.trim();
+    clearTimeout(debounceTimeout);
+
+    if (termo.length < 2) {
+      dropdown.classList.add("hidden");
+      dropdown.innerHTML = "";
+      return;
+    }
+
+    debounceTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/terminologias/cid11?busca=${encodeURIComponent(termo)}&limit=10`);
+        if (!res.ok) return;
+        const itens = await res.json();
+
+        if (!itens || itens.length === 0) {
+          dropdown.innerHTML = `<div class="p-3 text-slate-400 text-center italic">Nenhum diagnóstico encontrado na CID-11.</div>`;
+          dropdown.classList.remove("hidden");
+          return;
+        }
+
+        dropdown.innerHTML = itens.map(item => `
+          <div class="p-2.5 hover:bg-slate-50 cursor-pointer transition flex items-start justify-between gap-2"
+               onclick="selecionarDiagnosticoCID11('${item.codigo}', '${item.cid10_equivalente || ""}', '${item.titulo.replace(/'/g, "\\'")}')">
+            <div>
+              <div class="font-bold text-slate-800">${item.titulo}</div>
+              <div class="text-[11px] text-slate-500">${item.capitulo}</div>
+            </div>
+            <div class="flex flex-col items-end gap-1 flex-shrink-0">
+              <span class="px-1.5 py-0.5 rounded font-mono font-bold bg-teal-100 text-teal-800 text-[10px]">CID-11: ${item.codigo}</span>
+              ${item.cid10_equivalente ? `<span class="px-1.5 py-0.5 rounded font-mono bg-blue-100 text-blue-800 text-[10px]">CID-10: ${item.cid10_equivalente}</span>` : ""}
+            </div>
+          </div>
+        `).join("");
+        dropdown.classList.remove("hidden");
+      } catch (err) {
+        console.warn("Erro ao buscar CID-11:", err);
+      }
+    }, 250);
+  });
+
+  // Fecha dropdown ao clicar fora
+  document.addEventListener("click", (e) => {
+    if (!inputBusca.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.add("hidden");
+    }
+  });
+}
+
+window.selecionarDiagnosticoCID11 = function(codigoCid11, codigoCid10, titulo) {
+  const chipsContainer = document.getElementById("diagnosticos-chips");
+  const inputBusca = document.getElementById("busca-cid10");
+  const dropdown = document.getElementById("dropdown-cid11");
+
+  if (dropdown) dropdown.classList.add("hidden");
+  if (inputBusca) inputBusca.value = "";
+
+  if (chipsContainer) {
+    const chip = document.createElement("span");
+    chip.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold animate-fade-in";
+    chip.innerHTML = `
+      <span class="font-mono bg-teal-100 px-1 rounded text-[10px]">CID-11: ${codigoCid11}</span>
+      ${codigoCid10 ? `<span class="font-mono bg-blue-100 text-blue-800 px-1 rounded text-[10px]">CID-10: ${codigoCid10}</span>` : ""}
+      <span>${titulo}</span>
+      <button class="text-teal-500 hover:text-teal-700 ml-1" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+    `;
+    chipsContainer.appendChild(chip);
+  }
+};
+
+// Inicializa o componente ao carregar o script
+document.addEventListener("DOMContentLoaded", () => {
+  inicializarBuscaCID11();
+});
+
