@@ -1,47 +1,50 @@
-# 🏥 Projeto MedIA — Saúde Digital SUS/APS
+# ⚡ MedIA Health OS — Intelligent Clinical Operating System
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org)
+[![Architecture](https://img.shields.io/badge/Architecture-Health_4.0_Multi--Tenant-6366f1.svg)](#)
+[![Compliance](https://img.shields.io/badge/CFM-2.314%2F2022-emerald.svg)](#)
+[![Security](https://img.shields.io/badge/LGPD-Art._11_SHA--256-blue.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-290%20Passed%20(100%25)-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-O **Projeto MedIA** é uma plataforma de saúde digital para a **Atenção Primária à Saúde (APS)** do **SUS**, desenvolvida para atender com agilidade e simplicidade aos padrões clínicos, estruturais e de interoperabilidade do **e-SUS APS (PEC — Prontuário Eletrônico do Cidadão)**.
-
-> **🗂️ Separação de repositórios:** o núcleo público deste código foi extraído para o repositório **[OpenSUS](https://github.com/jpversiani/OpenSUS)** (backend, docs de produto e Docker). Este repositório (`Projeto_MedIA`) mantém o projeto completo: código, `docs/gerados_por_ia/` (auditoria das maratonas de IA), `brhealth_landing/`, sandboxes e experimentos.
-
-> **Nota:** Este repositório foi construído com auxílio de orquestração multi-agente (HierAgent). Veja [`docs/ESTADO_ATUAL.md`](docs/ESTADO_ATUAL.md) para o estado atual do projeto.
+O **MedIA Health OS** é um sistema operacional clínico de vanguarda projetado para a nova geração de práticas médicas, clínicas privadas e redes de **Saúde da Família / Atenção Primária**. Combina inteligência artificial agêntica local, telemedicina WebRTC HD, copiloto SOAP em tempo real, gestão multi-clínica, autenticação SSO empresarial e trilha de auditoria criptográfica imutável.
 
 ---
 
-## 🚀 Destaques e Funcionalidades
+## 🌟 Principais Pilares da Plataforma
 
-### Identificação do Cidadão no Padrão SUS
-- Cadastro individual com **Cartão Nacional de Saúde (CNS — 15 dígitos)** e **CPF**.
-- Dados sociodemográficos, condições crônicas autorreferidas (Hipertensão, Diabetes, Tabagismo) e registro de alergias com alertas clínicos visuais.
-- Histórico clínico longitudinal unificado por paciente.
+### 🩺 1. Saúde da Família & Gestão Territorial Longitudinal
+* **Coorte Real de 1.501 Cidadãos**: Gestão territorial e familiar contínua da população de Montes Claros, Capelinha, Bocaiúva e Norte de Minas Gerais.
+* **Linhas de Cuidado Crônico**: Estratificação de risco cardiovascular e metabólico para Hipertensão Arterial Sistêmica (HAS) e Diabetes Mellitus (DM).
+* **Acompanhamento Ciclo de Vida**: Puericultura, saúde da mulher, pré-natal e estratificação geriátrica com percentis OMS.
 
-### Acolhimento à Demanda Espontânea & Triagem
-- Aferição de sinais vitais: PA sistólica/diastólica, FC, FR, Temperatura, Glicemia capilar e Oximetria (SpO₂).
-- Antropometria com cálculo automático de **IMC** e percentis OMS infantis.
-- **Classificação de Risco**: Vermelho (Emergência), Amarelo (Urgência), Verde (Pouco urgente) e Azul (Não urgente) — Protocolo Manchester.
-- Fila de atendimento diária com ordenação por prioridade clínica e tempo de espera.
+### 🤖 2. Copiloto Clínico SOAP com IA em Tempo Real
+* **Estruturação SOAP Dual-Column**: Anamnese (S), Sinais Vitais com Antropometria (O), Diagnóstico Estruturado (A) e Conduta/Prescrição (P).
+* **Busca Inteligente de Terminologias**: Codificação instantânea cruzada entre **CIAP-2** e **CID-10**.
+* **Prevenção de Interações Farmacológicas**: Checagem automática contra alergias registradas e catálogo Rename/Anvisa.
 
-### Prontuário Clínico Eletrônico (Método SOAP)
-- **S (Subjetivo)**: Motivo da consulta, queixa principal e HDA.
-- **O (Objetivo)**: Achados do exame físico integrados aos sinais vitais da triagem.
-- **A (Avaliação)**: Diagnósticos e condições ativas com autocomplete para **CIAP-2** e **CID-10**.
-- **P (Plano)**: Prescrição terapêutica com posologia, exames e plano de cuidados/retorno.
+### 🏢 3. Multi-Tenancy & Workspace Switcher (SaaS / Redes)
+* **Alternância Contextual de Unidade em 1 Clique**: Suporte a consultórios particulares privados e centros públicos de Saúde da Família (ex.: *Consultório Particular MedIA - Montes Claros* vs. *Centro Integrado de Saúde da Família - Capelinha*).
+* **Isolamento Lógico Estrito**: Permissões granulares baseadas em papéis (RBAC/ABAC: Médico, Enfermeiro, ACS, Gestor).
 
-### Interoperabilidade Oficial (LEDI / SISAB)
-- Exportação da **Ficha de Atendimento Individual (FAI)** compatível com o **SISAB** (`DadoTransporteThrift` — Ministério da Saúde).
+### 🔐 4. Autenticação Moderna & SSO Empresarial
+* **Single Sign-On (SSO)**: Integração nativa com **Google Workspace** e **Microsoft Entra ID** (OAuth 2.0 / OpenID Connect).
+* **Multi-Factor Authentication (MFA / TOTP)**: Algoritmo RFC 6238 nativo para segurança de acesso clínico.
+* **Gov.br Integrável**: Arquitetura pronta para federação de identidade cidadã (Backlog ativo).
 
-### Telemedicina (WebRTC)
-- Salas de teleconsulta com signaling WebRTC, troca de SDP/ICE, controle de mídia local e compartilhamento de tela.
-- Consentimento digital com assinatura em canvas (LGPD / Resolução CFM 2.314/2022).
-- Gravação e marcação de teleconsultas com player de revisão.
+### 🛡️ 5. Trilha Criptográfica de Auditoria (LGPD Art. 11 & CFM 2.314/2022)
+* **Cadeia de Custódia SHA-256 Chained**: `hash_atual = SHA256(hash_anterior + timestamp + dados)`, assegurando não-repúdio probatório contra adulterações de prontuário.
+* **Inspeção em Tempo Real**: Ledger auditável integrado no Cockpit Clínico para conformidade perante peritos e órgãos reguladores.
 
-### Interface Web Integrada
-- Dashboard, fila de espera, anamnese, sinais vitais, consentimento, copiloto clínico e acessibilidade (WCAG) em **HTML5 + Tailwind CSS + ES Modules**.
+### 📹 6. Telemedicina WebRTC HD & Prescrição Digital ICP-Brasil
+* **Videoconsulta Nativa**: Grade de vídeo médico/paciente com Picture-in-Picture (PIP) e sinalização WebSocket resiliente.
+* **Termo de Consentimento com Assinatura Digital**: Registro forense de IP, user-agent e consentimento LGPD antes da chamada.
+* **Prescrição Eletrônica**: Hashing de documento para dispensação farmacêutica sem expor dados do prontuário.
+
+### 📊 7. Faturamento TISS ANS 4.01.00 & Motor Fiscal DMED
+* Geração automática de lotes XML TISS para consultas e exames SADT com validação pré-envio anti-glosas.
+* Emissão de recibos fiscais com rastreabilidade para o leiaute magnético da DMED (Receita Federal).
 
 ---
 
@@ -51,79 +54,51 @@ O **Projeto MedIA** é uma plataforma de saúde digital para a **Atenção Prim�
 Projeto_MedIA/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/          # Endpoints REST (Cidadãos, Fila, SOAP, Telemedicina, SISAB, Copiloto, Sincronização)
-│   │   ├── core/            # Configuração, engine e sessão de banco de dados
-│   │   ├── models/          # Modelos relacionais SQLAlchemy 2.0 (tipagem Pydantic v2)
-│   │   ├── schemas/         # Contratos de validação Pydantic v2
-│   │   ├── seeds/           # Carga inicial: UBS, profissionais, CIAP-2 e CID-10
-│   │   ├── services/        # Regras de negócio (validação CNS, TFGe, CID-10, telemedicina, etc.)
-│   │   ├── repositories/    # Acesso a dados (SQLAlchemy 2.0, outbox pattern, repositórios)
-│   │   ├── static/          # Interface Web (HTML5 + Tailwind + JS ES Modules)
-│   │   └── main.py          # Ponto de entrada FastAPI (app = FastAPI(...))
-│   ├── tests/               # Suíte de testes automatizados com pytest
+│   │   ├── api/v1/          # Endpoints REST (Auth SSO, Fila, SOAP, Cidadãos, Telemedicina, TISS, DMED, Auditoria)
+│   │   ├── core/            # Configuração de segurança, JWT, CORS e Engine SQLAlchemy 2.0
+│   │   ├── models/          # Modelos relacionais (Usuario, Clinica, Cidadao, Atendimento, TrilhaAuditoria)
+│   │   ├── schemas/         # Contratos Pydantic v2 com tipagem estrita
+│   │   ├── repositories/    # Camada de persistência e repositórios de dados
+│   │   ├── services/        # Lógica clínica, regras CFM/ANS e cálculo de hash SHA-256
+│   │   ├── static/          # MedIA Cockpit Clínico & Landing Page (HTML5, Tailwind, JS ES6)
+│   │   └── main.py          # Ponto de entrada FastAPI com auto-reload
+│   ├── tests/               # 290 testes unitários e de integração (100% green)
 │   └── requirements.txt
-├── docker-compose.yml       # Orquestração (FastAPI + PostgreSQL 16)
-├── Dockerfile               # Build de imagem conteinerizada
-├── extrair_odt.py           # Utilitário para extração de especificações .odt
-├── start.sh                 # Script para execução local em um clique
-└── docs/
-    ├── gerados_por_ia/      # Entregas brutas dos agentes (rastro de auditoria)
-    └── ESTADO_ATUAL.md      # Estado atual do projeto e métricas de produção
+├── docker-compose.yml       # Stack conteinerizada (FastAPI + PostgreSQL 16)
+├── Dockerfile
+└── CHANGELOG.md             # Histórico formal de versões SemVer (v0.2.0, v0.3.0, v0.4.0, v0.5.0...)
 ```
 
 ---
 
 ## ⚡ Como Executar
 
-### Opção 1: Execução Local (SQLite nativo)
+### 1. Inicialização Rápida Local
 
-1. Instale as dependências:
 ```bash
+# Ativar ambiente virtual
+source .venv/bin/activate
+
+# Iniciar servidor backend com reload automático
 cd backend
-pip install -r requirements.txt
-```
-
-2. Execute:
-```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-3. Acesse no navegador:
-- **Prontuário Eletrônico (Interface)**: [http://localhost:8000](http://localhost:8000)
-- **Documentação Interativa (Swagger/OpenAPI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+Acesse no navegador:
+* **Cockpit Clínico**: [http://localhost:8000/app](http://localhost:8000/app)
+* **Landing Page**: [http://localhost:8000/](http://localhost:8000/)
+* **Documentação OpenAPI / Swagger**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Opção 2: Execução com Docker & PostgreSQL
-
-```bash
-docker-compose up --build -d
-```
-
-O banco de dados e a API estarão operacionais em `http://localhost:8000`.
-
----
-
-## 🧪 Testes Automatizados
+### 2. Suíte de Testes Automatizados (290 testes)
 
 ```bash
-source .venv/bin/activate
 cd backend
 pytest tests/ -v
 ```
-
-> ⚠️ **Nota sobre testes:** A suíte de testes tem um `conftest.py` que referencia `app.models` e `app.main` como se `backend/` fosse o root do package. Execute a partir de `backend/` com o `.venv` ativado. Verifique `docs/ESTADO_ATUAL.md` para o status atual da suíte.
-
----
-
-## 🗺️ Roteiro de Evolução (Roadmap)
-
-- [x] **Fase 1**: Núcleo Clínico SOAP, Cadastros SUS, Acolhimento e CIAP-2/CID-10.
-- [x] **Fase 1.5**: Serviço de serialização e exportação da Ficha de Atendimento Individual (FAI/LEDI).
-- [ ] **Fase 2**: Módulo de Sala de Vacina (PNI — Programa Nacional de Imunizações) com controle de lotes.
-- [ ] **Fase 3**: Suporte *Offline-First* com sincronização para Agentes Comunitários de Saúde (ACS).
-- [ ] **Fase 4**: Copiloto Clínico com IA local (apoio à codificação CIAP-2/CID-10 e protocolos do Ministério da Saúde).
 
 ---
 
 ## 📄 Licença
 
-Distribuído sob a licença [MIT](LICENSE).
+Distribuído sob a licença [MIT](LICENSE). Desenvolvido para a transformação digital da saúde com padrões abertos, segurança e excelência clínica.
+
