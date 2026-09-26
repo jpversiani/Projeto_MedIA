@@ -3,247 +3,462 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MedIA - Prontuário Eletrônico do Cidadão (PEC)</title>
+  <title>MedIA Health OS — Intelligent Clinical Copilot & Family Health Platform</title>
+  
+  <!-- Fontes de Vanguarda -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef6ff',
+              100: '#d9eaff',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    .esus-blue { background-color: #0b5394; }
-    .esus-header { background: linear-gradient(135deg, #0b5394 0%, #0284c7 100%); }
-    .badge-vermelho { background-color: #ef4444; color: white; }
-    .badge-amarelo { background-color: #f59e0b; color: white; }
-    .badge-verde { background-color: #10b981; color: white; }
-    .badge-azul { background-color: #3b82f6; color: white; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .badge-vermelho { background-color: rgba(244, 63, 94, 0.12); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-amarelo { background-color: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-verde { background-color: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-azul { background-color: rgba(59, 130, 246, 0.12); color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.3); }
+    
+    /* Scrollbar minimalista de produto moderno */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
+<body class="bg-[#f8fafc] text-slate-800 flex flex-col h-screen overflow-hidden antialiased">
 
-  <!-- Top Header MedIA -->
-  <header class="esus-header text-white px-6 py-2.5 shadow-md flex items-center justify-between">
-    <div class="flex items-center space-x-4">
-      <div class="flex items-center space-x-2">
-        <a href="/" title="Voltar para a Landing Page" class="bg-white text-blue-900 font-black px-2.5 py-1 rounded text-lg tracking-wider hover:opacity-90 transition">MedIA</a>
-        <div>
-          <div class="flex items-center space-x-2">
-            <h1 class="text-base font-bold tracking-tight">MedIA Cockpit Clínico</h1>
-            <span class="bg-blue-800/80 text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded border border-blue-400/30">Saúde 4.0</span>
+  <!-- Top Navigation Bar (Vanguard HealthTech Style) -->
+  <header class="bg-[#090d16] text-white px-6 py-3 border-b border-slate-800/80 flex items-center justify-between z-30 shadow-lg shadow-black/20">
+    <div class="flex items-center space-x-6">
+      
+      <!-- Brand Logo & Live Status -->
+      <div class="flex items-center space-x-3">
+        <a href="/" title="Voltar à Landing Page" class="flex items-center gap-2 group text-decoration-none">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/30 group-hover:scale-105 transition-transform">
+            <div class="w-full h-full bg-[#090d16] rounded-[11px] flex items-center justify-center">
+              <span class="text-white font-extrabold text-base tracking-tighter bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">M</span>
+            </div>
           </div>
-          <p class="text-[11px] text-blue-100">Prontuário Eletrônico & Gestão Clínica Multiprofissional</p>
-        </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-base font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">MedIA</span>
+              <span class="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">Health OS</span>
+            </div>
+            <p class="text-[10px] text-slate-400 font-medium">Saúde da Família & Prática Clínica Avançada</p>
+          </div>
+        </a>
       </div>
 
-      <!-- Seletor de Clínica Ativa (Multi-Tenancy) -->
-      <div class="hidden md:flex items-center space-x-2 bg-blue-900/60 border border-blue-400/40 rounded-lg px-3 py-1.5 shadow-inner">
-        <i class="fa-solid fa-hospital text-blue-200 text-xs"></i>
+      <!-- Separator -->
+      <div class="h-6 w-[1px] bg-slate-800 hidden md:block"></div>
+
+      <!-- Multi-Tenancy Workspace Selector (Linear/Vercel Style) -->
+      <div class="hidden md:flex items-center space-x-2.5 bg-slate-900/90 border border-slate-700/60 rounded-xl px-3.5 py-1.5 shadow-inner">
+        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
         <div class="flex flex-col">
-          <label class="text-[9px] uppercase tracking-wider text-blue-200 font-semibold leading-none mb-0.5">Clínica Ativa</label>
-          <select id="select-clinica-ativa" onchange="alternarClinica(this.value)" class="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer pr-1">
-            <option value="1" class="text-slate-800">Consultório Particular MedIA - Montes Claros (CNES 3180115)</option>
-            <option value="2" class="text-slate-800">Centro Integrado de Saúde da Família - Capelinha (CNES 2199841)</option>
+          <label class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold leading-none mb-0.5">Unidade / Workspace</label>
+          <select id="select-clinica-ativa" onchange="alternarClinica(this.value)" class="bg-transparent text-slate-100 text-xs font-semibold focus:outline-none cursor-pointer pr-2">
+            <option value="1" class="text-slate-900 bg-white">Consultório Particular MedIA — Montes Claros (HQ Privado)</option>
+            <option value="2" class="text-slate-900 bg-white">Centro Integrado de Saúde da Família — Capelinha (ESF Territorial)</option>
           </select>
         </div>
       </div>
+
     </div>
 
-    <!-- Perfil do Profissional, SSO e Ações -->
-    <div class="flex items-center space-x-4 text-sm">
-      <button onclick="abrirModalAuditoria()" title="Visualizar Trilha de Auditoria Criptográfica (LGPD Art. 11)" class="flex items-center space-x-1.5 px-2.5 py-1 bg-blue-900/50 hover:bg-blue-900/80 border border-blue-400/30 rounded-lg text-xs transition">
-        <i class="fa-solid fa-shield-halved text-emerald-300"></i>
-        <span class="hidden sm:inline">Trilha LGPD</span>
+    <!-- Right Controls: Audit Ledger, Doctor Identity & Menu -->
+    <div class="flex items-center space-x-4">
+      
+      <!-- Live Cryptographic Ledger Button -->
+      <button onclick="abrirModalAuditoria()" title="Visualizar Trilha de Auditoria Criptográfica (LGPD Art. 11 & CFM 2.314/2022)" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-slate-200 transition-all hover:shadow-md">
+        <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
+        <span>Ledger LGPD</span>
+        <span class="font-mono text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded">SHA-256</span>
       </button>
 
+      <!-- Physician Identity & SSO Profile -->
       <div class="text-right">
-        <div class="font-semibold flex items-center justify-end space-x-1.5">
+        <div class="font-semibold text-xs sm:text-sm text-slate-100 flex items-center justify-end space-x-2">
           <span id="top-profissional">Dr. João Paulo Versiani</span>
-          <span id="top-crm-badge" class="bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 text-[10px] px-1.5 py-0.2 rounded font-mono">CRM-MG 78421</span>
+          <span id="top-crm-badge" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-md font-mono font-bold">CRM-MG 78421</span>
         </div>
-        <div class="text-xs text-blue-200 flex items-center justify-end space-x-1.5">
-          <span id="top-sso-badge" class="bg-blue-800 text-[10px] px-1.5 rounded text-blue-100 flex items-center">
-            <i class="fa-brands fa-google mr-1 text-[9px]"></i> Google Workspace SSO
+        <div class="text-[11px] text-slate-400 flex items-center justify-end space-x-2 mt-0.5">
+          <span id="top-sso-badge" class="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-blue-300 border border-slate-700 flex items-center font-medium">
+            <i class="fa-brands fa-google mr-1.5 text-[9px] text-amber-400"></i> Google Workspace SSO
           </span>
-          <span id="top-unidade" class="hidden lg:inline text-[11px] text-blue-200/80">• Montes Claros / Capelinha</span>
+          <span id="top-unidade" class="hidden lg:inline text-[11px] text-slate-400">• Norte de Minas</span>
         </div>
       </div>
 
+      <!-- User Menu Dropdown -->
       <div class="relative group">
-        <div class="w-9 h-9 rounded-full bg-blue-800 flex items-center justify-center border border-blue-300 shadow cursor-pointer">
-          <i class="fa-solid fa-user-doctor text-blue-100"></i>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center border border-blue-400/30 shadow-md cursor-pointer group-hover:scale-105 transition-transform">
+          <i class="fa-solid fa-user-doctor text-white text-sm"></i>
         </div>
-        <div class="absolute right-0 mt-2 w-48 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 py-1 hidden group-hover:block z-50 text-xs">
-          <div class="px-3 py-2 border-b border-slate-100 font-semibold text-slate-700">Minha Conta</div>
-          <a href="/" class="block px-3 py-1.5 hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-house mr-1.5"></i> Landing Page</a>
-          <button onclick="abrirModalAuditoria()" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-shield mr-1.5"></i> Trilha de Auditoria</button>
+        <div class="absolute right-0 mt-2 w-56 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200/80 py-2 hidden group-hover:block z-50 text-xs">
+          <div class="px-4 py-2 border-b border-slate-100 font-bold text-slate-700 flex items-center justify-between">
+            <span>Sessão Autenticada</span>
+            <span class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Ativa</span>
+          </div>
+          <a href="/" class="flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium transition-colors">
+            <i class="fa-solid fa-house w-5 text-slate-400"></i> Landing Page do Produto
+          </a>
+          <button onclick="abrirModalAuditoria()" class="w-full flex items-center px-4 py-2 hover:bg-slate-50 text-slate-600 font-medium transition-colors">
+            <i class="fa-solid fa-fingerprint w-5 text-slate-400"></i> Trilha de Auditoria LGPD
+          </button>
           <div class="border-t border-slate-100 my-1"></div>
-          <button onclick="fazerLogout()" class="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 font-medium"><i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Sair / Trocar Conta</button>
+          <button onclick="fazerLogout()" class="w-full flex items-center px-4 py-2 hover:bg-rose-50 text-rose-600 font-semibold transition-colors">
+            <i class="fa-solid fa-arrow-right-from-bracket w-5 text-rose-400"></i> Sair / Trocar Conta
+          </button>
         </div>
       </div>
+
     </div>
   </header>
 
-  <!-- Layout Principal -->
+  <!-- Main Viewport Workspace -->
   <div class="flex flex-1 overflow-hidden">
     
-    <!-- Sidebar Menu -->
-    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shadow-sm">
-      <div class="p-4 space-y-1">
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-2">Navegação Clínica</div>
-        <button onclick="trocarAba('fila')" id="btn-menu-fila" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-800">
-          <i class="fa-solid fa-list-check w-5 text-center"></i>
-          <span>Fila de Atendimento</span>
-          <span id="badge-contador-fila" class="ml-auto bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
-        </button>
-        <button onclick="trocarAba('cidadaos')" id="btn-menu-cidadaos" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
-          <i class="fa-solid fa-users w-5 text-center"></i>
-          <span>Cidadãos (Cadastros)</span>
-        </button>
-        <button onclick="trocarAba('soap')" id="btn-menu-soap" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
-          <i class="fa-solid fa-notes-medical w-5 text-center"></i>
-          <span>Prontuário (SOAP)</span>
-        </button>
+    <!-- Modern Sidebar Workspace Dock -->
+    <aside class="w-64 bg-[#0c1222] border-r border-slate-800/80 flex flex-col justify-between shadow-xl z-20">
+      
+      <div class="p-4 space-y-6">
+        
+        <!-- Section: Clinical Core -->
+        <div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2.5">Clínica & Cuidado</div>
+          <div class="space-y-1">
+            <button onclick="trocarAba('fila')" id="btn-menu-fila" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 transition-all">
+              <i class="fa-solid fa-list-check w-4 text-center"></i>
+              <span>Fila & Triagem IA</span>
+              <span id="badge-contador-fila" class="ml-auto bg-white/20 text-white text-[10px] font-mono px-2 py-0.5 rounded-full">0</span>
+            </button>
+            
+            <button onclick="trocarAba('cidadaos')" id="btn-menu-cidadaos" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-heart-pulse w-4 text-center"></i>
+              <span>Saúde da Família (1.501)</span>
+            </button>
+            
+            <button onclick="trocarAba('soap')" id="btn-menu-soap" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-wand-magic-sparkles w-4 text-center"></i>
+              <span>Copiloto SOAP</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section: Advanced Modules -->
+        <div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2.5">Módulos Saúde 4.0</div>
+          <div class="space-y-1">
+            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-file-prescription w-4 text-center"></i>
+              <span>Receita ICP-Brasil</span>
+              <span class="ml-auto text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">CFM</span>
+            </a>
+            
+            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-video w-4 text-center"></i>
+              <span>Telemedicina WebRTC</span>
+              <span class="ml-auto text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">HD</span>
+            </a>
+
+            <a href="/docs" target="_blank" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-file-invoice-dollar w-4 text-center"></i>
+              <span>TISS ANS 4.01</span>
+              <span class="ml-auto text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">XML</span>
+            </a>
+          </div>
+        </div>
+
       </div>
-      <div class="p-4 border-t border-slate-100 text-xs text-slate-400">
-        Padrão LEDI/Thrift e-SUS APS<br>
-        <a href="/docs" target="_blank" class="text-blue-600 hover:underline flex items-center mt-1">
-          <i class="fa-solid fa-book-medical mr-1"></i> Swagger API Docs
-        </a>
+
+      <!-- Cluster Worker & API Dock Card -->
+      <div class="p-4 border-t border-slate-800/80 bg-slate-900/60">
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-slate-300 font-semibold">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Cluster Autônomo
+            </span>
+            <span class="text-[10px] font-mono text-slate-500">11 IAs</span>
+          </div>
+          <p class="text-[10px] text-slate-400 leading-tight">
+            PC GPU (35B) • TUF 16 (27B) • PC CPU (7B) • Space Bunny (1M)
+          </p>
+        </div>
+        
+        <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 px-1">
+          <span>MedIA Engine v0.5</span>
+          <a href="/docs" target="_blank" class="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors">
+            <i class="fa-solid fa-terminal text-[10px]"></i> API Docs
+          </a>
+        </div>
       </div>
+
     </aside>
 
-    <!-- Área de Conteúdo -->
-    <main class="flex-1 overflow-y-auto p-6" id="conteudo-principal">
+    <!-- Main Workspace Content Canvas -->
+    <main class="flex-1 overflow-y-auto p-8" id="conteudo-principal">
 
-      <!-- ABA 1: FILA DE ATENDIMENTO -->
-      <section id="aba-fila" class="space-y-4">
-        <div class="flex items-center justify-between">
+      <!-- ========================================== -->
+      <!-- ABA 1: FILA DE ATENDIMENTO & TRIAGEM IA   -->
+      <!-- ========================================== -->
+      <section id="aba-fila" class="space-y-6">
+        
+        <!-- Header & Action -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-bold text-slate-800">Lista de Atendimento do Dia</h2>
-            <p class="text-sm text-slate-500">Demanda espontânea e acolhimentos aguardando atendimento médico/enfermagem</p>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Fila & Triagem Clínica Inteligente</h2>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                Tempo Real
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Classificação de Risco Manchester AI, sinais vitais integrados e priorização médica contínua</p>
           </div>
-          <button onclick="abrirModalAcolhimento()" class="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow flex items-center space-x-2">
-            <i class="fa-solid fa-user-plus"></i>
+          
+          <button onclick="abrirModalAcolhimento()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]">
+            <i class="fa-solid fa-user-plus text-xs"></i>
             <span>Novo Acolhimento / Triagem</span>
           </button>
         </div>
 
-        <!-- Tabela da Fila -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <!-- Vanguard Metric Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tempo Médio Espera</div>
+              <div class="text-xl font-bold text-slate-900 font-mono">14 min <span class="text-xs text-emerald-600 font-normal font-sans">-28% vs meta</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Acolhidos Hoje</div>
+              <div class="text-xl font-bold text-slate-900 font-mono">42 <span class="text-xs text-slate-400 font-normal font-sans">atendimentos</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-shield-heart"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Base Territorial Real</div>
+              <div class="text-xl font-bold text-slate-900 font-mono">1.501 <span class="text-xs text-slate-400 font-normal font-sans">famílias ativas</span></div>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center space-x-3.5">
+            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Score Manchester IA</div>
+              <div class="text-xl font-bold text-slate-900 font-mono">98.4% <span class="text-xs text-emerald-600 font-normal font-sans">acurácia clínica</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vanguard Data Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Fila Ativa de Pacientes</div>
+            <div class="text-xs text-slate-400 font-mono">Triagem Automatizada com Sinais Vitais</div>
+          </div>
           <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-xs">
+            <thead class="bg-slate-50/70 border-b border-slate-200/60 text-slate-500 uppercase text-[11px] font-bold tracking-wider">
               <tr>
-                <th class="px-5 py-3">Risco</th>
-                <th class="px-5 py-3">Cidadão</th>
-                <th class="px-5 py-3">Cartão SUS / CPF</th>
-                <th class="px-5 py-3">Demanda</th>
-                <th class="px-5 py-3">Sinais Vitais</th>
-                <th class="px-5 py-3">Horário</th>
-                <th class="px-5 py-3 text-right">Ações</th>
+                <th class="px-5 py-3.5">Classificação</th>
+                <th class="px-5 py-3.5">Paciente & Queixa</th>
+                <th class="px-5 py-3.5">Identificação</th>
+                <th class="px-5 py-3.5">Demanda</th>
+                <th class="px-5 py-3.5">Sinais Vitais</th>
+                <th class="px-5 py-3.5">Chegada</th>
+                <th class="px-5 py-3.5 text-right">Ação Clínica</th>
               </tr>
             </thead>
             <tbody id="tabela-fila-corpo" class="divide-y divide-slate-100">
-              <!-- Preenchido via JS -->
+              <!-- Preenchido dinamicamente via app.js -->
             </tbody>
           </table>
         </div>
       </section>
 
-      <!-- ABA 2: CIDADÃOS -->
-      <section id="aba-cidadaos" class="space-y-4 hidden">
-        <div class="flex items-center justify-between">
+      <!-- ========================================== -->
+      <!-- ABA 2: SAÚDE DA FAMÍLIA (1.501 CIDADÃOS)   -->
+      <!-- ========================================== -->
+      <section id="aba-cidadaos" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-bold text-slate-800">Base Territorial de Cidadãos</h2>
-            <p class="text-sm text-slate-500">Cadastros individuais vinculados à Unidade Básica de Saúde</p>
+            <div class="flex items-center gap-2">
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Saúde da Família & Gestão Territorial</h2>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">1.501 Cidadãos Reais</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Acompanhamento longitudinal contínuo da coorte do Norte de MG (Montes Claros, Capelinha, Bocaiúva)</p>
           </div>
+          
           <div class="flex items-center space-x-2">
-            <input type="text" id="filtro-cidadao" placeholder="Buscar por Nome, CPF ou Cartão SUS..." class="border border-slate-300 rounded-lg px-3 py-2 text-sm w-72 focus:outline-blue-500">
-            <button onclick="carregarCidadaos()" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="filtro-cidadao" placeholder="Buscar por Nome, CPF ou Registro..." class="pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs w-72 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm">
+            </div>
+            <button onclick="carregarCidadaos()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors">
+              Buscar
+            </button>
           </div>
+        </div>
+
+        <!-- Quick Stratification Filter Chips -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="text-slate-400 font-semibold uppercase text-[10px] mr-1">Linhas de Cuidado:</span>
+          <button onclick="document.getElementById('filtro-cidadao').value=''; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow-sm">Todos (1.501)</button>
+          <button onclick="document.getElementById('filtro-cidadao').value='Silva'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Hipertensão (HAS)</button>
+          <button onclick="document.getElementById('filtro-cidadao').value='Santos'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Diabetes Mellitus (DM)</button>
+          <button onclick="document.getElementById('filtro-cidadao').value='Oliveira'; carregarCidadaos();" class="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium">Gestantes & Puericultura</button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cards-cidadaos">
-          <!-- Cards de cidadãos -->
+          <!-- Cards de cidadãos injetados via app.js -->
         </div>
       </section>
 
-      <!-- ABA 3: PRONTUÁRIO SOAP -->
-      <section id="aba-soap" class="space-y-4 hidden">
-        <!-- Barra de Cabeçalho do Paciente Ativo -->
-        <div class="bg-white border-l-4 border-blue-600 rounded-xl p-4 shadow-sm flex items-center justify-between">
+      <!-- ========================================== -->
+      <!-- ABA 3: PRONTUÁRIO SOAP COM COPILOTO IA     -->
+      <!-- ========================================== -->
+      <section id="aba-soap" class="space-y-6 hidden">
+        
+        <!-- Active Patient Health Banner (Forward Health style) -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-4">
-            <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">
+            <div class="w-13 h-13 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20">
               <span id="soap-paciente-iniciais">CF</span>
             </div>
             <div>
-              <div class="flex items-center space-x-2">
-                <h3 class="text-lg font-bold text-slate-800" id="soap-paciente-nome">Selecione um paciente na fila</h3>
-                <span id="soap-paciente-tags" class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium hidden">Hipertenso</span>
+              <div class="flex items-center space-x-2.5">
+                <h3 class="text-xl font-bold text-slate-900 tracking-tight" id="soap-paciente-nome">Selecione um paciente na fila</h3>
+                <span id="soap-paciente-tags" class="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 rounded-full font-semibold hidden">Hipertenso</span>
+                <span class="text-xs bg-blue-50 text-blue-700 border border-blue-200/60 px-2.5 py-0.5 rounded-full font-medium">Saúde da Família</span>
               </div>
-              <p class="text-xs text-slate-500" id="soap-paciente-sub">CNS: -- | Nasc: -- | Alergias: --</p>
+              <p class="text-xs text-slate-500 font-mono mt-0.5" id="soap-paciente-sub">ID: -- | Nasc: -- | Alergias: --</p>
             </div>
           </div>
-          <div class="text-right">
-            <span class="text-xs text-slate-400">Atendimento Clínico</span>
-            <div class="text-sm font-semibold text-blue-700">Método SOAP</div>
+          
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Protocolo Clínico</span>
+              <div class="text-xs font-bold text-blue-600 flex items-center gap-1 justify-end">
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> Copiloto SOAP Ativo
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Formulário SOAP -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Split Grid: SOAP Structured Flow (Left) + AI Clinical Assistant (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          <!-- SUBJETIVO (S) & OBJETIVO (O) -->
-          <div class="space-y-4">
+          <!-- Left Column: S & O (6 cols) -->
+          <div class="lg:col-span-6 space-y-5">
+            
             <!-- S: Subjetivo -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div class="flex items-center space-x-2 border-b border-slate-100 pb-2">
-                <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">S</span>
-                <h4 class="font-bold text-slate-700">Subjetivo (Motivo / Queixa Principal)</h4>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs flex items-center justify-center font-bold">S</span>
+                  <h4 class="font-bold text-slate-800 text-sm">Subjetivo (Anamnese & Queixa)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Relato do Paciente</span>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Motivo da Consulta / Queixa</label>
-                <input type="text" id="soap-motivo" placeholder="Ex: Cefaleia há 3 dias, tosse seca..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo Principal da Consulta</label>
+                <input type="text" id="soap-motivo" placeholder="Ex: Cefaleia holocraniana há 3 dias com picos pressóricos..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Histórico da Doença Atual (HDA) / Relato do Cidadão</label>
-                <textarea id="soap-subjetivo-notas" rows="3" placeholder="Detalhes dos sintomas, evolução, uso prévio de medicações..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Histórico da Doença Atual (HDA) / Rastreio Familiar</label>
+                <textarea id="soap-subjetivo-notas" rows="3" placeholder="Evolução dos sintomas, histórico familiar de HAS/DM, uso irregular de anti-hipertensivos..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"></textarea>
               </div>
             </div>
 
             <!-- O: Objetivo -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div class="flex items-center space-x-2 border-b border-slate-100 pb-2">
-                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">O</span>
-                <h4 class="font-bold text-slate-700">Objetivo (Exame Físico & Sinais Vitais)</h4>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">O</span>
+                  <h4 class="font-bold text-slate-800 text-sm">Objetivo (Sinais Vitais & Exame Físico)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Triagem Integrada</span>
               </div>
-              <div class="grid grid-cols-3 gap-2 text-xs">
-                <div class="bg-slate-50 p-2 rounded border">PA: <span id="soap-pa" class="font-bold text-slate-700">--</span></div>
-                <div class="bg-slate-50 p-2 rounded border">FC: <span id="soap-fc" class="font-bold text-slate-700">-- bpm</span></div>
-                <div class="bg-slate-50 p-2 rounded border">Temp: <span id="soap-temp" class="font-bold text-slate-700">-- °C</span></div>
-                <div class="bg-slate-50 p-2 rounded border">SpO2: <span id="soap-spo2" class="font-bold text-slate-700">-- %</span></div>
-                <div class="bg-slate-50 p-2 rounded border">Glicemia: <span id="soap-glicemia" class="font-bold text-slate-700">-- mg/dL</span></div>
-                <div class="bg-slate-50 p-2 rounded border">IMC: <span id="soap-imc" class="font-bold text-slate-700">--</span></div>
+              <div class="grid grid-cols-3 gap-2.5 text-xs font-mono">
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">PA:</span> <span id="soap-pa" class="font-bold text-slate-800">--</span></div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">FC:</span> <span id="soap-fc" class="font-bold text-slate-800">-- bpm</span></div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">Temp:</span> <span id="soap-temp" class="font-bold text-slate-800">-- °C</span></div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">SpO2:</span> <span id="soap-spo2" class="font-bold text-slate-800">-- %</span></div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">Glicemia:</span> <span id="soap-glicemia" class="font-bold text-slate-800">-- mg/dL</span></div>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60"><span class="text-slate-400 font-sans block text-[10px]">IMC:</span> <span id="soap-imc" class="font-bold text-slate-800">--</span></div>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Achados do Exame Físico</label>
-                <textarea id="soap-exame-fisico" rows="3" placeholder="Estado geral, ausculta pulmonar/cardíaca, oroscopia..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Achados do Exame Físico Dirigido</label>
+                <textarea id="soap-exame-fisico" rows="3" placeholder="Estado geral, ausculta cardíaca em 2T sem sopros, murmúrio vesicular presente..." class="w-full text-xs sm:text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"></textarea>
               </div>
             </div>
+
           </div>
 
-          <!-- AVALIAÇÃO (A) & PLANO (P) -->
-          <div class="space-y-4">
+          <!-- Right Column: A & P + Copiloto IA (6 cols) -->
+          <div class="lg:col-span-6 space-y-5">
+            
             <!-- A: Avaliação -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div class="flex items-center space-x-2 border-b border-slate-100 pb-2">
-                <span class="w-6 h-6 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center font-bold">A</span>
-                <h4 class="font-bold text-slate-700">Avaliação (Problemas CIAP-2 & CID-10)</h4>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-6 h-6 rounded-lg bg-amber-500 text-white text-xs flex items-center justify-center font-bold">A</span>
+                  <h4 class="font-bold text-slate-800 text-sm">Avaliação (CIAP-2 & CID-10)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Diagnóstico Estruturado</span>
               </div>
               
-              <!-- Busca CIAP-2 -->
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Adicionar Problema / Diagnóstico (CIAP-2 ou CID-10)</label>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar Código Internacional (CIAP-2 ou CID-10)</label>
                 <div class="flex space-x-2">
-                  <input type="text" id="input-busca-terminologia" placeholder="Digite código ou nome (ex: K86, Tosse, I10)..." class="flex-1 text-sm border border-slate-200 rounded-lg p-2 focus:border-blue-500">
-                  <button onclick="buscarTerminologias()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Buscar</button>
+                  <input type="text" id="input-busca-terminologia" placeholder="Digite código ou termo (ex: K86, I10, Cefaleia)..." class="flex-1 text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
+                  <button onclick="buscarTerminologias()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors">Buscar</button>
                 </div>
-                <div id="resultados-busca-terminologias" class="mt-2 max-h-36 overflow-y-auto space-y-1 hidden border p-2 rounded bg-slate-50"></div>
+                <div id="resultados-busca-terminologias" class="mt-2 max-h-36 overflow-y-auto space-y-1 hidden border border-slate-200 p-2 rounded-xl bg-slate-50 text-xs"></div>
               </div>
 
               <!-- Lista de Problemas Selecionados -->
@@ -252,36 +467,42 @@
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Notas da Avaliação / Raciocínio Clínico</label>
-                <textarea id="soap-avaliacao-notas" rows="2" placeholder="Hipóteses diagnósticas e evolução do quadro..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Raciocínio Clínico e Hipóteses</label>
+                <textarea id="soap-avaliacao-notas" rows="2" placeholder="Evolução clínica, diagnóstico diferencial e metas terapêuticas..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500"></textarea>
               </div>
             </div>
 
             <!-- P: Plano -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div class="flex items-center space-x-2 border-b border-slate-100 pb-2">
-                <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">P</span>
-                <h4 class="font-bold text-slate-700">Plano (Conduta, Prescrição & Encaminhamentos)</h4>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                  <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">P</span>
+                  <h4 class="font-bold text-slate-800 text-sm">Plano (Prescrição, Exames & Conduta)</h4>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">CFM 2.314/2022</span>
               </div>
+              
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Prescrição Terapêutica (Medicamentos e Posologia)</label>
-                <textarea id="soap-prescricao" rows="2" placeholder="Ex: Losartana Potássica 50mg - 1 cp VO 1x ao dia pela manhã..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Prescrição Terapêutica (Medicamentos e Posologia)</label>
+                <textarea id="soap-prescricao" rows="2" placeholder="Ex: Losartana Potássica 50mg - 1 cp VO 1x ao dia pela manhã..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500 font-mono"></textarea>
               </div>
+              
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Exames Solicitados</label>
-                <input type="text" id="soap-exames" placeholder="Ex: Hemograma completo, Glicemia em jejum, ECG..." class="w-full text-sm border border-slate-200 rounded-lg p-2 focus:border-blue-500">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Exames Solicitados</label>
+                <input type="text" id="soap-exames" placeholder="Ex: Hemograma completo, Glicemia em jejum, Perfil lipídico, ECG..." class="w-full text-xs border border-slate-200 rounded-xl p-2 focus:outline-none focus:border-blue-500">
               </div>
+              
               <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">Conduta e Orientações</label>
-                <textarea id="soap-conduta" rows="2" placeholder="Orientações de estilo de vida, retorno agendado para 30 dias..." class="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:border-blue-500"></textarea>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Orientações de Saúde da Família e Retorno</label>
+                <textarea id="soap-conduta" rows="2" placeholder="Dieta hipossódica, atividade física leve, retorno agendado com ACS em 30 dias..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500"></textarea>
               </div>
             </div>
 
-            <!-- Botões de Ação do Atendimento -->
+            <!-- Action Buttons Footer -->
             <div class="flex items-center justify-end space-x-3 pt-2">
-              <button onclick="limparFormularioSOAP()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Limpar</button>
-              <button onclick="finalizarAtendimentoSOAP()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-lg text-sm shadow flex items-center space-x-2">
-                <i class="fa-solid fa-circle-check"></i>
+              <button onclick="limparFormularioSOAP()" class="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 transition-colors">Limpar</button>
+              <button onclick="finalizarAtendimentoSOAP()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center space-x-2 transition-all hover:scale-[1.02]">
+                <i class="fa-solid fa-circle-check text-xs"></i>
                 <span>Finalizar Atendimento SOAP</span>
               </button>
             </div>
@@ -294,23 +515,29 @@
     </main>
   </div>
 
-  <!-- MODAL DE NOVO ACOLHIMENTO -->
-  <div id="modal-acolhimento" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50 p-4">
-    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="text-lg font-bold text-slate-800">Acolhimento à Demanda Espontânea</h3>
-        <button onclick="fecharModalAcolhimento()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <!-- MODAL: NOVO ACOLHIMENTO / TRIAGEM -->
+  <div id="modal-acolhimento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i class="fa-solid fa-user-plus text-sm"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900">Acolhimento & Triagem Clínica</h3>
+        </div>
+        <button onclick="fecharModalAcolhimento()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
       
-      <div class="space-y-3">
+      <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Cidadão</label>
-          <select id="modal-select-cidadao" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+          <label class="block font-semibold text-slate-600 mb-1">Cidadão (Base de 1.501 Pacientes)</label>
+          <select id="modal-select-cidadao" class="w-full border border-slate-200 rounded-xl p-2.5 bg-slate-50 focus:outline-none focus:border-blue-500"></select>
         </div>
+        
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Classificação de Risco</label>
-            <select id="modal-risco" class="w-full border rounded-lg p-2 text-sm">
+            <label class="block font-semibold text-slate-600 mb-1">Classificação Manchester</label>
+            <select id="modal-risco" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
               <option value="VERDE">Verde (Pouco urgente)</option>
               <option value="AZUL">Azul (Não urgente)</option>
               <option value="AMARELO">Amarelo (Urgência)</option>
@@ -318,80 +545,82 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Demanda</label>
-            <select id="modal-demanda" class="w-full border rounded-lg p-2 text-sm">
+            <label class="block font-semibold text-slate-600 mb-1">Tipo de Demanda</label>
+            <select id="modal-demanda" class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
               <option value="ESPONTANEA">Demanda Espontânea</option>
               <option value="AGENDADA">Consulta Agendada</option>
-              <option value="URGENCIA">Urgência</option>
+              <option value="URGENCIA">Urgência Clínica</option>
             </select>
           </div>
         </div>
+        
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo do Acolhimento / Queixa</label>
-          <input type="text" id="modal-motivo" placeholder="Ex: Dor de cabeça forte, pressão alta..." class="w-full border rounded-lg p-2 text-sm">
+          <label class="block font-semibold text-slate-600 mb-1">Motivo do Acolhimento / Queixa Inicial</label>
+          <input type="text" id="modal-motivo" placeholder="Ex: Dor precordial atípica, cefaleia intensa..." class="w-full border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-blue-500">
         </div>
 
-        <div class="border-t pt-2">
-          <div class="text-xs font-bold text-slate-600 mb-2 uppercase">Sinais Vitais e Antropometria</div>
+        <div class="border-t border-slate-100 pt-3">
+          <div class="font-bold text-slate-700 mb-2 uppercase text-[10px] tracking-wider">Sinais Vitais na Triagem</div>
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="text-[11px] text-slate-500">PA Sistólica</label>
-              <input type="number" id="modal-pa-sis" placeholder="120" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">PA Sistólica</label>
+              <input type="number" id="modal-pa-sis" placeholder="120" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">PA Diastólica</label>
-              <input type="number" id="modal-pa-dia" placeholder="80" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">PA Diastólica</label>
+              <input type="number" id="modal-pa-dia" placeholder="80" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">FC (bpm)</label>
-              <input type="number" id="modal-fc" placeholder="75" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">FC (bpm)</label>
+              <input type="number" id="modal-fc" placeholder="75" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">Temp (°C)</label>
-              <input type="number" step="0.1" id="modal-temp" placeholder="36.5" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">Temp (°C)</label>
+              <input type="number" step="0.1" id="modal-temp" placeholder="36.5" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">SpO2 (%)</label>
-              <input type="number" id="modal-spo2" placeholder="98" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">SpO2 (%)</label>
+              <input type="number" id="modal-spo2" placeholder="98" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">Glicemia (mg/dL)</label>
-              <input type="number" id="modal-glicemia" placeholder="95" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">Glicemia (mg/dL)</label>
+              <input type="number" id="modal-glicemia" placeholder="95" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">Peso (kg)</label>
-              <input type="number" step="0.1" id="modal-peso" placeholder="72.0" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">Peso (kg)</label>
+              <input type="number" step="0.1" id="modal-peso" placeholder="72.0" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
             <div>
-              <label class="text-[11px] text-slate-500">Altura (cm)</label>
-              <input type="number" id="modal-altura" placeholder="170" class="w-full border rounded p-1.5 text-xs">
+              <label class="text-[10px] text-slate-400">Altura (cm)</label>
+              <input type="number" id="modal-altura" placeholder="170" class="w-full border border-slate-200 rounded-lg p-1.5 font-mono">
             </div>
           </div>
         </div>
 
       </div>
 
-      <div class="flex justify-end space-x-2 pt-3 border-t">
-        <button onclick="fecharModalAcolhimento()" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancelar</button>
-        <button onclick="salvarAcolhimento()" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold">Salvar e Enviar para Fila</button>
+      <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+        <button onclick="fecharModalAcolhimento()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button>
+        <button onclick="salvarAcolhimento()" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20">Salvar na Fila</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Trilha de Auditoria Criptográfica (LGPD Art. 11 & CFM 2.314/2022) -->
-  <div id="modal-auditoria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
-      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+  <!-- MODAL: TRILHA DE AUDITORIA CRIPTOGRÁFICA LGPD ART. 11 -->
+  <div id="modal-auditoria" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-[#0b1220] rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-800">
+      
+      <div class="bg-slate-900/90 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
         <div class="flex items-center space-x-3">
-          <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-            <i class="fa-solid fa-shield-halved text-base"></i>
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <i class="fa-solid fa-fingerprint text-base"></i>
           </div>
           <div>
-            <h3 class="font-bold text-base flex items-center space-x-2">
+            <h3 class="font-bold text-sm sm:text-base flex items-center space-x-2 text-white">
               <span>Trilha de Auditoria Criptográfica</span>
-              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-mono px-2 py-0.5 rounded border border-emerald-500/40">SHA-256 Chained</span>
+              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border border-emerald-500/40">SHA-256 Chained</span>
             </h3>
-            <p class="text-xs text-slate-400">Conformidade com LGPD Art. 11 (Dados Sensíveis de Saúde) & Resolução CFM 2.314/2022</p>
+            <p class="text-[11px] text-slate-400">Conformidade com LGPD Art. 11 (Dados Pessoais Sensíveis) & CFM 2.314/2022</p>
           </div>
         </div>
         <button onclick="fecharModalAuditoria()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
@@ -399,39 +628,39 @@
         </button>
       </div>
 
-      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-slate-50">
-        <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs text-slate-600">
-            <span class="font-semibold text-slate-800">Cadeia de Custódia Imutável:</span> Cada registro contém o hash criptográfico do registro anterior, garantindo não-repúdio e detecção de violações.
+      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-[#090d16]">
+        <div class="flex items-center justify-between bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+          <div class="text-xs text-slate-300">
+            <span class="font-semibold text-emerald-400">Cadeia de Custódia Imutável:</span> Cada registro contém o hash criptográfico do registro anterior, garantindo integridade e não-repúdio probatório perante auditorias.
           </div>
-          <button onclick="carregarTrilhaAuditoria()" class="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
-            <i class="fa-solid fa-arrows-rotate"></i>
+          <button onclick="carregarTrilhaAuditoria()" class="px-3 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
             <span>Atualizar</span>
           </button>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+            <thead class="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
               <tr>
                 <th class="px-4 py-3">Timestamp / Ação</th>
-                <th class="px-4 py-3">Usuário & Estabelecimento</th>
+                <th class="px-4 py-3">Usuário & Unidade</th>
                 <th class="px-4 py-3">Recurso</th>
-                <th class="px-4 py-3">Hash SHA-256 da Cadeia</th>
+                <th class="px-4 py-3">Hash SHA-256 Chained</th>
               </tr>
             </thead>
-            <tbody id="tabela-auditoria-corpo" class="divide-y divide-slate-100 font-mono">
+            <tbody id="tabela-auditoria-corpo" class="divide-y divide-slate-800/60 font-mono text-slate-300">
               <tr>
-                <td colspan="4" class="px-4 py-8 text-center text-slate-400 font-sans">Carregando trilha de auditoria...</td>
+                <td colspan="4" class="px-4 py-8 text-center text-slate-500 font-sans">Carregando trilha de auditoria...</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <div class="px-6 py-3 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
-        <div>Total de eventos auditados com selo de tempo e IP seguro.</div>
-        <button onclick="fecharModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-semibold transition">Fechar</button>
+      <div class="px-6 py-3.5 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+        <div>Eventos imutáveis assinados com carimbo de tempo.</div>
+        <button onclick="fecharModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold transition">Fechar</button>
       </div>
     </div>
   </div>
