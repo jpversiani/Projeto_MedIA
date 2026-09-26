@@ -666,5 +666,15 @@
   </div>
 
   <script src="/static/app.js"></script>
+  <script src="/static/js/command_bar.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js')
+          .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+          .catch(err => console.warn('[PWA] Falha ao registrar Service Worker:', err));
+      });
+    }
+  </script>
 </body>
 </html>
