@@ -18,21 +18,63 @@
 <body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
 
   <!-- Top Header MedIA -->
-  <header class="esus-header text-white px-6 py-3 shadow-md flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="bg-white text-blue-900 font-black px-2.5 py-1 rounded text-lg tracking-wider">MedIA</div>
-      <div>
-        <h1 class="text-lg font-bold tracking-tight">MedIA APS</h1>
-        <p class="text-xs text-blue-100">Prontuário Eletrônico Aberto da Atenção Primária à Saúde</p>
+  <header class="esus-header text-white px-6 py-2.5 shadow-md flex items-center justify-between">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
+        <a href="/" title="Voltar para a Landing Page" class="bg-white text-blue-900 font-black px-2.5 py-1 rounded text-lg tracking-wider hover:opacity-90 transition">MedIA</a>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base font-bold tracking-tight">MedIA Cockpit Clínico</h1>
+            <span class="bg-blue-800/80 text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded border border-blue-400/30">Saúde 4.0</span>
+          </div>
+          <p class="text-[11px] text-blue-100">Prontuário Eletrônico & Gestão Clínica Multiprofissional</p>
+        </div>
+      </div>
+
+      <!-- Seletor de Clínica Ativa (Multi-Tenancy) -->
+      <div class="hidden md:flex items-center space-x-2 bg-blue-900/60 border border-blue-400/40 rounded-lg px-3 py-1.5 shadow-inner">
+        <i class="fa-solid fa-hospital text-blue-200 text-xs"></i>
+        <div class="flex flex-col">
+          <label class="text-[9px] uppercase tracking-wider text-blue-200 font-semibold leading-none mb-0.5">Clínica Ativa</label>
+          <select id="select-clinica-ativa" onchange="alternarClinica(this.value)" class="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer pr-1">
+            <option value="1" class="text-slate-800">Consultório Particular MedIA - Montes Claros (CNES 3180115)</option>
+            <option value="2" class="text-slate-800">Centro Integrado de Saúde da Família - Capelinha (CNES 2199841)</option>
+          </select>
+        </div>
       </div>
     </div>
-    <div class="flex items-center space-x-6 text-sm">
+
+    <!-- Perfil do Profissional, SSO e Ações -->
+    <div class="flex items-center space-x-4 text-sm">
+      <button onclick="abrirModalAuditoria()" title="Visualizar Trilha de Auditoria Criptográfica (LGPD Art. 11)" class="flex items-center space-x-1.5 px-2.5 py-1 bg-blue-900/50 hover:bg-blue-900/80 border border-blue-400/30 rounded-lg text-xs transition">
+        <i class="fa-solid fa-shield-halved text-emerald-300"></i>
+        <span class="hidden sm:inline">Trilha LGPD</span>
+      </button>
+
       <div class="text-right">
-        <div class="font-semibold" id="top-unidade">ESFSB M1 CIDADE CRISTO REI (CNES 3180115 - Montes Claros)</div>
-        <div class="text-xs text-blue-200" id="top-profissional">Dra. Francelli Neves Versiani (Médica)</div>
+        <div class="font-semibold flex items-center justify-end space-x-1.5">
+          <span id="top-profissional">Dr. João Paulo Versiani</span>
+          <span id="top-crm-badge" class="bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 text-[10px] px-1.5 py-0.2 rounded font-mono">CRM-MG 78421</span>
+        </div>
+        <div class="text-xs text-blue-200 flex items-center justify-end space-x-1.5">
+          <span id="top-sso-badge" class="bg-blue-800 text-[10px] px-1.5 rounded text-blue-100 flex items-center">
+            <i class="fa-brands fa-google mr-1 text-[9px]"></i> Google Workspace SSO
+          </span>
+          <span id="top-unidade" class="hidden lg:inline text-[11px] text-blue-200/80">• Montes Claros / Capelinha</span>
+        </div>
       </div>
-      <div class="w-9 h-9 rounded-full bg-blue-800 flex items-center justify-center border border-blue-300">
-        <i class="fa-solid fa-user-doctor"></i>
+
+      <div class="relative group">
+        <div class="w-9 h-9 rounded-full bg-blue-800 flex items-center justify-center border border-blue-300 shadow cursor-pointer">
+          <i class="fa-solid fa-user-doctor text-blue-100"></i>
+        </div>
+        <div class="absolute right-0 mt-2 w-48 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-200 py-1 hidden group-hover:block z-50 text-xs">
+          <div class="px-3 py-2 border-b border-slate-100 font-semibold text-slate-700">Minha Conta</div>
+          <a href="/" class="block px-3 py-1.5 hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-house mr-1.5"></i> Landing Page</a>
+          <button onclick="abrirModalAuditoria()" class="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-slate-600"><i class="fa-solid fa-shield mr-1.5"></i> Trilha de Auditoria</button>
+          <div class="border-t border-slate-100 my-1"></div>
+          <button onclick="fazerLogout()" class="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 font-medium"><i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Sair / Trocar Conta</button>
+        </div>
       </div>
     </div>
   </header>
@@ -332,6 +374,64 @@
       <div class="flex justify-end space-x-2 pt-3 border-t">
         <button onclick="fecharModalAcolhimento()" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancelar</button>
         <button onclick="salvarAcolhimento()" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold">Salvar e Enviar para Fila</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Trilha de Auditoria Criptográfica (LGPD Art. 11 & CFM 2.314/2022) -->
+  <div id="modal-auditoria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <i class="fa-solid fa-shield-halved text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base flex items-center space-x-2">
+              <span>Trilha de Auditoria Criptográfica</span>
+              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-mono px-2 py-0.5 rounded border border-emerald-500/40">SHA-256 Chained</span>
+            </h3>
+            <p class="text-xs text-slate-400">Conformidade com LGPD Art. 11 (Dados Sensíveis de Saúde) & Resolução CFM 2.314/2022</p>
+          </div>
+        </div>
+        <button onclick="fecharModalAuditoria()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-slate-50">
+        <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-600">
+            <span class="font-semibold text-slate-800">Cadeia de Custódia Imutável:</span> Cada registro contém o hash criptográfico do registro anterior, garantindo não-repúdio e detecção de violações.
+          </div>
+          <button onclick="carregarTrilhaAuditoria()" class="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <span>Atualizar</span>
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+              <tr>
+                <th class="px-4 py-3">Timestamp / Ação</th>
+                <th class="px-4 py-3">Usuário & Estabelecimento</th>
+                <th class="px-4 py-3">Recurso</th>
+                <th class="px-4 py-3">Hash SHA-256 da Cadeia</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-auditoria-corpo" class="divide-y divide-slate-100 font-mono">
+              <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-slate-400 font-sans">Carregando trilha de auditoria...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="px-6 py-3 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+        <div>Total de eventos auditados com selo de tempo e IP seguro.</div>
+        <button onclick="fecharModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-semibold transition">Fechar</button>
       </div>
     </div>
   </div>

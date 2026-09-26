@@ -427,6 +427,7 @@
       <a href="/static/painel_convenios.html">Convênios & TISS</a>
       <a href="/static/dashboard_analytics.html">Analytics</a>
       <a href="/docs" target="_blank">API Docs</a>
+      <button onclick="abrirModalLogin()" class="btn btn-ghost" style="font-size:0.9rem;">Entrar (SSO)</button>
       <a href="/app" class="btn btn-primary">Acessar Cockpit MVP →</a>
     </div>
     <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
@@ -747,6 +748,107 @@
       }
     });
   });
+
+  // Modal SSO Login
+  function abrirModalLogin() {
+    document.getElementById('modalLogin').style.display = 'flex';
+  }
+  function fecharModalLogin() {
+    document.getElementById('modalLogin').style.display = 'none';
+  }
+
+  async function loginDemo(role) {
+    try {
+      const btn = event.currentTarget;
+      btn.style.opacity = '0.5';
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: `${role}@media-saude.com.br`, demo_role: role })
+      });
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('media_token', data.access_token);
+        localStorage.setItem('media_user', JSON.stringify(data.usuario));
+        window.location.href = '/app';
+      } else {
+        alert('Erro ao realizar login de demonstração: ' + (data.detail || 'Tente novamente'));
+      }
+    } catch (e) {
+      alert('Erro na conexão com o servidor.');
+    }
+  }
+
+  async function loginSSO(provider) {
+    try {
+      const res = await fetch(`/api/v1/auth/sso/${provider}/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider, id_token: `sso_${provider}_token_sample` })
+      });
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('media_token', data.access_token);
+        localStorage.setItem('media_user', JSON.stringify(data.usuario));
+        window.location.href = '/app';
+      }
+    } catch (e) {
+      alert('Falha ao conectar ao provedor SSO ' + provider);
+    }
+  }
 </script>
+
+<!-- Modal de Autenticação Moderna e SSO -->
+<div id="modalLogin" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(11,18,32,0.75); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:20px; width:100%; max-width:440px; padding:32px; box-shadow:0 30px 60px rgba(0,0,0,0.3); border:1px solid rgba(59,118,246,0.2); position:relative;">
+    <button onclick="fecharModalLogin()" style="position:absolute; top:20px; right:20px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">✕</button>
+    
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#3b76f6,#1e40af); color:#fff; display:grid; place-items:center; font-weight:800; font-size:1.3rem; margin:0 auto 12px; box-shadow:0 6px 16px rgba(37,99,235,0.3);">M</div>
+      <h3 style="font-size:1.4rem; color:#0f172a; margin-bottom:4px; font-weight:700;">Acessar o MedIA</h3>
+      <p style="color:#64748b; font-size:0.88rem;">Plataforma Clínica Inteligente & Telemedicina</p>
+    </div>
+
+    <!-- Botões SSO -->
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+      <button onclick="loginSSO('google')" style="display:flex; align-items:center; justify-content:center; gap:12px; width:100%; padding:12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; font-weight:600; font-size:0.95rem; cursor:pointer; transition:all 0.2s; color:#1e293b;">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+        Continuar com Google
+      </button>
+
+      <button onclick="loginSSO('microsoft')" style="display:flex; align-items:center; justify-content:center; gap:12px; width:100%; padding:12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; font-weight:600; font-size:0.95rem; cursor:pointer; transition:all 0.2s; color:#1e293b;">
+        <svg width="20" height="20" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+        Continuar com Microsoft
+      </button>
+    </div>
+
+    <!-- Divisor -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+      <div style="flex:1; height:1px; background:#e2e8f0;"></div>
+      <span style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">Demonstração Instantânea</span>
+      <div style="flex:1; height:1px; background:#e2e8f0;"></div>
+    </div>
+
+    <!-- Acesso Rápido de Teste por Papel RBAC -->
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button onclick="loginDemo('medico_titular')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid rgba(59,118,246,0.3); background:#f0f7ff; cursor:pointer; transition:all 0.2s;">
+        <div style="font-weight:700; font-size:0.88rem; color:#1d4ed8;">👨‍⚕️ Dr. João Paulo Versiani</div>
+        <div style="font-size:0.75rem; color:#64748b;">Médico Titular · CRM/MG 65432 · Multi-Clínica</div>
+      </button>
+      <button onclick="loginDemo('medica_familia')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
+        <div style="font-weight:700; font-size:0.88rem; color:#334155;">👩‍⚕️ Dra. Letícia Mendes</div>
+        <div style="font-size:0.75rem; color:#64748b;">Médica de Família · CRM/MG 78910 · Telemedicina</div>
+      </button>
+      <button onclick="loginDemo('secretaria')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
+        <div style="font-weight:700; font-size:0.88rem; color:#334155;">📋 Recepção & Agendamento</div>
+        <div style="font-size:0.75rem; color:#64748b;">Maria Auxiliadora · Gestão de Fila e Guias TISS</div>
+      </button>
+      <button onclick="loginDemo('admin')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
+        <div style="font-weight:700; font-size:0.88rem; color:#334155;">⚙️ Administrador da Clínica</div>
+        <div style="font-size:0.75rem; color:#64748b;">Carlos Eduardo · Faturamento TISS ANS & DMED</div>
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -3,7 +3,10 @@ let filaAtivaId = null;
 let problemasSelecionados = [];
 let cidadaosCache = [];
 
+let usuarioAtual = null;
+
 document.addEventListener("DOMContentLoaded", () => {
+  inicializarSessaoUsuario();
   carregarFila();
   carregarCidadaos();
 });
@@ -361,5 +364,209 @@ async function salvarAcolhimento() {
     }
   } catch (err) {
     console.error("Erro ao salvar acolhimento:", err);
+  }
+}
+
+/* ==============================================================================
+ * Multi-Tenancy & Autenticação Avançada (SSO / Health 4.0 / LGPD)
+ * ============================================================================== */
+
+async function inicializarSessaoUsuario() {
+  let token = localStorage.getItem("media_token");
+  let userStr = localStorage.getItem("media_user");
+
+  if (!token || !userStr) {
+    // Modo de demonstração automática (Médico Titular: Dr. João Paulo Versiani)
+    try {
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "medico_titular@media-saude.com.br", demo_role: "medico_titular" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        token = data.access_token;
+        usuarioAtual = data.usuario;
+        localStorage.setItem("media_token", token);
+        localStorage.setItem("media_user", JSON.stringify(usuarioAtual));
+      }
+    } catch (e) {
+      console.warn("Não foi possível autenticar o usuário padrão:", e);
+    }
+  } else {
+    try {
+      usuarioAtual = JSON.parse(userStr);
+      // Validar / sincronizar com /api/v1/auth/me
+      const meRes = await fetch("/api/v1/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (meRes.ok) {
+        usuarioAtual = await meRes.json();
+        localStorage.setItem("media_user", JSON.stringify(usuarioAtual));
+      }
+    } catch (e) {
+      console.warn("Erro ao ler sessão local:", e);
+    }
+  }
+
+  atualizarInterfaceUsuario();
+}
+
+function atualizarInterfaceUsuario() {
+  if (!usuarioAtual) return;
+
+  // Nome e CRM
+  const elNome = document.getElementById("top-profissional");
+  if (elNome) elNome.textContent = usuarioAtual.nome_completo || "Dr. João Paulo Versiani";
+
+  const elCrm = document.getElementById("top-crm-badge");
+  if (elCrm) {
+    elCrm.textContent = usuarioAtual.crm ? `CRM-MG ${usuarioAtual.crm}` : (usuarioAtual.papel_ativo || "MÉDICO");
+  }
+
+  // Provedor SSO
+  const elSso = document.getElementById("top-sso-badge");
+  if (elSso) {
+    const prov = usuarioAtual.sso_provider || "local";
+    if (prov === "google") {
+      elSso.innerHTML = `<i class="fa-brands fa-google mr-1 text-[9px]"></i> Google Workspace`;
+      elSso.className = "bg-blue-800 text-[10px] px-1.5 rounded text-blue-100 flex items-center";
+    } else if (prov === "microsoft") {
+      elSso.innerHTML = `<i class="fa-brands fa-microsoft mr-1 text-[9px]"></i> Entra ID (OIDC)`;
+      elSso.className = "bg-sky-800 text-[10px] px-1.5 rounded text-sky-100 flex items-center";
+    } else {
+      elSso.innerHTML = `<i class="fa-solid fa-lock mr-1 text-[9px]"></i> Autenticado MedIA`;
+      elSso.className = "bg-emerald-800 text-[10px] px-1.5 rounded text-emerald-100 flex items-center";
+    }
+  }
+
+  // Preencher clínicas no seletor
+  const selectClinica = document.getElementById("select-clinica-ativa");
+  if (selectClinica && usuarioAtual.clinicas && usuarioAtual.clinicas.length > 0) {
+    selectClinica.innerHTML = usuarioAtual.clinicas.map(c => {
+      const selected = c.estabelecimento_id === usuarioAtual.clinica_ativa_id ? "selected" : "";
+      return `<option value="${c.estabelecimento_id}" ${selected} class="text-slate-800">${c.estabelecimento_nome} (CNES ${c.cnes || 'N/A'})</option>`;
+    }).join("");
+  }
+
+  // Atualizar subtítulo da unidade
+  const elUnidade = document.getElementById("top-unidade");
+  if (elUnidade && usuarioAtual.clinica_ativa_nome) {
+    elUnidade.textContent = `• ${usuarioAtual.clinica_ativa_nome}`;
+  }
+}
+
+async function alternarClinica(estabelecimentoId) {
+  const token = localStorage.getItem("media_token");
+  if (!token) {
+    alert("Sessão expirada. Faça login novamente.");
+    window.location.href = "/";
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/v1/auth/switch-clinic", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ estabelecimento_id: parseInt(estabelecimentoId) })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem("media_token", data.access_token);
+      localStorage.setItem("media_user", JSON.stringify(data.usuario));
+      usuarioAtual = data.usuario;
+      atualizarInterfaceUsuario();
+      carregarFila();
+      carregarCidadaos();
+    } else {
+      const err = await res.json();
+      alert(`Não foi possível alternar de clínica: ${err.detail || 'Permissão negada'}`);
+    }
+  } catch (e) {
+    console.error("Erro ao alternar clínica:", e);
+    alert("Erro na conexão com o servidor ao alternar unidade.");
+  }
+}
+
+function fazerLogout() {
+  localStorage.removeItem("media_token");
+  localStorage.removeItem("media_user");
+  window.location.href = "/";
+}
+
+/* ==============================================================================
+ * Modal Trilha de Auditoria Criptográfica LGPD (SHA-256 Chained)
+ * ============================================================================== */
+
+function abrirModalAuditoria() {
+  document.getElementById("modal-auditoria").classList.remove("hidden");
+  carregarTrilhaAuditoria();
+}
+
+function fecharModalAuditoria() {
+  document.getElementById("modal-auditoria").classList.add("hidden");
+}
+
+async function carregarTrilhaAuditoria() {
+  const token = localStorage.getItem("media_token");
+  const tabela = document.getElementById("tabela-auditoria-corpo");
+  tabela.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 font-sans">Carregando registros imutáveis...</td></tr>`;
+
+  try {
+    const res = await fetch("/api/v1/auth/audit-trail?limit=30", {
+      headers: { "Authorization": `Bearer ${token || ''}` }
+    });
+
+    if (!res.ok) {
+      tabela.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-rose-500 font-sans">Erro ao carregar auditoria: Acesso restrito a usuários autenticados.</td></tr>`;
+      return;
+    }
+
+    const registros = await res.json();
+    if (registros.length === 0) {
+      tabela.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 font-sans">Nenhum evento registrado ainda.</td></tr>`;
+      return;
+    }
+
+    tabela.innerHTML = registros.map(r => {
+      const dataStr = new Date(r.timestamp).toLocaleString("pt-BR");
+      const hashCurto = r.hash_atual ? `${r.hash_atual.substring(0, 16)}...` : "--";
+      const hashTooltip = r.hash_atual || "";
+      const hashPrevCurto = r.hash_anterior ? `${r.hash_anterior.substring(0, 12)}...` : "GENESIS";
+      
+      let badgeCor = "bg-blue-100 text-blue-800";
+      if (r.acao.includes("LOGIN")) badgeCor = "bg-emerald-100 text-emerald-800";
+      if (r.acao.includes("CLINICA")) badgeCor = "bg-purple-100 text-purple-800";
+      if (r.acao.includes("DELETE") || r.acao.includes("REMOVER")) badgeCor = "bg-rose-100 text-rose-800";
+
+      return `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold ${badgeCor}">${r.acao}</span>
+            <div class="text-[10px] text-slate-400 mt-1 font-sans">${dataStr}</div>
+          </td>
+          <td class="px-4 py-3 font-sans text-xs">
+            <div class="font-semibold text-slate-800">Usuário #${r.usuario_id || 'Sistema'}</div>
+            <div class="text-[11px] text-slate-500">Unidade ID: ${r.estabelecimento_id || 'Global'}</div>
+          </td>
+          <td class="px-4 py-3 font-sans text-xs text-slate-600">
+            <div class="font-medium">${r.recurso_tipo} ${r.recurso_id ? `(#${r.recurso_id})` : ''}</div>
+            <div class="text-[10px] text-slate-400 font-mono">IP: ${r.ip_address || '127.0.0.1'}</div>
+          </td>
+          <td class="px-4 py-3 text-xs">
+            <div class="text-emerald-700 font-bold" title="${hashTooltip}">${hashCurto}</div>
+            <div class="text-[10px] text-slate-400">Anterior: ${hashPrevCurto}</div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("Erro na trilha de auditoria:", err);
+    tabela.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-rose-500 font-sans">Falha na conexão com o servidor de auditoria.</td></tr>`;
   }
 }

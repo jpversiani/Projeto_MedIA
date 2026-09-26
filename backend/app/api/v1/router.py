@@ -10,10 +10,13 @@ from app.api.v1.copiloto import router as copiloto_router
 from app.api.v1.farmacia import router as farmacia_router
 from app.api.v1.telemedicina_ws import router as telemedicina_ws_router
 from app.api.v1.convenios import router as convenios_router
+from app.api.v1.auth import router as auth_router
 
 api_router = APIRouter()
 
+api_router.include_router(auth_router)
 api_router.include_router(cidadaos_router)
+
 api_router.include_router(fila_router)
 api_router.include_router(atendimentos_router)
 api_router.include_router(terminologias_router)
