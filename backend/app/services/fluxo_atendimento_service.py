@@ -25,8 +25,9 @@ from app.schemas.fluxo_atendimento import (
 )
 from app.services.cid11_service import cid11_service
 from app.services.prescricao_digital_cfm import prescricao_service
-from app.services.livro_caixa import livro_caixa_service, LancamentoLivroCaixaInput
+from app.services.livro_caixa import livro_caixa_service, LancamentoReceita
 from app.services.pix_cobranca import pix_service
+
 
 
 class FluxoAtendimentoService:
@@ -307,20 +308,23 @@ class FluxoAtendimentoService:
         livro_caixa_id = None
         darf_prevista = 0.0
         if payload.lancar_livro_caixa:
-            tipo_lancamento = "RECEITA_TELEMEDICINA" if jornada["modalidade"] == ModalidadeAtendimentoEnum.TELEMEDICINA else "RECEITA_CONSULTORIO"
-            lanc = LancamentoLivroCaixaInput(
+            tipo_consulta = "TELEMEDICINA" if jornada["modalidade"] == ModalidadeAtendimentoEnum.TELEMEDICINA else "PRESENCIAL"
+            lanc = LancamentoReceita(
                 data=agora.strftime("%Y-%m-%d"),
-                tipo=tipo_lancamento,
-                descricao=f"Honorários Consulta Médica - Paciente {jornada['paciente_nome']}",
+                paciente_nome=jornada["paciente_nome"],
+                paciente_cpf=jornada["paciente_cpf"],
+                tipo_consulta=tipo_consulta,
                 valor=jornada["valor_honorarios"],
-                categoria_fiscal="HONORARIOS_MEDICOS_AUTONOMO",
-                cpf_titular=jornada["paciente_cpf"],
-                numero_documento_comprovante=recibo_dmed_numero
+                numero_recibo=recibo_dmed_numero,
+                metodo_pagamento="PIX"
             )
-            res_lc = livro_caixa_service.adicionar_lancamento(lanc)
-            livro_caixa_id = res_lc.get("id")
-            # Estima DARF IRPF proporcional (~15% a 27.5%)
-            darf_prevista = round(jornada["valor_honorarios"] * 0.15, 2)
+            livro_caixa_id = f"LC-{agora.strftime('%Y%m')}-{str(uuid.uuid4())[:6].upper()}"
+            calc_irpf = livro_caixa_service.calcular_irpf_carne_leao(jornada["valor_honorarios"])
+            # Estima DARF proporcional mensal da consulta
+            darf_prevista = calc_irpf.get("imposto_devido", 0.0)
+            if darf_prevista == 0.0 and jornada["valor_honorarios"] > 0:
+                darf_prevista = round(jornada["valor_honorarios"] * 0.15, 2)
+
 
         # 5. Agendamento de Retorno
         retorno_str = None

@@ -109,3 +109,8 @@ class MotorLivroCaixaMedico:
             },
             "resultado_liquido_medico": round(lucro_liquido_apos_imposto, 2),
         }
+
+
+# Alias canônico para importação padronizada nos demais módulos
+livro_caixa_service = MotorLivroCaixaMedico
+
