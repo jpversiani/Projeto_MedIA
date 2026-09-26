@@ -254,41 +254,51 @@ class FluxoAtendimentoService:
         # 1. Prescrição Digital CFM
         codigo_verificador_receita = None
         if jornada.get("prescricoes"):
+            from app.services.prescricao_digital_cfm import TipoPrescricao
             itens_prescricao = []
             for item in jornada["prescricoes"]:
                 itens_prescricao.append({
-                    "medicamento": item.get("nome_farmaco"),
-                    "dosagem": item.get("dosagem"),
-                    "posologia": item.get("posologia"),
-                    "quantidade": item.get("quantidade", "1 cx"),
-                    "via": "Oral"
+                    "farmaco": item.get("nome_farmaco"),
+                    "concentracao": item.get("dosagem", ""),
+                    "forma_farmaceutica": item.get("forma_farmaceutica", "comprimido"),
+                    "posologia": item.get("posologia", ""),
+                    "quantidade_total": item.get("quantidade", "1 caixa"),
+                    "via_administracao": "Oral"
                 })
+            tipo_rec = TipoPrescricao.SIMPLES
+            tipo_str = str(jornada["prescricoes"][0].get("tipo_receita", "")).upper()
+            if "CONTROLE" in tipo_str:
+                tipo_rec = TipoPrescricao.CONTROLE_ESPECIAL
+            elif "ANTIBIOTICO" in tipo_str or "ANTIMICROBIANO" in tipo_str:
+                tipo_rec = TipoPrescricao.ANTIBIOTICO
+
             res_rec = prescricao_service.emitir_prescricao(
-                tipo=jornada["prescricoes"][0].get("tipo_receita", "SIMPLES"),
-                paciente_id=jornada["paciente_id"],
                 paciente_nome=jornada["paciente_nome"],
                 paciente_cpf=jornada["paciente_cpf"],
                 medico_nome=jornada["medico_nome"],
                 medico_crm=jornada["medico_crm"],
-                itens=itens_prescricao
+                medico_uf="MG",
+                medico_rqe="12876",
+                itens=itens_prescricao,
+                tipo=tipo_rec
             )
-            codigo_verificador_receita = res_rec.codigo_verificador
+            codigo_verificador_receita = res_rec.codigo_validacao
 
         # 2. Atestado Médico (se emitido)
         codigo_verificador_atestado = None
         if jornada.get("atestado"):
             at = jornada["atestado"]
             res_at = prescricao_service.emitir_atestado(
-                paciente_id=jornada["paciente_id"],
                 paciente_nome=jornada["paciente_nome"],
                 paciente_cpf=jornada["paciente_cpf"],
                 medico_nome=jornada["medico_nome"],
                 medico_crm=jornada["medico_crm"],
+                medico_uf="MG",
                 dias_afastamento=at.get("dias_afastamento", 1),
-                motivo=at.get("motivo_manifesto"),
                 cid10=at.get("cid_codigo") if at.get("incluir_cid") else None
             )
-            codigo_verificador_atestado = res_at.codigo_verificador
+            codigo_verificador_atestado = res_at.codigo_validacao
+
 
         # 3. Recibo DMED Receita Federal
         recibo_dmed_numero = f"DMED-{agora.year}-{jornada['paciente_id']:04d}-{str(uuid.uuid4())[:4].upper()}"
