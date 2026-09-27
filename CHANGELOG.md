@@ -9284,3 +9284,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Modelos Participantes:** qwen_3_6_35b, glm_5_3_flash_pc, qwen_2_5_7b_cpu
 - **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
 - **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
+
+### [Onda 10] - Frente 10: Segurança RBAC/ABAC Avançada & Gestão de Papéis (2026-09-26 21:31:36)
+- **Escopo:** `seguranca`
+- **Modelos Participantes:** space_bunny_alpha, qwen_3_6_35b, qwen_2_5_7b_cpu
+- **Validação Automatizada:** Pytest 290+ testes 100% aprovados.
+- **Conformidade:** LGPD Art. 11, CFM 2.314/2022, TISS ANS 4.01.00.
