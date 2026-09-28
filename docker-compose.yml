@@ -1,31 +1,62 @@
-version: '3.8'
-
 services:
   esus-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: esus_pec_api
-    restart: always
+    container_name: media_health_api
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     environment:
       - DATABASE_URL=postgresql://esus_user:esus_pass@db:5432/esus_db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   db:
     image: postgres:16-alpine
-    container_name: esus_postgres_db
-    restart: always
+    container_name: media_health_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: esus_user
-      POSTGRES_PASSWORD: esus_pass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esus_pass}
       POSTGRES_DB: esus_db
+    # Porta 5432 exposta apenas em loopback para evitar acesso externo
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esus_user -d esus_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TURN auto-hospedado para sinalização WebRTC atrás de NAT simétrico.
+  # Habilitar com: TURN_SECRET=<segredo> docker compose --profile turn up -d
+  # Requer liberar no firewall: 3478/udp+tcp e faixa 49152-65535/udp
+  coturn:
+    image: coturn/coturn:4.6
+    container_name: media_health_coturn
+    profiles: ["turn"]
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--fingerprint"
+      - "--lt-cred-mech"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${TURN_SECRET:-media-turn-secret-trocar}"
+      - "--realm=media.local"
+      - "--min-port=49152"
+      - "--max-port=65535"
 
 volumes:
   postgres_data:

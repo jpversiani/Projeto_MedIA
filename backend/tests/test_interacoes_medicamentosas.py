@@ -39,3 +39,35 @@ def test_prescricao_segura_sem_interacoes():
     assert len(rel.interacoes_detectadas) == 0
     assert len(rel.alertas_alergia) == 0
     assert rel.aprovado_para_dispensacao is True
+
+
+def test_detectar_interacao_grave_fluoxetina_tramadol():
+    """Regressão de segurança da prescrição digital: fluoxetina + tramadol.
+
+    A combinação de ISRS (fluoxetina) com opioide tramadol eleva o risco de
+    Síndrome Serotoninérgica potencialmente fatal (base Rename/Anvisa).
+    O par deve ser detectado como GRAVE e exigir conduta de monitoramento.
+    """
+    rel = VerificadorFarmacologico.checar_interacoes_e_alergias(
+        medicamentos_prescritos=["Fluoxetina 20mg", "Tramadol 50mg"],
+        alergias_paciente=[]
+    )
+    assert len(rel.interacoes_detectadas) == 1
+    alerta = rel.interacoes_detectadas[0]
+    assert alerta.gravidade == "GRAVE"
+    assert "serotoninérgica" in alerta.mecanismo.lower()
+    assert "fluoxetina" in alerta.medicamento_a
+    assert "tramadol" in alerta.medicamento_b
+    # Interação GRAVE não é CONTRAINDICADO: não bloqueia a dispensação,
+    # mas exige conduta de monitoramento (contrato atual do motor).
+    assert rel.aprovado_para_dispensacao is True
+
+
+def test_detectar_fluoxetina_tramadol_em_ordem_inversa():
+    """A detecção deve ser simétrica (ordem dos medicamentos não importa)."""
+    rel = VerificadorFarmacologico.checar_interacoes_e_alergias(
+        medicamentos_prescritos=["Tramadol 50mg", "Fluoxetina 20mg"],
+        alergias_paciente=[]
+    )
+    assert len(rel.interacoes_detectadas) == 1
+    assert rel.interacoes_detectadas[0].gravidade == "GRAVE"

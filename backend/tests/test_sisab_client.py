@@ -220,6 +220,7 @@ class TestSISABClient:
     def lote(self) -> LoteSISAB:
         return _lote_valido()
 
+    @pytest.mark.asyncio
     async def test_enviar_lote_sucesso(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -246,6 +247,7 @@ class TestSISABClient:
         assert recibo.lote_id == "LOTE-001"
         assert recibo.sucesso_total is True
 
+    @pytest.mark.asyncio
     async def test_enviar_lote_timeout_retry_exausto(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
@@ -260,6 +262,7 @@ class TestSISABClient:
 
         assert mock_post.call_count == sisab_client.max_retries
 
+    @pytest.mark.asyncio
     async def test_enviar_lote_conerror_retry_exausto(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
 
@@ -272,6 +275,7 @@ class TestSISABClient:
             with pytest.raises(TimeoutSISABError):
                 await sisab_client.enviar_lote(lote)
 
+    @pytest.mark.asyncio
     async def test_enviar_lote_http_500_retry(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -291,6 +295,7 @@ class TestSISABClient:
 
         assert mock_post.call_count == sisab_client.max_retries
 
+    @pytest.mark.asyncio
     async def test_enviar_lote_http_422_sem_retry(self, sisab_client: SISABClient, lote: LoteSISAB):
         mock_response = MagicMock()
         mock_response.status_code = 422
@@ -329,6 +334,7 @@ class TestSISABClient:
             assert elapsed < 10.0
         asyncio.run(_test())
 
+    @pytest.mark.asyncio
     async def test_close_client(self, sisab_client: SISABClient):
         mock_client = MagicMock()
         mock_client.is_closed = False
@@ -338,6 +344,7 @@ class TestSISABClient:
         await sisab_client.close()
         mock_client.aclose.assert_awaited_once()
 
+    @pytest.mark.asyncio
     async def test_context_manager(self):
         with patch("app.services.sisab_client.httpx.AsyncClient") as MockClient:
             mock_instance = MagicMock()
@@ -367,5 +374,3 @@ class TestValidadores:
     def test_validar_ficha_sem_ciap_cid_raise(self):
         with pytest.raises(ValidationError):
             _ficha_valida(ciap2=None, cid10=None)
-
-

@@ -3,18 +3,47 @@ Schemas Pydantic v2 para Autenticação, SSO (Google/Microsoft), MFA e Multi-Ten
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    """
+    Payload de login do MedIA.
+
+    Dois modos suportados:
+    - Login tradicional: ``email`` + ``password`` (com ``mfa_code`` opcional).
+    - Login de demonstração (MVP): apenas ``demo_role`` (ex.: "medico_titular").
+
+    Regra de negócio: é obrigatório informar ``email`` OU ``demo_role``.
+    O e-mail, quando presente, continua validado como EmailStr (422 se malformado).
+    """
+    email: Optional[EmailStr] = None
     password: Optional[str] = None
     mfa_code: Optional[str] = None
     demo_role: Optional[str] = None # Para login rápido de teste de MVP
 
+    @model_validator(mode="after")
+    def _exigir_email_ou_demo_role(self) -> "LoginRequest":
+        if not self.demo_role and not self.email:
+            raise ValueError(
+                "Informe 'email' + 'password' ou 'demo_role' para realizar o login."
+            )
+        return self
+
 
 class SSOLoginRequest(BaseModel):
-    provider: str = Field(..., description="'google' ou 'microsoft'")
+    """
+    Payload do callback SSO.
+
+    ``provider`` é opcional: o provedor já é inequívoco pela rota de callback
+    (``/auth/sso/google/callback`` ou ``/auth/sso/microsoft/callback``), e o
+    endpoint resolve o provider default. Quando informado, é aceito como
+    metadado (compatibilidade com clientes que enviam o campo).
+    """
+    provider: Optional[str] = Field(
+        None,
+        description="'google' ou 'microsoft' (opcional; inferido da rota de callback)",
+    )
     id_token: Optional[str] = None
     access_token: Optional[str] = None
     code: Optional[str] = None

@@ -71,6 +71,9 @@ def get_current_user(
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """
     Login tradicional por email/senha ou login instantâneo de demonstração para testes de MVP.
+
+    - Login demo: basta enviar ``{"demo_role": "medico_titular"}`` (email é opcional).
+    - Login local: ``{"email": "...", "password": "..."}`` (com ``mfa_code`` opcional).
     """
     usuario = None
     
@@ -167,7 +170,7 @@ def google_sso_callback(payload: SSOLoginRequest, request: Request, db: Session 
     
     usuario = AuthService.get_or_create_sso_user(
         db=db,
-        provider="google",
+        provider=payload.provider or "google",
         sso_id=sub_id,
         email=email,
         nome=nome,
@@ -210,7 +213,7 @@ def microsoft_sso_callback(payload: SSOLoginRequest, request: Request, db: Sessi
 
     usuario = AuthService.get_or_create_sso_user(
         db=db,
-        provider="microsoft",
+        provider=payload.provider or "microsoft",
         sso_id=sub_id,
         email=email,
         nome=nome
