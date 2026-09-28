@@ -1,27 +1,26 @@
-# ⚡ MedIA Health OS — Intelligent Clinical Operating System
+# ⚡ MedIA Practice SaaS — Intelligent Clinical Operating System
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
-[![Architecture](https://img.shields.io/badge/Architecture-Health_4.0_Multi--Tenant-6366f1.svg)](#)
+[![Architecture](https://img.shields.io/badge/Architecture-Cloud_SaaS_Multi--Tenant-6366f1.svg)](#)
 [![Compliance](https://img.shields.io/badge/CFM-2.314%2F2022-emerald.svg)](#)
 [![Security](https://img.shields.io/badge/LGPD-Art._11_SHA--256-blue.svg)](#)
-[![Tests](https://img.shields.io/badge/Pytest-437%20Passed%20(100%25)-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-440%20Passed%20(100%25)-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-O **MedIA Health OS** é um sistema operacional clínico de vanguarda projetado para a nova geração de práticas médicas, clínicas privadas e redes de **Saúde da Família / Atenção Primária**. Combina inteligência artificial agêntica local, telemedicina WebRTC HD, copiloto SOAP em tempo real, gestão multi-clínica, autenticação SSO empresarial e trilha de auditoria criptográfica imutável.
+O **MedIA Practice SaaS** é um sistema operacional clínico moderno projetado para consultórios médicos particulares, clínicas de especialidades, clínicos gerais e médicos especialistas (Cardiologia, Psiquiatria, Dermatologia, Endocrinologia, Pediatria, Clínica Médica e Medicina de Família). Combina inteligência clínica assistida por IA, telemedicina WebRTC HD (CFM 2.314/2022), prescrição eletrônica ICP-Brasil (com suporte a certificados em nuvem como VIDAAS / Valid), faturamento TISS ANS 4.01.00, controle fiscal DMED (Receita Federal) e trilha de auditoria criptográfica imutável.
 
 ---
 
 ## 🌟 Principais Pilares da Plataforma
 
-### 🩺 1. Saúde da Família & Gestão Territorial Longitudinal
-* **Coorte Real de 1.501 Cidadãos**: Gestão territorial e familiar contínua da população de Montes Claros, Capelinha, Bocaiúva e Norte de Minas Gerais.
-* **Linhas de Cuidado Crônico**: Estratificação de risco cardiovascular e metabólico para Hipertensão Arterial Sistêmica (HAS) e Diabetes Mellitus (DM).
-* **Acompanhamento Ciclo de Vida**: Puericultura, saúde da mulher, pré-natal e estratificação geriátrica com percentis OMS.
+### 🩺 1. Prontuário Eletrônico & Gestão Clínica Longitudinal
+* **Acompanhamento de Pacientes e Linhas de Cuidado**: Gestão contínua de prontuários com estratificação de risco cardiovascular e metabólico (HAS/DM), calculadoras médicas (Framingham, TFGe CKD-EPI) e percentis OMS.
+* **Prontuário Orientado por Problemas (SOAP)**: Anamnese detalhada, sinais vitais, hipóteses diagnósticas e planos terapêuticos estruturados.
 
 ### 🤖 2. Copiloto Clínico SOAP com IA em Tempo Real
 * **Estruturação SOAP Dual-Column**: Anamnese (S), Sinais Vitais com Antropometria (O), Diagnóstico Estruturado (A) e Conduta/Prescrição (P).
-* **Busca Inteligente de Terminologias**: Codificação instantânea cruzada entre **CIAP-2** e **CID-10**.
+* **Busca Inteligente de Terminologias**: Codificação instantânea cruzada entre **CIAP-2**, **CID-10** e **CID-11 (OMS)**.
 * **Prevenção de Interações Farmacológicas**: Checagem automática contra alergias registradas e catálogo Rename/Anvisa.
 
 ### 🏢 3. Multi-Tenancy & Workspace Switcher (SaaS / Redes)
