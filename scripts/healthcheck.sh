@@ -34,7 +34,7 @@ fi
 # 3) Handshake WebSocket de telemedicina (esperado: HTTP 403/400 do
 #    servidor indicando rota WS existente, ou 101 se autenticado).
 #    Um 404 puro indicaria rota ausente.
-ws_code="$(curl -s -o /dev/null -w '%{http_code}' \
+ws_code="$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' \
   -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
   -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
   "${BASE}/api/v1/ws/telemedicina/sala/healthcheck?paciente=paciente" || true)"

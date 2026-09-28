@@ -5,7 +5,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Health_4.0_Multi--Tenant-6366f1.svg)](#)
 [![Compliance](https://img.shields.io/badge/CFM-2.314%2F2022-emerald.svg)](#)
 [![Security](https://img.shields.io/badge/LGPD-Art._11_SHA--256-blue.svg)](#)
-[![Tests](https://img.shields.io/badge/Pytest-290%20Passed%20(100%25)-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-437%20Passed%20(100%25)-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 O **MedIA Health OS** é um sistema operacional clínico de vanguarda projetado para a nova geração de práticas médicas, clínicas privadas e redes de **Saúde da Família / Atenção Primária**. Combina inteligência artificial agêntica local, telemedicina WebRTC HD, copiloto SOAP em tempo real, gestão multi-clínica, autenticação SSO empresarial e trilha de auditoria criptográfica imutável.
@@ -62,7 +62,7 @@ Projeto_MedIA/
 │   │   ├── services/        # Lógica clínica, regras CFM/ANS e cálculo de hash SHA-256
 │   │   ├── static/          # MedIA Cockpit Clínico & Landing Page (HTML5, Tailwind, JS ES6)
 │   │   └── main.py          # Ponto de entrada FastAPI com auto-reload
-│   ├── tests/               # 290 testes unitários e de integração (100% green)
+│   ├── tests/               # 437 testes unitários e de integração (100% green)
 │   └── requirements.txt
 ├── docker-compose.yml       # Stack conteinerizada (FastAPI + PostgreSQL 16)
 ├── Dockerfile
@@ -89,7 +89,7 @@ Acesse no navegador:
 * **Landing Page**: [http://localhost:8000/](http://localhost:8000/)
 * **Documentação OpenAPI / Swagger**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 2. Suíte de Testes Automatizados (290 testes)
+### 2. Suíte de Testes Automatizados (437 testes)
 
 ```bash
 cd backend
