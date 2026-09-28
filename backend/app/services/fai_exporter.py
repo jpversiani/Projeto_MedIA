@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from app.models.atendimento import AtendimentoSOAP
 
@@ -14,7 +14,7 @@ def gerar_fai_ledi_payload(atendimento: AtendimentoSOAP) -> Dict[str, Any]:
     problemas_ciap2 = [p.codigo for p in atendimento.problemas if p.tipo_codigo == "CIAP2"]
     problemas_cid10 = [p.codigo for p in atendimento.problemas if p.tipo_codigo == "CID10"]
 
-    data_atendimento_str = (atendimento.created_at or datetime.utcnow()).strftime("%Y-%m-%d")
+    data_atendimento_str = (atendimento.created_at or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
 
     payload = {
         "cabecalho": {
@@ -24,7 +24,7 @@ def gerar_fai_ledi_payload(atendimento: AtendimentoSOAP) -> Dict[str, Any]:
             "ineDadoSerializado": "0001452361",
             "codIbge": "3143302", # Montes Claros - MG
             "versao": "5.3.0",
-            "dataEnvio": datetime.utcnow().isoformat()
+            "dataEnvio": datetime.now(timezone.utc).isoformat()
         },
         "fichaAtendimentoIndividualMaster": {
             "headerTransport": {

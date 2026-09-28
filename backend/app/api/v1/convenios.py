@@ -3,7 +3,7 @@ API V1 de Convênios, Guias TISS e Faturamento Particular (DMED).
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -15,10 +15,10 @@ router = APIRouter(prefix="/convenios", tags=["Convênios & TISS"])
 
 # Schemas Pydantic
 class OperadoraCreate(BaseModel):
-    nome: str = Field(..., example="Unimed")
-    registro_ans: str = Field(..., example="305685")
-    cnpj: str = Field(..., example="12345678000199")
-    contato_email: Optional[str] = Field(None, example="faturamento@operadora.com.br")
+    nome: str = Field(..., json_schema_extra={"example": "Unimed"})
+    registro_ans: str = Field(..., json_schema_extra={"example": "305685"})
+    cnpj: str = Field(..., json_schema_extra={"example": "12345678000199"})
+    contato_email: Optional[str] = Field(None, json_schema_extra={"example": "faturamento@operadora.com.br"})
 
 class OperadoraResponse(BaseModel):
     id: int
@@ -27,14 +27,13 @@ class OperadoraResponse(BaseModel):
     cnpj: str
     ativo: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PlanoCreate(BaseModel):
     operadora_id: int
-    nome: str = Field(..., example="Plano Básico Nacional")
-    codigo_plano: str = Field(..., example="PL-001")
-    tipo: str = Field("AMBULATORIAL", example="AMBULATORIAL")
+    nome: str = Field(..., json_schema_extra={"example": "Plano Básico Nacional"})
+    codigo_plano: str = Field(..., json_schema_extra={"example": "PL-001"})
+    tipo: str = Field("AMBULATORIAL", json_schema_extra={"example": "AMBULATORIAL"})
 
 class PlanoResponse(BaseModel):
     id: int
@@ -44,8 +43,7 @@ class PlanoResponse(BaseModel):
     tipo: str
     ativo: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EmissaoGuiaConsultaRequest(BaseModel):
     plano_id: int
@@ -69,8 +67,7 @@ class GuiaTISSResponse(BaseModel):
     procedimento_tuss: str
     xml_tiss: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AtualizacaoStatusGuia(BaseModel):
     status: GuiaStatus

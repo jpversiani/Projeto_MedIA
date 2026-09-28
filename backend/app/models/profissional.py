@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime
 from app.core.database import Base
 
@@ -11,4 +11,4 @@ class Profissional(Base):
     nome = Column(String(200), nullable=False)
     cbo = Column(String(10), nullable=False) # Ex: 225142 (Médico da Estratégia de Saúde da Família), 223505 (Enfermeiro)
     cbo_descricao = Column(String(150), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -2,7 +2,7 @@
 Modelos de Autenticação, Usuários, Multi-Tenancy (Multi-Clínica) e Trilha de Auditoria (LGPD/CFM).
 """
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum as SAEnum, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -38,8 +38,8 @@ class Usuario(Base):
     mfa_enabled = Column(Boolean, default=False)
     mfa_secret = Column(String(100), nullable=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     vinculos = relationship("VinculoClinica", back_populates="usuario", cascade="all, delete-orphan")
 
@@ -58,7 +58,7 @@ class VinculoClinica(Base):
     papel = Column(SAEnum(PapelUsuarioEnum), nullable=False, default=PapelUsuarioEnum.MEDICO)
     profissional_id = Column(Integer, ForeignKey("profissionais.id"), nullable=True) # Vincula ao CRM/CNS se for médico
     is_default = Column(Boolean, default=False) # Clínica ativa padrão ao logar
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario", back_populates="vinculos")
     estabelecimento = relationship("Estabelecimento")
@@ -84,6 +84,6 @@ class AuditTrail(Base):
     user_agent = Column(String(300), nullable=True)
     detalhes_json = Column(Text, nullable=True)
     
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     hash_anterior = Column(String(64), nullable=True) # Encadeamento de integridade
     hash_integridade = Column(String(64), nullable=False) # SHA-256 canônico do registro

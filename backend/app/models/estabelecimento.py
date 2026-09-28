@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -14,7 +14,7 @@ class Estabelecimento(Base):
     logradouro = Column(String(200), nullable=True)
     numero = Column(String(20), nullable=True)
     bairro = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     equipes = relationship("Equipe", back_populates="estabelecimento")
 

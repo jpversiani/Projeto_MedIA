@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -11,7 +11,7 @@ class FilaAcolhimento(Base):
     estabelecimento_id = Column(Integer, ForeignKey("estabelecimentos.id"), nullable=False)
     profissional_triagem_id = Column(Integer, ForeignKey("profissionais.id"), nullable=True)
 
-    data_hora_entrada = Column(DateTime, default=datetime.utcnow, index=True)
+    data_hora_entrada = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     tipo_demanda = Column(String(50), default="ESPONTANEA") # ESPONTANEA, AGENDADA, URGENCIA
     classificacao_risco = Column(String(20), default="VERDE") # VERMELHO, AMARELO, VERDE, AZUL
     motivo_acolhimento = Column(String(500), nullable=True)
@@ -29,7 +29,7 @@ class FilaAcolhimento(Base):
     imc = Column(Float, nullable=True)
 
     status = Column(String(30), default="AGUARDANDO_ATENDIMENTO") # AGUARDANDO_ATENDIMENTO, EM_ATENDIMENTO, FINALIZADO, EVASAO
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     cidadao = relationship("Cidadao", back_populates="acolhimentos")
     atendimento = relationship("AtendimentoSOAP", back_populates="fila", uselist=False)

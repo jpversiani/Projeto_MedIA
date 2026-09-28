@@ -143,11 +143,11 @@ def test_atualizar_item_inexistente_retorna_404(client):
 # ------------------------------------------------------------------
 def test_fila_ordenada_por_data_de_entrada(client, db_session):
     """Ordem cronológica por data_hora_entrada (FIFO) é o contrato atual."""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     cidadao = _seed_cidadao(db_session)
     est = _est_id(db_session)
-    base = datetime.utcnow()
+    base = datetime.now(timezone.utc)
     for i, minutos in enumerate([0, -30, -10]):  # entradas fora de ordem
         db_session.add(
             FilaAcolhimento(

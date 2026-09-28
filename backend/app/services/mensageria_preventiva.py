@@ -14,7 +14,7 @@ da Família. Não há integração com sistemas públicos (SUS/SISAB) ou IoT.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from pydantic import BaseModel, Field, field_validator
@@ -108,7 +108,7 @@ class MensageriaPreventivaService:
         Returns:
             Lista de MensagemLembrete.
         """
-        agora = datetime.utcnow()
+        agora = datetime.now(timezone.utc)
         limite = agora + timedelta(hours=horas_antecedencia)
 
         # Consulta SQL para buscar consultas no intervalo [agora, limite]
@@ -270,7 +270,7 @@ class MensageriaPreventivaService:
         Returns:
             Lista de AlertaBuscaAtiva.
         """
-        data_limite = datetime.utcnow() - timedelta(days=dias_sem_acompanhamento)
+        data_limite = datetime.now(timezone.utc) - timedelta(days=dias_sem_acompanhamento)
 
         # Subconsulta para obter pacientes com diabetes
         # Assumindo tabela `diagnosticos` com paciente_id e codigo_cid.
@@ -361,7 +361,7 @@ def verificar_janela_horario(horario: datetime) -> bool:
     """
     Verifica se o horário está dentro da janela permitida (08:00 às 20:00).
     """
-    from datetime import time
+    from datetime import time, timezone
     t = horario.time()
     return time(8, 0, 0) <= t < time(20, 0, 0)
 

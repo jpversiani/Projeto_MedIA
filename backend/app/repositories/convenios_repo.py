@@ -1,7 +1,7 @@
 """
 Repositório de Convênios, Guias TISS e Lançamentos Financeiros.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -178,7 +178,7 @@ class ConveniosRepository:
         descricao: str = "Consulta Médica Particular",
         atendimento_id: Optional[int] = None,
     ) -> LancamentoFinanceiro:
-        recibo_num = f"REC-{datetime.utcnow().strftime('%Y%m')}-{gerar_numero_guia()[-6:]}"
+        recibo_num = f"REC-{datetime.now(timezone.utc).strftime('%Y%m')}-{gerar_numero_guia()[-6:]}"
         lancamento = LancamentoFinanceiro(
             atendimento_id=atendimento_id,
             paciente_cpf=paciente_cpf,

@@ -9,30 +9,30 @@ router = APIRouter(prefix="/clinica", tags=["Inteligência Clínica & Farmacoló
 
 
 class FraminghamRequest(BaseModel):
-    sexo: str = Field(..., example="M", description="M ou F")
-    idade: int = Field(..., ge=20, le=100, example=52)
-    colesterol_total: float = Field(..., example=220.0)
-    colesterol_hdl: float = Field(..., example=42.0)
-    pressao_sistolica: float = Field(..., example=145.0)
-    em_tratamento_has: bool = Field(True, example=True)
-    fumante: bool = Field(False, example=False)
-    diabetico: bool = Field(True, example=True)
+    sexo: str = Field(..., json_schema_extra={"example": "M"}, description="M ou F")
+    idade: int = Field(..., ge=20, le=100, json_schema_extra={"example": 52})
+    colesterol_total: float = Field(..., json_schema_extra={"example": 220.0})
+    colesterol_hdl: float = Field(..., json_schema_extra={"example": 42.0})
+    pressao_sistolica: float = Field(..., json_schema_extra={"example": 145.0})
+    em_tratamento_has: bool = Field(True, json_schema_extra={"example": True})
+    fumante: bool = Field(False, json_schema_extra={"example": False})
+    diabetico: bool = Field(True, json_schema_extra={"example": True})
 
 
 class CKDEPISchema(BaseModel):
-    creatinina_serica: float = Field(..., example=1.3, description="Creatinina sérica em mg/dL")
-    idade: int = Field(..., ge=18, le=120, example=64)
-    sexo: str = Field(..., example="F", description="M ou F")
+    creatinina_serica: float = Field(..., json_schema_extra={"example": 1.3}, description="Creatinina sérica em mg/dL")
+    idade: int = Field(..., ge=18, le=120, json_schema_extra={"example": 64})
+    sexo: str = Field(..., json_schema_extra={"example": "F"}, description="M ou F")
 
 
 class IMCSchema(BaseModel):
-    peso_kg: float = Field(..., example=82.5)
-    altura_cm: float = Field(..., example=172.0)
+    peso_kg: float = Field(..., json_schema_extra={"example": 82.5})
+    altura_cm: float = Field(..., json_schema_extra={"example": 172.0})
 
 
 class InteracaoRequest(BaseModel):
-    medicamentos: List[str] = Field(..., example=["Enalapril 20mg", "Espironolactona 25mg"])
-    alergias: List[str] = Field(default_factory=list, example=["Penicilina"])
+    medicamentos: List[str] = Field(..., json_schema_extra={"example": ["Enalapril 20mg", "Espironolactona 25mg"]})
+    alergias: List[str] = Field(default_factory=list, json_schema_extra={"example": ["Penicilina"]})
 
 
 @router.post("/framingham")

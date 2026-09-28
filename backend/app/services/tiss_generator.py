@@ -5,7 +5,7 @@ Conformidade: Padrão TISS ANS versão 4.01.00 e Tabela TUSS.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Dict, List, Optional, Any
 import xml.etree.ElementTree as ET
 import re
@@ -14,7 +14,7 @@ import uuid
 
 def gerar_numero_guia() -> str:
     """Gera um número sequencial único para a Guia TISS."""
-    return f"TISS-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    return f"TISS-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
 
 @dataclass
@@ -214,8 +214,8 @@ class TISSGenerator(MotorFaturamentoTISS):
         identificacao_transacao = ET.SubElement(cabecalho, f"{{{ns}}}identificacaoTransacao")
         ET.SubElement(identificacao_transacao, f"{{{ns}}}tipoTransacao").text = "ENVIO_LOTE_GUIAS"
         ET.SubElement(identificacao_transacao, f"{{{ns}}}numeroSequencialTransacao").text = str(uuid.uuid4().int)[:10]
-        ET.SubElement(identificacao_transacao, f"{{{ns}}}dataRegistroTransacao").text = datetime.utcnow().strftime("%Y-%m-%d")
-        ET.SubElement(identificacao_transacao, f"{{{ns}}}horaRegistroTransacao").text = datetime.utcnow().strftime("%H:%M:%S")
+        ET.SubElement(identificacao_transacao, f"{{{ns}}}dataRegistroTransacao").text = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        ET.SubElement(identificacao_transacao, f"{{{ns}}}horaRegistroTransacao").text = datetime.now(timezone.utc).strftime("%H:%M:%S")
         
         origem = ET.SubElement(cabecalho, f"{{{ns}}}origem")
         ET.SubElement(origem, f"{{{ns}}}identificacaoPrestador").text = cnes_executante
@@ -254,7 +254,7 @@ class TISSGenerator(MotorFaturamentoTISS):
         ET.SubElement(profissional, f"{{{ns}}}cbos").text = cbo
 
         dados_atendimento = ET.SubElement(guia_consulta, f"{{{ns}}}dadosAtendimento")
-        ET.SubElement(dados_atendimento, f"{{{ns}}}dataAtendimento").text = datetime.utcnow().strftime("%Y-%m-%d")
+        ET.SubElement(dados_atendimento, f"{{{ns}}}dataAtendimento").text = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         ET.SubElement(dados_atendimento, f"{{{ns}}}tipoConsulta").text = tipo_consulta
         
         procedimento = ET.SubElement(dados_atendimento, f"{{{ns}}}procedimento")
@@ -288,7 +288,7 @@ class TISSGenerator(MotorFaturamentoTISS):
         data_emissao: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """Gera estrutura fiscal compatível com as regras da DMED da Receita Federal."""
-        data = data_emissao or datetime.utcnow()
+        data = data_emissao or datetime.now(timezone.utc)
         return {
             "recibo_numero": numero_recibo,
             "prestador": {

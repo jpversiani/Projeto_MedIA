@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -12,7 +12,7 @@ class AtendimentoSOAP(Base):
     estabelecimento_id = Column(Integer, ForeignKey("estabelecimentos.id"), nullable=False)
     fila_id = Column(Integer, ForeignKey("fila_acolhimento.id"), nullable=True)
 
-    data_hora_inicio = Column(DateTime, default=datetime.utcnow)
+    data_hora_inicio = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     data_hora_fim = Column(DateTime, nullable=True)
 
     # SUBJETIVO: Queixa principal, histórico da moléstia atual, percepção do paciente
@@ -33,7 +33,7 @@ class AtendimentoSOAP(Base):
     plano_encaminhamentos = Column(Text, nullable=True)
 
     status = Column(String(30), default="FINALIZADO") # FINALIZADO, EM_ANDAMENTO
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     cidadao = relationship("Cidadao", back_populates="atendimentos")
     fila = relationship("FilaAcolhimento", back_populates="atendimento")

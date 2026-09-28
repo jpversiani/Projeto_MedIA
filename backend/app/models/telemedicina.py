@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, List
 from sqlalchemy import (
@@ -30,7 +30,7 @@ class SalaVirtual(Base):
     codigo_sala = Column(String(64), unique=True, nullable=False, index=True)
     url_video = Column(String(512), nullable=True)
     status = Column(SAEnum(StatusTeleconsulta), default=StatusTeleconsulta.EM_ANDAMENTO)
-    data_criacao = Column(DateTime, default=datetime.utcnow)
+    data_criacao = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     data_expiracao = Column(DateTime, nullable=True)
 
     teleconsulta = relationship("Teleconsulta", back_populates="sala_virtual", uselist=False)
@@ -52,8 +52,8 @@ class Teleconsulta(Base):
     diagnostico_ciap2 = Column(String(10), nullable=True)
     diagnostico_cid10 = Column(String(10), nullable=True)
     evolucao_soap = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     cidadao = relationship("Cidadao", backref="teleconsultas", foreign_keys=[cidadao_id])
     profissional = relationship("Profissional", backref="teleconsultas", foreign_keys=[profissional_id])
@@ -70,6 +70,6 @@ class DocumentoEmitido(Base):
     conteudo = Column(JSON, nullable=False)
     hash_assinatura = Column(String(64), nullable=True)
     status = Column(String(20), default="EMITIDO")
-    data_emissao = Column(DateTime, default=datetime.utcnow)
+    data_emissao = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     teleconsulta = relationship("Teleconsulta", back_populates="documentos")

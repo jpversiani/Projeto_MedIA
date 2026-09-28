@@ -3,7 +3,7 @@ Schemas Pydantic v2 para Autenticação, SSO (Google/Microsoft), MFA e Multi-Ten
 """
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator, ConfigDict
 
 
 class LoginRequest(BaseModel):
@@ -59,8 +59,7 @@ class VinculoClinicaOut(BaseModel):
     crm: Optional[str] = None
     is_default: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UsuarioOut(BaseModel):
@@ -75,8 +74,7 @@ class UsuarioOut(BaseModel):
     clinica_ativa: Optional[VinculoClinicaOut] = None
     vinculos: List[VinculoClinicaOut] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenResponse(BaseModel):
@@ -112,5 +110,4 @@ class AuditTrailOut(BaseModel):
     timestamp: datetime
     hash_integridade: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

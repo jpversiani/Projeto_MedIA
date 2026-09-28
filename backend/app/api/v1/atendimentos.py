@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -18,7 +18,7 @@ def registrar_atendimento_soap(payload: AtendimentoSOAPCreate, db: Session = Dep
 
     data = payload.model_dump(exclude={"problemas"})
     atendimento = AtendimentoSOAP(**data)
-    atendimento.data_hora_fim = datetime.utcnow()
+    atendimento.data_hora_fim = datetime.now(timezone.utc)
     db.add(atendimento)
     db.flush()
 

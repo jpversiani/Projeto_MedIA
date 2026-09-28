@@ -13,20 +13,20 @@ router = APIRouter(prefix="/dmed", tags=["Motor Fiscal DMED (Receita Federal)"])
 
 
 class ItemDespesaMedicaSchema(BaseModel):
-    cpf_responsavel_pagamento: str = Field(..., example="12345678909")
-    nome_responsavel_pagamento: str = Field(..., example="João da Silva")
-    cpf_beneficiario: Optional[str] = Field(None, example="12345678909")
-    data_nascimento_beneficiario: Optional[date] = Field(None, example="1985-04-12")
-    nome_beneficiario: str = Field(..., example="João da Silva")
-    valor_pago: float = Field(..., example=350.00)
+    cpf_responsavel_pagamento: str = Field(..., json_schema_extra={"example": "12345678909"})
+    nome_responsavel_pagamento: str = Field(..., json_schema_extra={"example": "João da Silva"})
+    cpf_beneficiario: Optional[str] = Field(None, json_schema_extra={"example": "12345678909"})
+    data_nascimento_beneficiario: Optional[date] = Field(None, json_schema_extra={"example": "1985-04-12"})
+    nome_beneficiario: str = Field(..., json_schema_extra={"example": "João da Silva"})
+    valor_pago: float = Field(..., json_schema_extra={"example": 350.00})
     data_servico: date = Field(default_factory=date.today)
     descricao_servico: str = Field("Consulta Médica Especializada")
 
 
 class DeclaracaoDMEDRequest(BaseModel):
-    ano_calendario: int = Field(2025, example=2025)
-    cnpj_prestador: str = Field(..., example="12345678000199")
-    nome_empresarial: str = Field(..., example="CLINICA MEDICA VERSINI LTDA")
+    ano_calendario: int = Field(2025, json_schema_extra={"example": 2025})
+    cnpj_prestador: str = Field(..., json_schema_extra={"example": "12345678000199"})
+    nome_empresarial: str = Field(..., json_schema_extra={"example": "CLINICA MEDICA VERSINI LTDA"})
     numero_recibo_anterior: Optional[str] = None
     retificadora: bool = False
     lancamentos: List[ItemDespesaMedicaSchema]

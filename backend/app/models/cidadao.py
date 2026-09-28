@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -33,8 +33,8 @@ class Cidadao(Base):
     fumante = Column(Boolean, default=False)
     alergias = Column(String(500), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     acolhimentos = relationship("FilaAcolhimento", back_populates="cidadao")
     atendimentos = relationship("AtendimentoSOAP", back_populates="cidadao")

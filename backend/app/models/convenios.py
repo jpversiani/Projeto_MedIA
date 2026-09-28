@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -36,7 +36,7 @@ class Operadora(Base):
     cnpj = Column(String(14), unique=True, nullable=False)
     contato_email = Column(String(255), nullable=True)
     ativo = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     planos = relationship("Plano", back_populates="operadora", cascade="all, delete-orphan")
 
@@ -66,7 +66,7 @@ class GuiaTISS(Base):
     paciente_nome = Column(String(200), nullable=True)
     numero_carteira = Column(String(50), nullable=True)
     
-    data_emissao = Column(DateTime, default=datetime.utcnow)
+    data_emissao = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     status = Column(Enum(GuiaStatus), default=GuiaStatus.GERADA, nullable=False)
     
     ciap2_codigo = Column(String(10), nullable=True)
@@ -93,7 +93,7 @@ class LancamentoFinanceiro(Base):
     valor = Column(Float, nullable=False)
     descricao = Column(String(255), nullable=True)
     status = Column(Enum(LancamentoStatus), default=LancamentoStatus.PENDENTE, nullable=False)
-    data_lancamento = Column(DateTime, default=datetime.utcnow)
+    data_lancamento = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     data_pagamento = Column(DateTime, nullable=True)
     
     # DMED / Comprovante Fiscal

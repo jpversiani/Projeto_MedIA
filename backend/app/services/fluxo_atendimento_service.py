@@ -11,7 +11,7 @@ Conformidade:
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 from app.schemas.fluxo_atendimento import (
     EtapaFluxoEnum,
@@ -74,14 +74,14 @@ class FluxoAtendimentoService:
                 glicemia_recente="94 mg/dL",
                 observacoes_paciente="Prefere retorno telepresencial no final da tarde."
             ),
-            "data_hora_agendamento": datetime.utcnow().strftime("%Y-%m-%d 16:30"),
-            "data_hora_inicio": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "data_hora_agendamento": datetime.now(timezone.utc).strftime("%Y-%m-%d 16:30"),
+            "data_hora_inicio": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "data_hora_fim": None,
             "duracao_minutos": None,
             "valor_honorarios": 350.00,
             "sala_virtual_url": "http://localhost:8000/telemedicina_paciente.html?sala=CONS-2026-9812",
             "tcle_aceito": True,
-            "tcle_timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "tcle_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             "pacote_pos_consulta": None,
             "soap": {
                 "subjetivo": "Paciente refere retorno gradual de sintomas ansiosos após suspensão inadvertida da medicação.",
@@ -123,7 +123,7 @@ class FluxoAtendimentoService:
         data_hora: Optional[str] = None
     ) -> Dict[str, Any]:
         """Cria um novo ciclo de atendimento na etapa AGENDADA."""
-        consulta_id = f"CONS-{datetime.utcnow().year}-{str(uuid.uuid4())[:8].upper()}"
+        consulta_id = f"CONS-{datetime.now(timezone.utc).year}-{str(uuid.uuid4())[:8].upper()}"
         agendamento = {
             "consulta_id": consulta_id,
             "paciente_id": int(str(uuid.uuid4().int)[:6]),
@@ -138,7 +138,7 @@ class FluxoAtendimentoService:
             "etapa_atual": EtapaFluxoEnum.AGENDADA,
             "checklist_pre": ChecklistPreConsulta(),
             "pre_anamnese": None,
-            "data_hora_agendamento": data_hora or (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M"),
+            "data_hora_agendamento": data_hora or (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M"),
             "data_hora_inicio": None,
             "data_hora_fim": None,
             "duracao_minutos": None,
@@ -165,7 +165,7 @@ class FluxoAtendimentoService:
         jornada = self._obter_ou_erro(consulta_id)
         jornada["pre_anamnese"] = pre_anamnese
         jornada["tcle_aceito"] = tcle_aceito
-        jornada["tcle_timestamp"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC") if tcle_aceito else None
+        jornada["tcle_timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if tcle_aceito else None
 
         checklist = ChecklistPreConsulta(
             tcle_confirmado=tcle_aceito,
@@ -182,7 +182,7 @@ class FluxoAtendimentoService:
         """Inicia oficialmente o atendimento intra-consulta, registrando o timestamp (CFM Art. 6º)."""
         jornada = self._obter_ou_erro(consulta_id)
         jornada["etapa_atual"] = EtapaFluxoEnum.EM_ATENDIMENTO
-        jornada["data_hora_inicio"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        jornada["data_hora_inicio"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         return jornada
 
     def salvar_evolucao_intra_consulta(
@@ -238,7 +238,7 @@ class FluxoAtendimentoService:
         7. Geração do link de WhatsApp e Portal do Paciente para download seguro
         """
         jornada = self._obter_ou_erro(payload.consulta_id)
-        agora = datetime.utcnow()
+        agora = datetime.now(timezone.utc)
         jornada["data_hora_fim"] = agora.strftime("%Y-%m-%d %H:%M:%S")
 
         # Calcula duração
