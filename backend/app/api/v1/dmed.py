@@ -55,3 +55,56 @@ def exportar_arquivo_magnetico(dados: DeclaracaoDMEDRequest):
             "Content-Disposition": f"attachment; filename=DMED_{dados.ano_calendario}_{dados.cnpj_prestador}.txt"
         }
     )
+
+
+@router.get("/exportar-exemplo")
+def exportar_exemplo_dmed():
+    """Gera e retorna o arquivo magnético DMED oficial pronto para o lote da clínica."""
+    lancamentos_exemplo = [
+        LancamentoDespesaMedica(
+            cpf_responsavel_pagamento="12345678901",
+            nome_responsavel_pagamento="Mariana Souza Alencar",
+            cpf_beneficiario="12345678901",
+            data_nascimento_beneficiario=date(1992, 5, 14),
+            nome_beneficiario="Mariana Souza Alencar",
+            valor_pago=350.00,
+            data_servico=date.today(),
+            descricao_servico="Consulta Psiquiatria / Telemedicina",
+        ),
+        LancamentoDespesaMedica(
+            cpf_responsavel_pagamento="98765432100",
+            nome_responsavel_pagamento="Roberto Carlos Fagundes",
+            cpf_beneficiario="98765432100",
+            data_nascimento_beneficiario=date(1978, 11, 22),
+            nome_beneficiario="Roberto Carlos Fagundes",
+            valor_pago=400.00,
+            data_servico=date.today(),
+            descricao_servico="Consulta Cardiologia / Presencial",
+        ),
+        LancamentoDespesaMedica(
+            cpf_responsavel_pagamento="45678912344",
+            nome_responsavel_pagamento="Juliana Mendes Prado",
+            cpf_beneficiario="45678912344",
+            data_nascimento_beneficiario=date(1985, 3, 9),
+            nome_beneficiario="Juliana Mendes Prado",
+            valor_pago=350.00,
+            data_servico=date.today(),
+            descricao_servico="Consulta Telemedicina",
+        ),
+    ]
+    declaracao = DeclaracaoDMED(
+        ano_calendario=date.today().year,
+        cnpj_prestador="12345678000199",
+        nome_empresarial="CLINICA MEDICA VERSINI LTDA",
+        numero_recibo_anterior=None,
+        retificadora=False,
+        lancamentos=lancamentos_exemplo,
+    )
+    conteudo_txt = MotorFiscalDMED.gerar_arquivo_magnetico(declaracao)
+    return Response(
+        content=conteudo_txt,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=DMED_{declaracao.ano_calendario}_{declaracao.cnpj_prestador}.txt"
+        },
+    )

@@ -209,6 +209,11 @@ class MotorPrescricaoCFM:
             return None
         return registro["dados_consulta_farmacia"]
 
+    @classmethod
+    def obter_documento(cls, codigo: str) -> Optional[Dict]:
+        """Retorna o registro completo contendo o objeto do documento para geração de PDF."""
+        return _REPOSITORIO_DOCUMENTOS_CFM.get(codigo.strip().upper())
+
 
 # Alias canônico para importação padronizada nos demais serviços
 prescricao_service = MotorPrescricaoCFM

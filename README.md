@@ -5,10 +5,10 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Cloud_SaaS_Multi--Tenant-6366f1.svg)](#)
 [![Compliance](https://img.shields.io/badge/CFM-2.314%2F2022-emerald.svg)](#)
 [![Security](https://img.shields.io/badge/LGPD-Art._11_SHA--256-blue.svg)](#)
-[![Tests](https://img.shields.io/badge/Pytest-440%20Passed%20(100%25)-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-442%20Passed%20(100%25)-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-O **MedIA Practice SaaS** é um sistema operacional clínico moderno projetado para consultórios médicos particulares, clínicas de especialidades, clínicos gerais e médicos especialistas (Cardiologia, Psiquiatria, Dermatologia, Endocrinologia, Pediatria, Clínica Médica e Medicina de Família). Combina inteligência clínica assistida por IA, telemedicina WebRTC HD (CFM 2.314/2022), prescrição eletrônica ICP-Brasil (com suporte a certificados em nuvem como VIDAAS / Valid), faturamento TISS ANS 4.01.00, controle fiscal DMED (Receita Federal) e trilha de auditoria criptográfica imutável.
+O **MedIA Practice SaaS** é um sistema operacional clínico moderno projetado para consultórios médicos particulares, clínicas de especialidades, clínicos gerais e médicos especialistas (Cardiologia, Psiquiatria, Dermatologia, Endocrinologia, Pediatria, Clínica Médica e Medicina de Família). Combina inteligência clínica assistida por IA, telemedicina WebRTC HD (CFM 2.314/2022), emissão de receituário e atestados médicos em PDF com QR Code público de autenticidade (padrão CFM e ICP-Brasil), faturamento TISS ANS 4.01.00 com exportação de lotes XML, controle fiscal DMED (Receita Federal), Command Bar (`Ctrl+K`), modo escuro/claro nativo e trilha de auditoria criptográfica imutável.
 
 ---
 

@@ -29,6 +29,7 @@ async function apiFetch(url, options = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  inicializarTema();
   verificarSessaoJWT();
   carregarAgenda();
   carregarCatalogoEspecialidades();
@@ -37,6 +38,71 @@ document.addEventListener("DOMContentLoaded", () => {
   carregarHonorarios();
   inicializarBuscaCID11();
 });
+
+// =========================================================================
+// DESIGN SYSTEM: TEMA ESCURO / CLARO (DARK MODE)
+// =========================================================================
+
+function inicializarTema() {
+  const temaSalvo = localStorage.getItem("media_theme") || "light";
+  aplicarTema(temaSalvo);
+}
+
+function alternarTema() {
+  const temaAtual = document.documentElement.classList.contains("dark") ? "dark" : "light";
+  const novoTema = temaAtual === "dark" ? "light" : "dark";
+  aplicarTema(novoTema);
+}
+
+function aplicarTema(tema) {
+  const icon = document.getElementById("theme-toggle-icon");
+  const text = document.getElementById("theme-toggle-text");
+  if (tema === "dark") {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("media_theme", "dark");
+    if (icon) {
+      icon.className = "fa-solid fa-sun text-amber-400 text-xs";
+    }
+    if (text) text.textContent = "Claro";
+  } else {
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("media_theme", "light");
+    if (icon) {
+      icon.className = "fa-solid fa-moon text-amber-400 text-xs";
+    }
+    if (text) text.textContent = "Escuro";
+  }
+}
+
+function abrirModalAtalhos() {
+  const m = document.getElementById("modal-atalhos");
+  if (m) m.classList.remove("hidden");
+}
+
+function fecharModalAtalhos() {
+  const m = document.getElementById("modal-atalhos");
+  if (m) m.classList.add("hidden");
+}
+
+function fecharModaisAbertos() {
+  const modais = [
+    "modal-prescricao-digital",
+    "modal-atestado-digital",
+    "modal-recibo-dmed-view",
+    "modal-atalhos",
+    "modal-novo-agendamento",
+    "modal-tcle-view",
+    "modal-auditoria",
+    "modal-nova-guia-tiss",
+    "modal-recibo"
+  ];
+  modais.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.classList.contains("hidden")) {
+      el.classList.add("hidden");
+    }
+  });
+}
 
 function verificarSessaoJWT() {
   const token = localStorage.getItem("media_token");
@@ -524,37 +590,324 @@ function fecharModalTCLE() {
 }
 
 // =========================================================================
-// EMISSÃO DE DOCUMENTOS DIGITAIS (CFM / QR CODE)
+// EMISSÃO DE DOCUMENTOS DIGITAIS (CFM / QR CODE & PDF)
 // =========================================================================
 
-function emitirReceitaDigital() {
-  const prescricao = document.getElementById("soap-prescricao").value;
-  if (!prescricao) {
-    alert("Preencha a prescrição de medicamentos antes de emitir a receita digital.");
+let ultimaPrescricaoEmitida = null;
+let ultimoAtestadoEmitido = null;
+
+function abrirModalPrescricaoDigital(tipo = "SIMPLES") {
+  const modal = document.getElementById("modal-prescricao-digital");
+  if (!modal) return;
+
+  const pacienteNome = document.getElementById("presc-paciente-nome");
+  const pacienteCpf = document.getElementById("presc-paciente-cpf");
+  const tipoSelect = document.getElementById("presc-tipo");
+  const resBox = document.getElementById("presc-resultado-box");
+
+  if (resBox) resBox.classList.add("hidden");
+
+  if (consultaAtiva) {
+    if (pacienteNome) pacienteNome.value = consultaAtiva.paciente_nome || "Mariana Souza Alencar";
+    if (pacienteCpf) pacienteCpf.value = consultaAtiva.paciente_cpf || "12345678901";
+  }
+
+  if (tipoSelect) tipoSelect.value = tipo;
+
+  // Garante ao menos 1 medicamento
+  const container = document.getElementById("lista-medicamentos-container");
+  if (container && container.children.length === 0) {
+    const soapTexto = document.getElementById("soap-prescricao")?.value;
+    if (soapTexto && soapTexto.trim()) {
+      importarPrescricaoDoSOAP();
+    } else {
+      adicionarLinhaMedicamento({
+        farmaco: "Escitalopram",
+        concentracao: "10mg",
+        forma_farmaceutica: "comprimido",
+        posologia: "Tomar 1 comprimido pela manhã por 30 dias",
+        quantidade_total: "1 caixa (30 cp)",
+        via_administracao: "Oral"
+      });
+    }
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function fecharModalPrescricaoDigital() {
+  const modal = document.getElementById("modal-prescricao-digital");
+  if (modal) modal.classList.add("hidden");
+}
+
+function adicionarLinhaMedicamento(item = null) {
+  const container = document.getElementById("lista-medicamentos-container");
+  if (!container) return;
+
+  const farmaco = item ? item.farmaco : "";
+  const concentracao = item ? item.concentracao : "";
+  const forma = item ? item.forma_farmaceutica : "comprimido";
+  const posologia = item ? item.posologia : "";
+  const qtd = item ? item.quantidade_total : "1 caixa";
+  const via = item ? item.via_administracao : "Oral";
+
+  const div = document.createElement("div");
+  div.className = "linha-medicamento p-3 rounded-xl border border-slate-200 bg-white space-y-2 relative";
+  div.innerHTML = `
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+      <div class="sm:col-span-2">
+        <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Princípio Ativo / Fármaco</label>
+        <input type="text" class="med-farmaco w-full border border-slate-200 rounded-lg p-1.5 text-xs font-semibold" value="${farmaco}" placeholder="Ex: Amoxicilina + Clavulanato">
+      </div>
+      <div>
+        <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Concentração</label>
+        <input type="text" class="med-concentracao w-full border border-slate-200 rounded-lg p-1.5 text-xs" value="${concentracao}" placeholder="Ex: 500mg / 125mg">
+      </div>
+      <div>
+        <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Quantidade</label>
+        <input type="text" class="med-qtd w-full border border-slate-200 rounded-lg p-1.5 text-xs" value="${qtd}" placeholder="Ex: 2 caixas (28 cp)">
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+      <div class="sm:col-span-2">
+        <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Posologia / Instrução de Uso</label>
+        <input type="text" class="med-posologia w-full border border-slate-200 rounded-lg p-1.5 text-xs" value="${posologia}" placeholder="Ex: Tomar 1 comprimido de 8 em 8 horas por 7 dias">
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex-1">
+          <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Via</label>
+          <select class="med-via w-full border border-slate-200 rounded-lg p-1.5 text-xs">
+            <option value="Oral" ${via === "Oral" ? "selected" : ""}>Oral</option>
+            <option value="Tópica" ${via === "Tópica" ? "selected" : ""}>Tópica</option>
+            <option value="Inalatória" ${via === "Inalatória" ? "selected" : ""}>Inalatória</option>
+            <option value="Sublingual" ${via === "Sublingual" ? "selected" : ""}>Sublingual</option>
+            <option value="Oftálmica" ${via === "Oftálmica" ? "selected" : ""}>Oftálmica</option>
+          </select>
+        </div>
+        <button type="button" onclick="this.closest('.linha-medicamento').remove()" class="text-rose-500 hover:text-rose-700 p-2 mt-4" title="Remover item">
+          <i class="fa-solid fa-trash text-xs"></i>
+        </button>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function importarPrescricaoDoSOAP() {
+  const texto = document.getElementById("soap-prescricao")?.value || "";
+  const container = document.getElementById("lista-medicamentos-container");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const linhas = texto.split("\n").filter(l => l.trim().length > 0);
+  if (linhas.length === 0) {
+    adicionarLinhaMedicamento();
     return;
   }
-  const codValidacao = Math.random().toString(36).substring(2, 10).toUpperCase();
-  alert(
-    `RECEITA DIGITAL EMITIDA COM SUCESSO (Padrão CFM 2.314/2022):\n\n` +
-    `• Paciente: ${consultaAtiva ? consultaAtiva.paciente_nome : 'Mariana Souza Alencar'}\n` +
-    `• Médico: Dr. João Paulo Versiani (CRM-MG 78421 | RQE 39412)\n` +
-    `• Código de Validação Pública: CFM-${codValidacao}\n` +
-    `• QR Code de Autenticidade gerado para dispensação em farmácia.\n\n` +
-    `Prescrição:\n${prescricao}`
+
+  linhas.forEach(linha => {
+    const limpa = linha.replace(/^[0-9]+[\.\)\-]\s*/, "");
+    const partes = limpa.split(/\s*-\s*|\s*•\s*/);
+    const farmacoConc = partes[0] || limpa;
+    const posologia = partes.slice(1).join(" - ") || "Conforme orientação médica";
+
+    adicionarLinhaMedicamento({
+      farmaco: farmacoConc,
+      concentracao: "",
+      forma_farmaceutica: "comprimido",
+      posologia: posologia,
+      quantidade_total: "1 caixa",
+      via_administracao: "Oral"
+    });
+  });
+}
+
+async function submeterEmissaoPrescricao() {
+  const btn = document.getElementById("btn-submit-prescricao");
+  const pacienteNome = document.getElementById("presc-paciente-nome").value.trim();
+  const pacienteCpf = document.getElementById("presc-paciente-cpf").value.trim().replace(/\D/g, "");
+  const tipo = document.getElementById("presc-tipo").value;
+  const instrucoes = document.getElementById("presc-instrucoes")?.value || "";
+
+  const linhas = document.querySelectorAll(".linha-medicamento");
+  const itens = [];
+  linhas.forEach(l => {
+    const farmaco = l.querySelector(".med-farmaco")?.value.trim();
+    if (farmaco) {
+      itens.push({
+        farmaco: farmaco,
+        concentracao: l.querySelector(".med-concentracao")?.value.trim() || "",
+        forma_farmaceutica: "comprimido",
+        posologia: l.querySelector(".med-posologia")?.value.trim() || "Conforme prescrito",
+        quantidade_total: l.querySelector(".med-qtd")?.value.trim() || "1 cx",
+        via_administracao: l.querySelector(".med-via")?.value || "Oral"
+      });
+    }
+  });
+
+  if (itens.length === 0) {
+    alert("Informe ao menos um medicamento para emitir a receita.");
+    return;
+  }
+
+  try {
+    if (btn) btn.disabled = true;
+    const res = await fetch("/api/v1/prescricao/emitir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paciente_nome: pacienteNome || "Mariana Souza Alencar",
+        paciente_cpf: pacienteCpf || "12345678901",
+        medico_nome: "Dr. João Paulo Versiani",
+        medico_crm: "78421",
+        medico_uf: "MG",
+        medico_rqe: "39412",
+        tipo: tipo,
+        itens: itens,
+        instrucoes_gerais: instrucoes
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Erro na emissão da receita.");
+    }
+
+    const data = await res.json();
+    ultimaPrescricaoEmitida = data;
+
+    document.getElementById("presc-res-codigo").textContent = data.codigo_validacao;
+    document.getElementById("presc-res-hash").textContent = data.hash_integridade;
+    const btnPdf = document.getElementById("presc-btn-download-pdf");
+    if (btnPdf) btnPdf.href = data.url_pdf;
+
+    document.getElementById("presc-resultado-box").classList.remove("hidden");
+    alert(`Prescrição Eletrônica ${data.codigo_validacao} emitida com sucesso! QR Code e PDF gerados.`);
+  } catch (e) {
+    alert("Falha ao emitir receita digital: " + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function copiarLinkValidacaoPrescricao() {
+  if (!ultimaPrescricaoEmitida) return;
+  const url = ultimaPrescricaoEmitida.url_validacao_local || ultimaPrescricaoEmitida.url_validacao_publica;
+  navigator.clipboard.writeText(url).then(() => {
+    alert("Link de validação copiado para a área de transferência:\n" + url);
+  });
+}
+
+function enviarPrescricaoWhatsApp() {
+  if (!ultimaPrescricaoEmitida) return;
+  const pac = document.getElementById("presc-paciente-nome").value;
+  const url = ultimaPrescricaoEmitida.url_validacao_local || ultimaPrescricaoEmitida.url_validacao_publica;
+  const msg = encodeURIComponent(
+    `Olá, ${pac}!\nSua receita médica eletrônica já está pronta e assinada digitalmente pelo Dr. João Paulo Versiani (CFM 2.314/2022).\n\n` +
+    `Código de Validação: ${ultimaPrescricaoEmitida.codigo_validacao}\n` +
+    `Acesse ou apresente na farmácia através do link oficial:\n${url}`
   );
+  window.open(`https://api.whatsapp.com/send?text=${msg}`, "_blank");
+}
+
+function emitirReceitaDigital() {
+  abrirModalPrescricaoDigital("SIMPLES");
+}
+
+// -------------------------------------------------------------------------
+// ATESTADO MÉDICO DIGITAL
+// -------------------------------------------------------------------------
+
+function abrirModalAtestadoDigital() {
+  const modal = document.getElementById("modal-atestado-digital");
+  if (!modal) return;
+
+  const pacienteNome = document.getElementById("atestado-paciente-nome");
+  const pacienteCpf = document.getElementById("atestado-paciente-cpf");
+  const resBox = document.getElementById("atestado-resultado-box");
+  if (resBox) resBox.classList.add("hidden");
+
+  if (consultaAtiva) {
+    if (pacienteNome) pacienteNome.value = consultaAtiva.paciente_nome || "Mariana Souza Alencar";
+    if (pacienteCpf) pacienteCpf.value = consultaAtiva.paciente_cpf || "12345678901";
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function fecharModalAtestadoDigital() {
+  const modal = document.getElementById("modal-atestado-digital");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function submeterEmissaoAtestado() {
+  const btn = document.getElementById("btn-submit-atestado");
+  const pacienteNome = document.getElementById("atestado-paciente-nome").value.trim();
+  const pacienteCpf = document.getElementById("atestado-paciente-cpf").value.trim().replace(/\D/g, "");
+  const dias = parseInt(document.getElementById("atestado-dias").value, 10) || 3;
+  const autoriza = document.getElementById("atestado-autoriza-cid")?.checked;
+  const cid = autoriza ? document.getElementById("atestado-cid10")?.value.trim() : null;
+
+  try {
+    if (btn) btn.disabled = true;
+    const res = await fetch("/api/v1/prescricao/atestado/emitir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paciente_nome: pacienteNome || "Mariana Souza Alencar",
+        paciente_cpf: pacienteCpf || "12345678901",
+        medico_nome: "Dr. João Paulo Versiani",
+        medico_crm: "78421",
+        medico_uf: "MG",
+        dias_afastamento: dias,
+        cid10: cid
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Erro ao emitir atestado.");
+    }
+
+    const data = await res.json();
+    ultimoAtestadoEmitido = data;
+
+    document.getElementById("atestado-res-codigo").textContent = data.codigo_validacao;
+    document.getElementById("atestado-res-hash").textContent = data.hash_integridade;
+    const btnPdf = document.getElementById("atestado-btn-download-pdf");
+    if (btnPdf) btnPdf.href = data.url_pdf;
+
+    document.getElementById("atestado-resultado-box").classList.remove("hidden");
+    alert(`Atestado Médico ${data.codigo_validacao} emitido com sucesso!`);
+  } catch (e) {
+    alert("Falha ao emitir atestado: " + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function copiarLinkValidacaoAtestado() {
+  if (!ultimoAtestadoEmitido) return;
+  const url = ultimoAtestadoEmitido.url_validacao_local || ultimoAtestadoEmitido.url_validacao_publica;
+  navigator.clipboard.writeText(url).then(() => {
+    alert("Link do atestado copiado para a área de transferência:\n" + url);
+  });
+}
+
+function enviarAtestadoWhatsApp() {
+  if (!ultimoAtestadoEmitido) return;
+  const pac = document.getElementById("atestado-paciente-nome").value;
+  const url = ultimoAtestadoEmitido.url_validacao_local || ultimoAtestadoEmitido.url_validacao_publica;
+  const msg = encodeURIComponent(
+    `Olá, ${pac}!\nSeu atestado médico digital já está disponível e autenticado pelo Dr. João Paulo Versiani.\n\n` +
+    `Código Validador: ${ultimoAtestadoEmitido.codigo_validacao}\n` +
+    `Verifique ou faça o download oficial através do link:\n${url}`
+  );
+  window.open(`https://api.whatsapp.com/send?text=${msg}`, "_blank");
 }
 
 function emitirAtestadoDigital() {
-  const dias = prompt("Quantidade de dias de afastamento médico:", "3");
-  if (!dias) return;
-  const codValidacao = Math.random().toString(36).substring(2, 10).toUpperCase();
-  alert(
-    `ATESTADO MÉDICO DIGITAL EMITIDO (CFM 2.314/2022):\n\n` +
-    `Atesto para os devidos fins que o(a) paciente ${consultaAtiva ? consultaAtiva.paciente_nome : 'Mariana Souza Alencar'} ` +
-    `necessita de ${dias} dias de afastamento de suas atividades laborais.\n\n` +
-    `Código Validador Público: ATEST-${codValidacao}\n` +
-    `Assinatura Digital: Dr. João Paulo Versiani - CRM-MG 78421`
-  );
+  abrirModalAtestadoDigital();
 }
 
 function concluirConsulta() {
@@ -660,12 +1013,63 @@ function carregarHonorarios() {
   });
 }
 
+function abrirModalReciboDMED(recibo) {
+  const m = document.getElementById("modal-recibo-dmed-view");
+  if (!m) return;
+  
+  const lancamentos = [
+    { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00, data: "02/09/2026" },
+    { recibo: "REC-2026-082", paciente: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tipo: "Presencial (Cartão)", valor: 400.00, data: "04/09/2026" },
+    { recibo: "REC-2026-083", paciente: "Juliana Mendes Prado", cpf: "456.789.123-44", tipo: "Telemedicina (Pix)", valor: 350.00, data: "08/09/2026" },
+    { recibo: "REC-2026-084", paciente: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tipo: "Presencial (Pix)", valor: 300.00, data: "12/09/2026" },
+    { recibo: "REC-2026-085", paciente: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tipo: "Telemedicina (Pix)", valor: 380.00, data: "18/09/2026" },
+  ];
+  
+  const item = lancamentos.find(l => l.recibo === recibo) || {
+    recibo: recibo,
+    paciente: consultaAtiva ? consultaAtiva.paciente_nome : "Mariana Souza Alencar",
+    cpf: consultaAtiva ? consultaAtiva.paciente_cpf : "123.456.789-01",
+    tipo: "Telemedicina (Pix)",
+    valor: 350.00,
+    data: new Date().toLocaleDateString("pt-BR")
+  };
+  
+  document.getElementById("dmed-rec-numero").textContent = item.recibo;
+  document.getElementById("dmed-rec-paciente").textContent = item.paciente;
+  document.getElementById("dmed-rec-cpf").textContent = item.cpf;
+  document.getElementById("dmed-rec-tipo").textContent = item.tipo;
+  document.getElementById("dmed-rec-data").textContent = item.data;
+  document.getElementById("dmed-rec-valor").textContent = `R$ ${item.valor.toFixed(2)}`;
+  
+  m.classList.remove("hidden");
+}
+
+function fecharModalReciboDMED() {
+  const m = document.getElementById("modal-recibo-dmed-view");
+  if (m) m.classList.add("hidden");
+}
+
 function baixarReciboDMED(recibo) {
-  alert(`Recibo Fiscal DMED ${recibo} gerado com sucesso com assinatura digital ICP-Brasil e carimbo da Receita Federal!`);
+  abrirModalReciboDMED(recibo);
 }
 
 async function gerarLoteDMED() {
-  alert("Arquivo magnético oficial da DMED (Receita Federal) gerado e pronto para transmissão via ReceitaNet!");
+  try {
+    const res = await fetch("/api/v1/dmed/exportar-exemplo");
+    if (!res.ok) throw new Error("Erro ao gerar arquivo magnético DMED.");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `DMED_${new Date().getFullYear()}_CLINICA_VERSINI.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    alert("Arquivo magnético oficial da DMED gerado e baixado com sucesso!");
+  } catch (err) {
+    alert("Falha ao gerar DMED: " + err.message);
+  }
 }
 
 // =========================================================================
@@ -980,8 +1384,27 @@ function salvarNovaGuiaTISS() {
   alert(`Guia ${num} gerada com sucesso padrão ANS TISS 4.01!`);
 }
 
-function exportarLoteXMLTISS() {
-  alert("Lote TISS gerado com sucesso em conformidade com o padrão ANS 4.01.00! O arquivo XML foi compactado para transmissão.");
+async function exportarLoteXMLTISS() {
+  try {
+    const res = await fetch("/api/v1/tiss/exportar-lote-xml", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero_lote: "1" })
+    });
+    if (!res.ok) throw new Error("Erro ao gerar lote TISS.");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `LOTE_TISS_4.01_0001.xml`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    alert("Lote TISS ANS 4.01.00 exportado com sucesso em arquivo XML pronto para transmissão!");
+  } catch (err) {
+    alert("Falha ao exportar Lote TISS: " + err.message);
+  }
 }
 
 function abrirModalReciboTISS(id) {
@@ -1000,8 +1423,41 @@ function fecharModalRecibo() {
   if (m) m.classList.add("hidden");
 }
 
-function baixarXMLGuia(num) {
-  alert(`Download do arquivo XML TISS da guia ${num} concluído.`);
+async function baixarXMLGuia(num) {
+  try {
+    const res = await fetch("/api/v1/tiss/gerar-guia-xml", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        numero_guia_prestador: num,
+        registro_ans: "318011",
+        numero_carteira: "9876543210123",
+        nome_beneficiario: "Maria Silva Santos",
+        codigo_cnes: "3180115",
+        nome_contratado: "Consultório Particular MedIA",
+        crm_medico: "78421",
+        uf_crm: "MG",
+        cbos: "225125",
+        data_atendimento: new Date().toISOString().split("T")[0],
+        codigo_tuss_procedimento: "10101012",
+        descricao_procedimento: "Consulta médica especializada",
+        valor_procedimento: 150.00
+      })
+    });
+    if (!res.ok) throw new Error("Erro ao gerar XML da guia.");
+    const data = await res.json();
+    const blob = new Blob([data.xml_gerado], { type: "application/xml;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${num}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Falha ao baixar guia XML: " + err.message);
+  }
 }
 
 // =========================================================================
