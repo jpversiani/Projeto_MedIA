@@ -1,19 +1,21 @@
 services:
-  esus-api:
+  media-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: media_health_api
+    container_name: media_practice_api
     restart: unless-stopped
     ports:
       - "${PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgresql://esus_user:esus_pass@db:5432/esus_db
+      - DATABASE_URL=postgresql://media_user:${POSTGRES_PASSWORD:-media_pass}@db:5432/media_db
+      - SECRET_KEY=${SECRET_KEY:-media-super-secret-jwt-key-change-in-prod}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -21,19 +23,19 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: media_health_postgres
+    container_name: media_practice_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: esus_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esus_pass}
-      POSTGRES_DB: esus_db
+      POSTGRES_USER: media_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-media_pass}
+      POSTGRES_DB: media_db
     # Porta 5432 exposta apenas em loopback para evitar acesso externo
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U esus_user -d esus_db"]
+      test: ["CMD-SHELL", "pg_isready -U media_user -d media_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +45,7 @@ services:
   # Requer liberar no firewall: 3478/udp+tcp e faixa 49152-65535/udp
   coturn:
     image: coturn/coturn:4.6
-    container_name: media_health_coturn
+    container_name: media_practice_coturn
     profiles: ["turn"]
     restart: unless-stopped
     network_mode: host

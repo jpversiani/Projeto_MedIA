@@ -15,3 +15,5 @@ pyjwt[crypto]==2.8.0        # import jwt (telemedicina_ws.py)
 email-validator==2.1.0      # pydantic EmailStr (campanhas_repo.py)
 python-multipart==0.0.6     # FastAPI (suporte a formulários)
 websockets==12.0            # FastAPI WebSocket nativo
+reportlab>=4.0.0            # Geração de PDFs médicos CFM com QR Code
+psycopg2-binary>=2.9.9      # Driver PostgreSQL para produção Docker/Kubernetes

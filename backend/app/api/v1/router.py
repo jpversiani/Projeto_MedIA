@@ -19,9 +19,11 @@ from app.api.v1.prescricao_cfm import router as prescricao_cfm_router
 from app.api.v1.financeiro_medico import router as financeiro_medico_router
 from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 from app.api.v1.analytics import router as analytics_router
+from app.api.v1.health import router as health_router
 
 api_router = APIRouter()
 
+api_router.include_router(health_router)
 api_router.include_router(auth_router)
 api_router.include_router(cidadaos_router)
 

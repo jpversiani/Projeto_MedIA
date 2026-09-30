@@ -20,7 +20,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Final
+from typing import Any, Final, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
@@ -310,3 +310,46 @@ async def ws_copiloto(
         await websocket.close(code=4404)
     finally:
         hub.desconectar(atendimento_id, fila)
+
+
+# ---------------------------------------------------------------------------
+# ROTAS DE IA GENERATIVA CLÍNICA (GEMINI & FALLBACK DE APS)
+# ---------------------------------------------------------------------------
+
+from app.services.copiloto_ia_generativa import (
+    MotorIAGenerativaCopiloto,
+    SugestaoSOAPIA,
+    HipoteseDiagnosticaIA,
+)
+from pydantic import BaseModel, Field
+
+
+class GerarSOAPRequest(BaseModel):
+    texto_bruto: str = Field(..., description="Anotações clínicas livres ou transcrição da consulta")
+    paciente_nome: Optional[str] = None
+
+
+class DiagnosticoDiferencialRequest(BaseModel):
+    sintomas: str = Field(..., description="Queixa e sintomas relatados pelo paciente")
+
+
+GerarSOAPRequest.model_rebuild()
+DiagnosticoDiferencialRequest.model_rebuild()
+
+
+@router.post("/ia/gerar-soap", response_model=SugestaoSOAPIA)
+def gerar_soap_com_ia(payload: GerarSOAPRequest):
+    """
+    Estrutura anotações clínicas livres ou transcrições de áudio no padrão SOAP
+    utilizando IA Generativa (Google Gemini) com fallback determinístico de APS.
+    """
+    contexto = {"paciente_nome": payload.paciente_nome} if payload.paciente_nome else None
+    return MotorIAGenerativaCopiloto.estruturar_soap(payload.texto_bruto, contexto)
+
+
+@router.post("/ia/diagnostico-diferencial", response_model=list[HipoteseDiagnosticaIA])
+def gerar_diagnostico_diferencial_ia(payload: DiagnosticoDiferencialRequest):
+    """
+    Gera hipóteses diagnósticas diferenciais estruturadas com justificativas e códigos CID-10 e CID-11.
+    """
+    return MotorIAGenerativaCopiloto.diagnostico_diferencial(payload.sintomas)

@@ -5,7 +5,8 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Cloud_SaaS_Multi--Tenant-6366f1.svg)](#)
 [![Compliance](https://img.shields.io/badge/CFM-2.314%2F2022-emerald.svg)](#)
 [![Security](https://img.shields.io/badge/LGPD-Art._11_SHA--256-blue.svg)](#)
-[![Tests](https://img.shields.io/badge/Pytest-442%20Passed%20(100%25)-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-445%20Passed%20(100%25)-success.svg)](#)
+[![Documentation](https://img.shields.io/badge/Status-Relat%C3%B3rio%20Completo%20de%20Recursos-blue.svg)](docs/STATUS_ATUAL_E_RECURSOS_IMPLEMENTADOS.md)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 O **MedIA Practice SaaS** é um sistema operacional clínico moderno projetado para consultórios médicos particulares, clínicas de especialidades, clínicos gerais e médicos especialistas (Cardiologia, Psiquiatria, Dermatologia, Endocrinologia, Pediatria, Clínica Médica e Medicina de Família). Combina inteligência clínica assistida por IA, telemedicina WebRTC HD (CFM 2.314/2022), emissão de receituário e atestados médicos em PDF com QR Code público de autenticidade (padrão CFM e ICP-Brasil), faturamento TISS ANS 4.01.00 com exportação de lotes XML, controle fiscal DMED (Receita Federal), Command Bar (`Ctrl+K`), modo escuro/claro nativo e trilha de auditoria criptográfica imutável.
@@ -88,7 +89,7 @@ Acesse no navegador:
 * **Landing Page**: [http://localhost:8000/](http://localhost:8000/)
 * **Documentação OpenAPI / Swagger**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 2. Suíte de Testes Automatizados (437 testes)
+### 2. Suíte de Testes Automatizados (445 testes)
 
 ```bash
 cd backend
