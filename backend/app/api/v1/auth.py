@@ -3,10 +3,11 @@ Rotas de Autenticação, SSO (Google e Microsoft), Multi-Tenancy e Auditoria de 
 """
 import os
 from typing import List, Optional, Tuple
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
 from app.models.estabelecimento import Estabelecimento
 from app.models.profissional import Profissional
@@ -79,6 +80,11 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     
     # Suporte a login rápido de demonstração (Dr. Versiani, Dra. Letícia, Secretária, Admin)
     if payload.demo_role:
+        if not settings.DEMO_LOGIN_ENABLED or settings.is_production:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Login de demonstração indisponível neste ambiente.",
+            )
         role_map = {
             "medico_titular": ("dr.versiani@media-saude.com.br", "Dr. João Paulo Versiani", PapelUsuarioEnum.MEDICO),
             "medica_familia": ("dra.leticia@media-saude.com.br", "Dra. Letícia Mendes", PapelUsuarioEnum.MEDICO),
@@ -99,18 +105,26 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
                 db.add(usuario)
                 db.commit()
                 db.refresh(usuario)
-                
-                # Criar vínculos com clínicas existentes
-                ests = db.query(Estabelecimento).all()
-                for idx, est in enumerate(ests):
-                    vinculo = VinculoClinica(
-                        usuario_id=usuario.id,
-                        estabelecimento_id=est.id,
-                        papel=papel,
-                        is_default=(idx == 0)
-                    )
-                    db.add(vinculo)
-                db.commit()
+
+            # Garante os vínculos com as clínicas cadastradas. Isto precisa
+            # acontecer também para usuários JÁ existentes: sem isso, um usuário
+            # criado antes da primeira clínica receberia `clinica_ativa = null`
+            # e o Workspace Switcher do Cockpit ficaria sem clínica ativa.
+            ests = db.query(Estabelecimento).order_by(Estabelecimento.id).all()
+            for idx, est in enumerate(ests):
+                ja_vinculado = db.query(VinculoClinica).filter(
+                    VinculoClinica.usuario_id == usuario.id,
+                    VinculoClinica.estabelecimento_id == est.id,
+                ).first()
+                if ja_vinculado:
+                    continue
+                db.add(VinculoClinica(
+                    usuario_id=usuario.id,
+                    estabelecimento_id=est.id,
+                    papel=papel,
+                    is_default=(idx == 0)
+                ))
+            db.commit()
 
     if not usuario:
         usuario = db.query(Usuario).filter(Usuario.email == payload.email).first()
@@ -149,11 +163,38 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 # ------------------------------------------------------------------
 # Endpoints de SSO (Google & Microsoft)
+#
+# IMPORTANTE: os callbacks abaixo NÃO validam o id_token contra a JWKS do
+# provedor. Eles CONFIAM no `id_token` enviado pelo cliente e, a partir dele,
+# abrem uma sessão válida. Isso é aceitável apenas como mock de interface
+# durante o desenvolvimento e está atrás de `SSO_ENABLED` (por padrão
+# DESLIGADO). A validação real do id_token está registrada como pendência
+# de integração — ver docs/ROADMAP_V1.md.
 # ------------------------------------------------------------------
+def _exigir_sso_habilitado() -> None:
+    """Impede o uso do mock de SSO fora de desenvolvimento.
+
+    Mesmo com `SSO_ENABLED=true`, o mock não pode responder em produção: ele
+    confia no `id_token` do cliente sem verificação criptográfica e abriria
+    uma sessão para qualquer pessoa. A validação real contra a JWKS do provedor
+    ainda não foi implementada — ver docs/ROADMAP_V1.md.
+    """
+    if not settings.SSO_ENABLED or settings.is_production:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Login SSO não disponível neste ambiente. "
+                "A federação real (Google/Microsoft) ainda exige validação do "
+                "id_token contra a JWKS do provedor."
+            ),
+        )
+
+
 @router.get("/sso/google/url")
 def get_google_auth_url():
     """Gera a URL de redirecionamento para login federado com o Google."""
-    client_id = os.getenv("GOOGLE_CLIENT_ID", "mock_media_google_client_id.apps.googleusercontent.com")
+    _exigir_sso_habilitado()
+    client_id = settings.GOOGLE_CLIENT_ID or "mock_media_google_client_id.apps.googleusercontent.com"
     redirect_uri = "http://localhost:8000/api/v1/auth/sso/google/callback"
     scope = "openid%20profile%20email"
     url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}&access_type=offline&prompt=consent"
@@ -163,7 +204,9 @@ def get_google_auth_url():
 @router.post("/sso/google/callback", response_model=TokenResponse)
 def google_sso_callback(payload: SSOLoginRequest, request: Request, db: Session = Depends(get_db)):
     """Processa o callback ou id_token do Google OIDC."""
-    # Simulação segura de extração ou validação OIDC para testes locais
+    _exigir_sso_habilitado()
+    # MOCK CONTROLADO (apenas com SSO_ENABLED=true em ambiente de testes):
+    # extração fixa de identidade, sem verificação criptográfica do token.
     email = "medico.google@clinica-exemplo.com.br"
     nome = "Dr. Médico Google Workspace"
     sub_id = payload.id_token or "google_sub_109283741"
@@ -197,7 +240,8 @@ def google_sso_callback(payload: SSOLoginRequest, request: Request, db: Session 
 @router.get("/sso/microsoft/url")
 def get_microsoft_auth_url():
     """Gera a URL de autenticação com Microsoft Entra ID (Azure AD / Office 365)."""
-    client_id = os.getenv("MICROSOFT_CLIENT_ID", "mock_media_microsoft_client_id")
+    _exigir_sso_habilitado()
+    client_id = settings.MICROSOFT_CLIENT_ID or "mock_media_microsoft_client_id"
     redirect_uri = "http://localhost:8000/api/v1/auth/sso/microsoft/callback"
     scope = "openid%20profile%20email%20User.Read"
     url = f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}"
@@ -207,6 +251,8 @@ def get_microsoft_auth_url():
 @router.post("/sso/microsoft/callback", response_model=TokenResponse)
 def microsoft_sso_callback(payload: SSOLoginRequest, request: Request, db: Session = Depends(get_db)):
     """Processa o callback do Microsoft Entra ID OIDC."""
+    _exigir_sso_habilitado()
+    # MOCK CONTROLADO (apenas com SSO_ENABLED=true em ambiente de testes).
     email = "medico.office365@clinica-exemplo.com.br"
     nome = "Dr. Médico Microsoft 365"
     sub_id = payload.id_token or "ms_sub_89237482"
@@ -289,9 +335,24 @@ def get_me(auth_data: Tuple[Usuario, Optional[int]] = Depends(get_current_user),
 # ------------------------------------------------------------------
 @router.get("/audit-trail", response_model=List[AuditTrailOut])
 def listar_trilha_auditoria(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),
     auth_data: Tuple[Usuario, Optional[int]] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Retorna os eventos recentes da trilha de auditoria criptográfica."""
-    return db.query(AuditTrail).order_by(AuditTrail.id.desc()).limit(limit).all()
+    """Retorna os eventos recentes da trilha de auditoria criptográfica.
+
+    A trilha é filtrada pela clínica ativa do token: sem este filtro qualquer
+    usuário autenticado — inclusive uma recepcionista — lia os eventos de todas
+    as unidades (vazamento entre tenants). Somente superusuários veem tudo.
+    """
+    usuario, clinica_id = auth_data
+
+    query = db.query(AuditTrail)
+    if not usuario.is_superuser:
+        if clinica_id is None:
+            # Sem clínica ativa no token, restringe ao próprio usuário.
+            query = query.filter(AuditTrail.usuario_id == usuario.id)
+        else:
+            query = query.filter(AuditTrail.estabelecimento_id == clinica_id)
+
+    return query.order_by(AuditTrail.id.desc()).limit(limit).all()

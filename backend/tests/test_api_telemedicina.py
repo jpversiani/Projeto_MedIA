@@ -1,19 +1,12 @@
 import pytest
 from datetime import datetime, timezone
-from fastapi.testclient import TestClient
 
-from app.main import app
-from app.core.database import Base, engine, get_db
-from sqlalchemy.orm import sessionmaker
-
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture(scope="module")
-def client():
-    Base.metadata.create_all(bind=engine)
-    with TestClient(app) as c:
-        yield c
+# NOTA DE ISOLAMENTO: este módulo usava o `engine` real de `app.core.database`
+# com um `TestClient(app)` próprio, sem os `dependency_overrides` do conftest.
+# Consequência: toda a suíte de telemedicina gravava no `backend/esus.db` de
+# desenvolvimento (deixando teleconsultas/salas órfãs de execuções anteriores).
+# Agora o cliente vem do conftest.py, ligado ao SQLite em memória populado por
+# `seed_database`, e a suíte é reprodutível em qualquer máquina.
 
 
 def test_criar_agendamento_sucesso(client):

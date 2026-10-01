@@ -1,5 +1,24 @@
 # 📋 Estado Atual do Projeto MedIA
 
+> ## ⛔ DOCUMENTO HISTÓRICO — NÃO USE COMO REFERÊNCIA TÉCNICA
+>
+> Este arquivo é um relatório gerado por IA em setembro de 2026 e **contém
+> afirmações que a verificação posterior comprovou falsas**:
+>
+> * Diz que **"testes pytest não passam"** — falso: a suíte roda com **469
+>   testes, todos passando** (`pytest -q` a partir da raiz).
+> * Diz que **`pyjwt` não está no `requirements.txt`** — falso: está na linha 11.
+> * Aponta caminhos absolutos `/home/jpversiani/...` e scripts
+>   (`continuous_marathon_8h.py`, `docs/gerados_por_ia/`) que **não existem**
+>   neste repositório.
+> * Anuncia "1.501 pacientes reais" — os seeds geram dados **sintéticos**
+>   (`gerar_pacientes_sinteticos()`).
+>
+> Para o estado atual e o que falta para a v1, use
+> **[`docs/ROADMAP_V1.md`](ROADMAP_V1.md)** e o [`README.md`](../README.md).
+
+---
+
 > **Gerado em:** 25 de setembro de 2026  
 > **Produzido por:** HierAgent — Framework de Orquestração Multi-Agente  
 > **Modelos utilizados:** GLM 5.3 Flash (Cloud + OpenCode PC/NB), DeepSeek V4 Flash 0731, Qwen 3.6 35B A3B (local), Bonsai 27B (LAN)  

@@ -7,9 +7,15 @@ from app.models.profissional import Profissional
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
 from app.services.auth_service import hash_password
 
+import logging
+
+logger = logging.getLogger("media.seed")
+
 
 def seed_multiclinica():
-    Base.metadata.create_all(bind=engine)
+    # Sem `create_all`: o schema é responsabilidade do Alembic (ver
+    # `app.core.bootstrap.run_migrations`). Manter as duas trilhas permite que
+    # uma base_created por `create_all` e outra criada por migração divirjam.
     db = SessionLocal()
     try:
         # 1. Estabelecimentos / Clínicas
@@ -114,7 +120,10 @@ def seed_multiclinica():
                 db.add(v2)
                 db.commit()
 
-        print("✔ Seed de Multi-Clínica, Médicos e Usuários concluído com sucesso!")
+        # `print()` com "✔" derrubava o startup inteiro no Windows: o console
+        # cp1252 não consegue codificar o caractere e levanta UnicodeEncodeError
+        # dentro do lifespan do FastAPI, matando o processo no boot.
+        logger.info("Seed de Multi-Clínica, Médicos e Usuários concluído com sucesso!")
     finally:
         db.close()
 

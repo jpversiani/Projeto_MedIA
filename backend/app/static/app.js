@@ -28,6 +28,46 @@ async function apiFetch(url, options = {}) {
   return res;
 }
 
+// `apiFetch` existia mas NENHUMA das 24 chamadas de `fetch()` da aplicação a
+// usava: o token JWT nunca era enviado, e o backend validava credencial em
+// apenas 3 rotas. Como o servidor passa a exigir `Authorization: Bearer` em
+// toda rota clínica, as chamadas ficariam todas em 401.
+//
+// Em vez de reescrever cada call site, instalamos um interceptor que faz o
+// `fetch` global injetar o cabeçalho nas chamadas de API da própria origem.
+// `apiFetch` continua disponível para os pontos que já o usavam.
+(function instalarInterceptorDeToken() {
+  const fetchOriginal = window.fetch.bind(window);
+
+  window.fetch = function (url, options = {}) {
+    const alvo = typeof url === "string" ? url : url && url.url;
+    const ehApiDaOrigem =
+      typeof alvo === "string" && alvo.startsWith("/api/") && !alvo.includes("/auth/login");
+
+    if (ehApiDaOrigem) {
+      const token = localStorage.getItem("media_token");
+      if (token) {
+        const headers = new Headers(options.headers || {});
+        if (!headers.has("Authorization")) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
+        options = { ...options, headers };
+      }
+    }
+
+    return fetchOriginal(url, options).then((res) => {
+      // Sessão expirada ou revogada: encerra a sessão local imediatamente.
+      if (res.status === 401 && typeof alvo === "string" && alvo.startsWith("/api/")) {
+        localStorage.removeItem("media_token");
+        localStorage.removeItem("media_user");
+        usuarioLogado = null;
+        abrirModalLogin();
+      }
+      return res;
+    });
+  };
+})();
+
 document.addEventListener("DOMContentLoaded", () => {
   inicializarTema();
   verificarSessaoJWT();
@@ -202,10 +242,13 @@ function atualizarCabecalhoUsuario(user) {
 
 function fazerLogout() {
   if (confirm("Deseja encerrar a sessão do consultório?")) {
+    // Havia DUAS definições de fazerLogout neste arquivo. Por hoisting, a
+    // segunda prevalecia: ela apenas redirecionava para "/" e deixava
+    // `media_token` no localStorage — ou seja, "sair" não encerrava a sessão.
     localStorage.removeItem("media_token");
     localStorage.removeItem("media_user");
     usuarioLogado = null;
-    abrirModalLogin();
+    window.location.href = "/";
   }
 }
 
@@ -364,32 +407,83 @@ async function carregarAgenda() {
         "EM_CONSULTA": `<span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-xs font-semibold">Em Consulta</span>`,
         "CONCLUIDO": `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-400 text-xs">Concluído</span>`
       };
-      const badgeStatus = statusBadges[c.status] || `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs">${c.status}</span>`;
 
       const tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50/80 transition-colors group";
-      tr.innerHTML = `
-        <td class="px-5 py-4 font-mono font-bold text-slate-800">${c.horario}</td>
-        <td class="px-5 py-4">${badgeModalidade}</td>
-        <td class="px-5 py-4">
-          <div class="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">${c.paciente_nome}</div>
-          <div class="text-xs text-slate-500 truncate max-w-xs mt-0.5">${c.motivo_queixa || 'Consulta agendada'}</div>
-        </td>
-        <td class="px-5 py-4 text-xs text-slate-600">${c.especialidade}</td>
-        <td class="px-5 py-4">${badgeStatus}</td>
-        <td class="px-5 py-4 font-mono text-xs font-semibold text-slate-700">R$ ${c.valor_consulta.toFixed(2)}</td>
-        <td class="px-5 py-4 text-right space-x-1.5">
-          ${isTele && c.telefone_whatsapp ? `
-            <a href="https://api.whatsapp.com/send?phone=55${c.telefone_whatsapp}&text=Ol%C3%A1%20${encodeURIComponent(c.paciente_nome)}!%20Sua%20teleconsulta%20est%C3%A1%20preparada." target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition" title="Enviar link por WhatsApp">
-              <i class="fa-brands fa-whatsapp text-sm"></i>
-            </a>
-          ` : ''}
-          <button onclick='abrirAtendimentoAgenda(${JSON.stringify(c)})' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-            <i class="fa-solid fa-${isTele ? 'video' : 'notes-medical'} text-[10px]"></i>
-            <span>${isTele ? 'Iniciar Teleconsulta' : 'Atender no Consultório'}</span>
-          </button>
-        </td>
-      `;
+
+      // XSS: antes, `paciente_nome`, `motivo_queixa` e `especialidade` eram
+      // interpolados em `tr.innerHTML`, e o `onclick` usava um atributo com
+      // aspas simples contendo `JSON.stringify(c)` — que NÃO escapa `'`. Um
+      // nome de paciente com `<img src=x onerror=...>` executava no navegador
+      // do médico, de onde o `media_token` era exfiltrável. A estrutura HTML
+      // fica abaixo, mas TODO dado da API entra por `textContent`.
+      const celula = (classe) => {
+        const td = document.createElement("td");
+        td.className = classe;
+        return td;
+      };
+
+      const tdHorario = celula("px-5 py-4 font-mono font-bold text-slate-800");
+      tdHorario.textContent = c.horario ?? "";
+
+      const tdModalidade = celula("px-5 py-4");
+      tdModalidade.innerHTML = badgeModalidade; // HTML estático, sem dado do usuário
+
+      const tdPaciente = celula("px-5 py-4");
+      const divNome = document.createElement("div");
+      divNome.className = "font-semibold text-slate-900 group-hover:text-blue-600 transition-colors";
+      divNome.textContent = c.paciente_nome ?? "";
+      const divMotivo = document.createElement("div");
+      divMotivo.className = "text-xs text-slate-500 truncate max-w-xs mt-0.5";
+      divMotivo.textContent = c.motivo_queixa || "Consulta agendada";
+      tdPaciente.append(divNome, divMotivo);
+
+      const tdEspecialidade = celula("px-5 py-4 text-xs text-slate-600");
+      tdEspecialidade.textContent = c.especialidade ?? "";
+
+      const tdStatus = celula("px-5 py-4");
+      if (statusBadges[c.status]) {
+        tdStatus.innerHTML = statusBadges[c.status];
+      } else {
+        tdStatus.innerHTML = '<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs"></span>';
+        tdStatus.firstChild.textContent = c.status ?? "";
+      }
+
+      const tdValor = celula("px-5 py-4 font-mono text-xs font-semibold text-slate-700");
+      // `valor_consulta` vinha do backend sem garantia: um `null` fazia
+      // `.toFixed` lançar TypeError e abortar o carregamento da agenda.
+      const valor = Number(c.valor_consulta);
+      tdValor.textContent = `R$ ${(Number.isFinite(valor) ? valor : 0).toFixed(2)}`;
+
+      const tdAcoes = celula("px-5 py-4 text-right space-x-1.5");
+      if (isTele && c.telefone_whatsapp) {
+        const linkZap = document.createElement("a");
+        linkZap.href =
+          "https://api.whatsapp.com/send?phone=55" +
+          encodeURIComponent(String(c.telefone_whatsapp)) +
+          "&text=" +
+          encodeURIComponent(`Olá ${c.paciente_nome ?? ""}! Sua teleconsulta está preparada.`);
+        linkZap.target = "_blank";
+        linkZap.rel = "noopener noreferrer";
+        linkZap.className =
+          "inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition";
+        linkZap.title = "Enviar link por WhatsApp";
+        linkZap.innerHTML = '<i class="fa-brands fa-whatsapp text-sm"></i>';
+        tdAcoes.appendChild(linkZap);
+      }
+
+      const btnAtender = document.createElement("button");
+      btnAtender.className =
+        "inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition";
+      btnAtender.innerHTML = `<i class="fa-solid fa-${isTele ? "video" : "notes-medical"} text-[10px]"></i>`;
+      const rotuloBotao = document.createElement("span");
+      rotuloBotao.textContent = isTele ? "Iniciar Teleconsulta" : "Atender no Consultório";
+      btnAtender.appendChild(rotuloBotao);
+      // Listeners reais em vez de `onclick='...(${JSON.stringify(c)})'`.
+      btnAtender.addEventListener("click", () => abrirAtendimentoAgenda(c));
+      tdAcoes.appendChild(btnAtender);
+
+      tr.append(tdHorario, tdModalidade, tdPaciente, tdEspecialidade, tdStatus, tdValor, tdAcoes);
       tabela.appendChild(tr);
     });
   } catch (e) {
@@ -1154,12 +1248,6 @@ function abrirModalAuditoria() {
 
 function fecharModalAuditoria() {
   document.getElementById("modal-auditoria").classList.add("hidden");
-}
-
-function fazerLogout() {
-  if (confirm("Deseja encerrar a sessão do consultório?")) {
-    window.location.href = "/";
-  }
 }
 
 // =========================================================================

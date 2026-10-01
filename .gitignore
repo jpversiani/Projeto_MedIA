@@ -51,3 +51,9 @@ htmlcov/
 
 # Sandboxes de agentes
 sandboxes/
+
+# Cache do uv (criado ao montar o ambiente de desenvolvimento)
+.uvcache/
+
+# Pastas vazias de teste com permissões travadas (resíduo local)
+backend/tests/media_env_*/

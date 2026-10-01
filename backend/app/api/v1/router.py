@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.api.v1.cidadaos import router as cidadaos_router
 from app.api.v1.fila import router as fila_router
 from app.api.v1.atendimentos import router as atendimentos_router
@@ -20,29 +20,70 @@ from app.api.v1.financeiro_medico import router as financeiro_medico_router
 from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.health import router as health_router
+from app.api.v1.sincronizacao import router as sincronizacao_router
+from app.api.v1.auth import router as auth_router, get_current_user
+from app.core.config import settings
 
 api_router = APIRouter()
 
+# --------------------------------------------------------------------------
+# Rotas públicas: health e autenticação (login, SSO, troca de clínica).
+# `/auth/me`, `/auth/switch-clinic` e `/auth/audit-trail` já validam o token
+# por conta própria via `Depends(get_current_user)`.
+# --------------------------------------------------------------------------
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
-api_router.include_router(cidadaos_router)
 
-api_router.include_router(fila_router)
-api_router.include_router(atendimentos_router)
-api_router.include_router(terminologias_router)
-api_router.include_router(estabelecimentos_router)
-api_router.include_router(telemedicina_router)
-api_router.include_router(agenda_medica_router)
-api_router.include_router(prescricao_cfm_router)
-api_router.include_router(financeiro_medico_router)
-api_router.include_router(prontuario_router)
-api_router.include_router(copiloto_router)
-api_router.include_router(telemedicina_ws_router)
-api_router.include_router(farmacia_router)
-api_router.include_router(convenios_router)
-api_router.include_router(tiss_router)
-api_router.include_router(dmed_router)
-api_router.include_router(clinica_router)
-api_router.include_router(fluxo_atendimento_router)
-api_router.include_router(analytics_router)
+# --------------------------------------------------------------------------
+# Rotas clínicas (prontuário, cidadão, agenda, prescrição, TISS, DMED,
+# telemedicina, farmácia, convênios, financeiro, sincronização...).
+#
+# Antes, cada uma dessas ~88 rotas aceitava requisição anônima: bastava
+# `curl /api/v1/cidadaos/` para listar pacientes e `curl -X POST
+# /api/v1/prescricao/emitir` para gerar uma receita. A autenticação agora é
+# aplicada no nível do router, de modo que nenhuma rota nova nasce aberta.
+# Fora de desenvolvimento (`settings.require_auth`) isso é OBRIGATÓRIO.
+# --------------------------------------------------------------------------
+_ROUTERS_CLINICOS = (
+    cidadaos_router,
+    fila_router,
+    atendimentos_router,
+    terminologias_router,
+    estabelecimentos_router,
+    telemedicina_router,
+    agenda_medica_router,
+    prescricao_cfm_router,
+    financeiro_medico_router,
+    prontuario_router,
+    copiloto_router,
+    telemedicina_ws_router,
+    farmacia_router,
+    convenios_router,
+    tiss_router,
+    dmed_router,
+    clinica_router,
+    fluxo_atendimento_router,
+    analytics_router,
+    # Upload de contingência offline: transporta CNS, CPF e o SOAP completo,
+    # portanto é dado clínico e precisa da mesma proteção das demais rotas.
+    sincronizacao_router,
+)
+
+
+def build_clinical_router(require_auth: bool) -> APIRouter:
+    """Monta o router clínico, exigindo Bearer token quando `require_auth`.
+
+    Factory separada para que os testes possam montar as duas variantes sem
+    depender do estado global da aplicação.
+    """
+    dependencias = [Depends(get_current_user)] if require_auth else []
+    router = APIRouter(dependencies=dependencias)
+    for sub in _ROUTERS_CLINICOS:
+        router.include_router(sub)
+    return router
+
+
+clinicas_router = build_clinical_router(settings.require_auth)
+
+api_router.include_router(clinicas_router)
 

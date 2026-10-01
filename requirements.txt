@@ -1,3 +1,16 @@
+# Dependências do MedIA — arquivo de REFERÊNCIA (usado no desenvolvimento).
+#
+#   pip install -r requirements.txt
+#
+# Versões com limite inferior, para permitir patches de segurança. A imagem
+# Docker usa `backend/requirements.txt`, com versões fixadas. Os dois arquivos
+# precisam continuar compatíveis — não há lockfile, então uma mudança aqui pode
+# quebrar o build do Docker. Ao adicionar uma dependência, atualize os dois.
+#
+# NOTA: `pytest-asyncio` precisa estar instalado E configurado. O `pytest.ini`
+# define `asyncio_mode = strict`; sem ele os testes assíncronos do cliente
+# SISAB são silenciosamente ignorados.
+
 fastapi>=0.109.0
 uvicorn>=0.27.0
 sqlalchemy>=2.0.23

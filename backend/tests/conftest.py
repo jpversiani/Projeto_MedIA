@@ -1,6 +1,22 @@
+"""Fixtures compartilhadas da suíte de testes.
+
+A suíte é HERMÉTICA: nada aqui toca o banco de desenvolvimento. O lifespan do
+FastAPI (que aplica migrações e popula dados de demonstração) é desativado
+nestes testes, e toda rota usa o SQLite em memória já populado por
+`seed_database`. Sem estas variáveis, `TestClient(app)` executava o lifespan
+contra o `settings.DATABASE_URL` real e a suíte gravava em `backend/esus.db`.
+"""
 import pytest
 import os
 import sys
+
+# Precisa vir ANTES de qualquer import de `app.*`: `app.core.config` lê estas
+# variáveis no momento do import para construir o objeto `settings`.
+os.environ["ENVIRONMENT"] = "test"
+os.environ["AUTO_MIGRATE_ON_STARTUP"] = "false"
+os.environ["AUTO_SEED_DEMO_DATA"] = "false"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

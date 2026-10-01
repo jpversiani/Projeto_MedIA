@@ -17,8 +17,12 @@ from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
 from app.models.estabelecimento import Estabelecimento
 from app.models.profissional import Profissional
 from app.schemas.auth import UsuarioOut, VinculoClinicaOut, TokenResponse
+from app.core.config import settings
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "media_secret_jwt_sovereign_clinical_2026_key")
+# Resolve a chave via settings. Em produção a ausência de JWT_SECRET_KEY gera
+# RuntimeError em tempo de import — falha rápida e explícita, em vez de subir
+# com uma chave pública conhecida e permitir forja de tokens.
+SECRET_KEY = settings.effective_secret_key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 horas para facilidade de uso em MVP
 
