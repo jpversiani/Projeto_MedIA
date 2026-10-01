@@ -12,6 +12,22 @@
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Design system compartilhado com a landing page (tokens de cor, tipografia, etc.) -->
+  <link rel="stylesheet" href="/static/css/theme.css">
+
+  <!-- Aplica o tema ANTES da primeira pintura, evitando o "flash" branco ao
+       carregar a página em modo escuro. Mesma chave `media_theme` da landing. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("media_theme");
+        if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("dark");
+          document.documentElement.dataset.theme = "dark";
+        }
+      } catch (e) { /* localStorage indisponível */ }
+    })();
+  </script>
   
   <script>
     tailwind.config = {

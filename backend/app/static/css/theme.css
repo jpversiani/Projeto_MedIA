@@ -1,0 +1,213 @@
+/* ==========================================================================
+   MedIA — Design System
+   Tokens compartilhados entre a landing page e o Cockpit Clínico.
+
+   Objetivo: uma única fonte de verdade para cor, tipografia, espaçamento,
+   raio, sombra e movimento. Alterar um token aqui reflete nas páginas que
+   importam este arquivo.
+   ========================================================================== */
+
+:root {
+  /* ---------- Marca ---------- */
+  --brand-50:  #eef4ff;
+  --brand-100: #dbe6ff;
+  --brand-200: #bfd3ff;
+  --brand-300: #93b4ff;
+  --brand-400: #6090fb;
+  --brand-500: #3b76f6;
+  --brand-600: #2563eb;
+  --brand-700: #1e4fd6;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+
+  /* ---------- Semânticos ---------- */
+  --ok-50:  #ecfdf5;
+  --ok-200: #a7f3d0;
+  --ok-500: #10b981;
+  --ok-700: #047857;
+
+  --warn-50:  #fffbeb;
+  --warn-200: #fde68a;
+  --warn-500: #f59e0b;
+  --warn-700: #b45309;
+
+  --danger-50:  #fef2f2;
+  --danger-200: #fecaca;
+  --danger-500: #ef4444;
+  --danger-700: #b91c1c;
+
+  --info-50:  #f0f9ff;
+  --info-200: #bae6fd;
+  --info-500: #0ea5e9;
+  --info-700: #0369a1;
+
+  /* ---------- Neutros (tema claro) ---------- */
+  --bg:          #f7f9fc;
+  --bg-elevated: #ffffff;
+  --bg-sunken:   #eef2f7;
+  --surface:     #ffffff;
+  --border:      #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text:        #0f172a;
+  --text-muted:  #475569;
+  --text-subtle: #64748b;
+  --text-invert: #ffffff;
+
+  /* ---------- Tipografia ---------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  clamp(2rem, 1.2rem + 3.5vw, 3.25rem);
+  --text-5xl:  clamp(2.5rem, 1.3rem + 5.5vw, 4.5rem);
+
+  --leading-tight: 1.15;
+  --leading-snug:  1.35;
+  --leading-normal: 1.6;
+
+  /* ---------- Espaçamento (escala de 4px) ---------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+
+  --section-y: clamp(3.5rem, 2rem + 7vw, 7rem);
+
+  /* ---------- Raio ---------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 999px;
+
+  /* ---------- Sombra ---------- */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, .07);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, .10);
+  --shadow-xl: 0 24px 60px rgba(15, 23, 42, .14);
+  --shadow-brand: 0 8px 24px rgba(37, 99, 235, .30);
+
+  /* ---------- Movimento ---------- */
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --dur-fast: 150ms;
+  --dur: 250ms;
+  --dur-slow: 450ms;
+
+  /* ---------- Layout ---------- */
+  --wrap: 1160px;
+  --nav-h: 68px;
+
+  color-scheme: light;
+}
+
+/* ---------- Tema escuro ----------
+   A landing e o Cockpit devem ficar legíveis nos dois modos. O Cockpit já
+   tinha um toggle próprio; os tokens abaixo dão a mesma paleta base. */
+:root[data-theme="dark"] {
+  --bg:          #0b1120;
+  --bg-elevated: #111827;
+  --bg-sunken:   #0a0f1a;
+  --surface:     #151d2e;
+  --border:      #263347;
+  --border-strong: #35435c;
+  --text:        #e8eef9;
+  --text-muted:  #a8b6cc;
+  --text-subtle: #8494ab;
+
+  --brand-50:  #16233f;
+  --brand-100: #1b2c4f;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .5);
+  --shadow-xl: 0 24px 60px rgba(0, 0, 0, .6);
+
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 { margin: 0; line-height: var(--leading-tight); font-weight: 700; letter-spacing: -0.02em; }
+p  { margin: 0; }
+img { max-width: 100%; height: auto; display: block; }
+a  { color: var(--brand-600); }
+
+::selection { background: var(--brand-600); color: #fff; }
+
+/* Foco visível e consistente. Remove o contorno padrão sem perder acessibilidade. */
+:focus-visible {
+  outline: 3px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Usuários que pedem menos movimento não devem ver animações. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Permite pular direto ao conteúdo para navegação por teclado/leitor de tela. */
+.skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: -100px;
+  z-index: 1000;
+  background: var(--brand-600);
+  color: #fff;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur) var(--ease);
+}
+.skip-link:focus { top: var(--space-4); }
+
+/* Utilitário: só para leitores de tela. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}

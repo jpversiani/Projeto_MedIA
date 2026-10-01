@@ -2,851 +2,580 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>MedIA Practice & Telemedicina OS — Consultório & Home Office (CFM 2.314/2022)</title>
-<style>
-  :root {
-    --blue-50:  #eef5ff;
-    --blue-100: #dbe8ff;
-    --blue-200: #bfd6ff;
-    --blue-300: #93baff;
-    --blue-400: #6096ff;
-    --blue-500: #3b76f6;
-    --blue-600: #2563eb;
-    --blue-700: #1e4fd6;
-    --blue-800: #1e40af;
-    --blue-900: #1e3a8a;
-    --ink:      #0b1220;
-    --ink-soft: #3a4a63;
-    --bg:       #f7faff;
-    --ease: cubic-bezier(.22,.61,.36,1);
-  }
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MedIA — Prontuário eletrônico e telemedicina para atenção primária</title>
+<meta name="description" content="Plataforma open source de prontuário eletrônico, telemedicina, prescrição digital e faturamento TISS/DMED, com terminologias brasileiras (CIAP-2, CID-10, CID-11, CNES)." />
+<meta name="theme-color" content="#2563eb" />
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="pt_BR" />
+<meta property="og:title" content="MedIA — Prontuário eletrônico e telemedicina" />
+<meta property="og:description" content="Software livre para consultórios e clínicas de atenção primária. PEP/e-SUS, telemedicina, prescrição digital e faturamento TISS." />
+<meta name="twitter:card" content="summary_large_image" />
 
-  html { scroll-behavior:smooth; }
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="/static/css/theme.css" />
+<link rel="stylesheet" href="/static/css/landing.css" />
 
-  body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: var(--ink);
-    background: var(--bg);
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  ::selection { background: var(--blue-500); color:#fff; }
-
-  /* ---------- Background blobs ---------- */
-  .blob {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(90px);
-    opacity:.45;
-    z-index:-1;
-    pointer-events:none;
-    animation: drift 18s var(--ease) infinite alternate;
-  }
-  .blob.b1 { width:560px; height:560px; background:radial-gradient(circle,#7fb2ff,#2563eb00 70%); top:-160px; left:-120px; }
-  .blob.b2 { width:460px; height:460px; background:radial-gradient(circle,#6ee7ff,#2563eb00 70%); top:30%; right:-140px; animation-delay:-6s; }
-  .blob.b3 { width:520px; height:520px; background:radial-gradient(circle,#a5c8ff,#2563eb00 70%); bottom:-200px; left:30%; animation-delay:-12s; }
-
-  @keyframes drift {
-    0%   { transform: translate(0,0) scale(1); }
-    50%  { transform: translate(40px,-30px) scale(1.08); }
-    100% { transform: translate(-30px,40px) scale(.95); }
-  }
-
-  /* ---------- Nav ---------- */
-  nav {
-    position: fixed; top:0; left:0; right:0; z-index:100;
-    padding: 16px 24px;
-    transition: padding .4s var(--ease);
-  }
-  nav.scrolled {
-    padding: 10px 24px;
-    background: rgba(255,255,255,.72);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    backdrop-filter: blur(18px) saturate(180%);
-    border-bottom: 1px solid rgba(59,118,246,.12);
-  }
-  .nav-inner {
-    max-width:1180px; margin:0 auto;
-    display:flex; align-items:center; justify-content:space-between;
-    gap:16px;
-  }
-  .logo {
-    display:flex; align-items:center; gap:10px;
-    font-weight:700; font-size:1.25rem; letter-spacing:-.02em;
-    color:var(--ink); text-decoration:none;
-  }
-  .logo-mark {
-    width:34px; height:34px; border-radius:10px;
-    background: linear-gradient(135deg,#4f8bff,#2563eb 55%,#1e4fd6);
-    display:grid; place-items:center;
-    color:#fff; font-weight:800; font-size:1.05rem;
-    box-shadow: 0 6px 16px rgba(37,99,235,.35);
-  }
-  .nav-links { display:flex; align-items:center; gap:32px; }
-  .nav-links a {
-    color:var(--ink-soft); text-decoration:none; font-size:.95rem; font-weight:500;
-    transition:color .2s;
-  }
-  .nav-links a:hover { color:var(--blue-600); }
-  .btn {
-    display:inline-flex; align-items:center; gap:8px;
-    border:none; cursor:pointer; text-decoration:none;
-    font-weight:600; font-size:.95rem; border-radius:999px;
-    padding:11px 22px;
-    transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg,#3b76f6,#2563eb);
-    color:#fff;
-    box-shadow: 0 8px 24px rgba(37,99,235,.35);
-  }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(37,99,235,.45); }
-  .btn-ghost {
-    background: rgba(37,99,235,.08); color:var(--blue-700);
-  }
-  .btn-ghost:hover { background: rgba(37,99,235,.15); transform: translateY(-2px); }
-  .btn-lg { padding:15px 30px; font-size:1.05rem; }
-  .btn .arrow { transition: transform .25s var(--ease); }
-  .btn:hover .arrow { transform: translateX(4px); }
-
-  .burger { display:none; background:none; border:none; cursor:pointer; flex-direction:column; gap:5px; padding:6px; }
-  .burger span { width:24px; height:2px; background:var(--ink); border-radius:2px; transition:.3s; }
-
-  /* ---------- Hero ---------- */
-  header {
-    position:relative;
-    padding: 170px 24px 80px;
-    text-align:center;
-    overflow:hidden;
-  }
-  .badge {
-    display:inline-flex; align-items:center; gap:8px;
-    font-size:.85rem; font-weight:600; color:var(--blue-700);
-    background: rgba(37,99,235,.08);
-    border:1px solid rgba(37,99,235,.18);
-    padding:8px 16px; border-radius:999px;
-    margin-bottom:28px;
-    animation: fadeUp .8s var(--ease) both;
-  }
-  .badge .dot { width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 0 rgba(34,197,94,.5); animation:pulse 2s infinite; }
-  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.5);} 70%{box-shadow:0 0 0 9px rgba(34,197,94,0);} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0);} }
-
-  h1 {
-    font-size: clamp(2.6rem, 6.5vw, 5rem);
-    line-height:1.04; letter-spacing:-.035em;
-    font-weight:800;
-    max-width: 15ch; margin:0 auto 26px;
-    animation: fadeUp .8s var(--ease) .08s both;
-  }
-  .grad {
-    background: linear-gradient(100deg,#0ea5e9 0%, #2563eb 45%, #1e4fd6 90%);
-    -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; color:transparent;
-  }
-  .sub {
-    font-size: clamp(1.05rem, 2vw, 1.3rem);
-    color:var(--ink-soft); max-width:52ch; margin:0 auto 40px;
-    line-height:1.6; font-weight:400;
-    animation: fadeUp .8s var(--ease) .16s both;
-  }
-  .hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; animation: fadeUp .8s var(--ease) .24s both; }
-
-  @keyframes fadeUp { from{opacity:0; transform:translateY(28px);} to{opacity:1; transform:none;} }
-
-  /* ---------- Product mock ---------- */
-  .mock-wrap {
-    position:relative;
-    margin: 90px auto 0;
-    max-width: 1000px;
-    perspective: 1400px;
-  }
-  .mock-glow {
-    position:absolute; inset:6% 8% -8% 8%;
-    background: radial-gradient(ellipse at 50% 40%, rgba(37,99,235,.4), rgba(37,99,235,0) 65%);
-    filter: blur(40px);
-    z-index:0;
-  }
-  .mock {
-    position:relative; z-index:1;
-    background: linear-gradient(180deg, #0e1730, #101c3d 60%, #0d1528);
-    border-radius: 24px;
-    border:1px solid rgba(147,186,255,.18);
-    padding: 22px;
-    box-shadow: 0 60px 120px -40px rgba(11,30,80,.55);
-    transform: rotateX(2deg) rotateY(-3deg);
-    transition: transform .3s var(--ease);
-    will-change: transform;
-  }
-  .mock-top { display:flex; align-items:center; gap:8px; margin-bottom:18px; padding:0 6px; }
-  .mock-top i { width:11px; height:11px; border-radius:50%; }
-  .mock-top i:nth-child(1){background:#ff5f57;} .mock-top i:nth-child(2){background:#febc2e;} .mock-top i:nth-child(3){background:#28c840;}
-  .mock-url {
-    margin-left:12px; flex:1; text-align:center;
-    background:rgba(255,255,255,.06); border-radius:8px;
-    color:#9db4e0; font-size:.8rem; padding:5px 10px;
-  }
-  .mock-body { display:grid; grid-template-columns: 180px 1fr; gap:18px; }
-  .mock-side { background:rgba(255,255,255,.04); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; }
-  .mock-side .m-item { display:flex; align-items:center; gap:9px; color:#c3d3f4; font-size:.82rem; padding:7px 9px; border-radius:9px; }
-  .mock-side .m-item.on { background:rgba(59,118,246,.22); color:#fff; font-weight:600; }
-  .m-ico { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; background:rgba(59,118,246,.25); font-size:.65rem; }
-  .mock-main { background:rgba(255,255,255,.045); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:14px; }
-  .m-row { display:flex; justify-content:space-between; align-items:center; }
-  .m-title { color:#fff; font-weight:700; font-size:1rem; }
-  .m-chip { background:rgba(34,197,94,.16); color:#4ade80; font-size:.72rem; font-weight:600; padding:4px 10px; border-radius:999px; }
-  .m-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .m-card { background:rgba(255,255,255,.05); border:1px solid rgba(147,186,255,.1); border-radius:11px; padding:12px; }
-  .m-label { color:#8aa3d4; font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
-  .m-val { color:#e8efff; font-size:.92rem; font-weight:600; }
-  .m-bars { display:flex; align-items:flex-end; gap:6px; height:56px; padding-top:6px; }
-  .m-bars span { flex:1; background:linear-gradient(180deg,#4f8bff,#2563eb); border-radius:4px 4px 0 0; animation:grow 1.4s var(--ease) both; transform-origin:bottom; }
-  @keyframes grow { from{transform:scaleY(0);} to{transform:scaleY(1);} }
-  .m-ai {
-    display:flex; gap:10px; align-items:flex-start;
-    background: rgba(37,99,235,.12); border:1px solid rgba(147,186,255,.16);
-    border-radius:11px; padding:12px;
-  }
-  .m-ai .m-ico { background:linear-gradient(135deg,#4f8bff,#1e4fd6); }
-  .m-ai p { color:#dce7ff; font-size:.8rem; line-height:1.5; }
-  .m-ai p b { color:#fff; }
-
-  .float-card {
-    position:absolute; z-index:2;
-    background:rgba(255,255,255,.9);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-    border:1px solid rgba(147,186,255,.25);
-    border-radius:16px;
-    padding:14px 18px;
-    box-shadow: 0 24px 50px -20px rgba(11,30,80,.35);
-    display:flex; align-items:center; gap:12px;
-    animation: float 6s ease-in-out infinite;
-  }
-  @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
-  .float-card .ic { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:1.3rem; }
-  .float-card .t { font-size:.9rem; font-weight:700; }
-  .float-card .s { font-size:.76rem; color:var(--ink-soft); }
-  .fc1 { top:14%; right:-46px; animation-delay:-2s; }
-  .fc2 { bottom:10%; left:-52px; animation-delay:-4s; }
-
-  /* ---------- Sections base ---------- */
-  section { position:relative; padding: 110px 24px; }
-  .wrap { max-width:1180px; margin:0 auto; }
-  .reveal { opacity:0; transform: translateY(40px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
-  .reveal.in { opacity:1; transform:none; }
-
-  .sec-label {
-    font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.16em;
-    color:var(--blue-600); margin-bottom:14px;
-  }
-  h2 { font-size: clamp(2rem, 4.5vw, 3.2rem); letter-spacing:-.03em; line-height:1.08; font-weight:800; }
-  .sec-head { text-align:center; max-width:720px; margin:0 auto 70px; }
-  .sec-head p { margin-top:18px; color:var(--ink-soft); font-size:1.1rem; line-height:1.65; }
-
-  /* ---------- Logos strip ---------- */
-  .strip { padding: 40px 24px; opacity:0; transition:opacity 1s; }
-  .strip.in { opacity:1; }
-  .strip p { text-align:center; font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; color:#8aa0c2; margin-bottom:26px; }
-  .marquee { overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent); mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent); }
-  .marquee-track { display:flex; gap:56px; width:max-content; animation:scroll 28s linear infinite; }
-  .marquee-track span { font-weight:700; font-size:1.15rem; color:#b9c8e6; letter-spacing:-.01em; white-space:nowrap; display:flex; align-items:center; gap:8px; }
-  @keyframes scroll { to { transform:translateX(-50%); } }
-
-  /* ---------- Features ---------- */
-  .features { background:#fff; }
-  .feat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:22px; }
-  .feat-card {
-    position:relative;
-    background:#fff;
-    border:1px solid #e6edf9;
-    border-radius:20px;
-    padding:32px 28px;
-    overflow:hidden;
-    transition: transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s;
-  }
-  .feat-card::before {
-    content:""; position:absolute; inset:0 0 auto 0; height:3px;
-    background: linear-gradient(90deg,#0ea5e9,#2563eb,#1e4fd6);
-    transform: scaleX(0); transform-origin:left; transition:transform .45s var(--ease);
-  }
-  .feat-card:hover { transform: translateY(-8px); box-shadow: 0 30px 60px -25px rgba(37,99,235,.25); border-color:#d3e2ff; }
-  .feat-card:hover::before { transform: scaleX(1); }
-  .feat-ico {
-    width:56px; height:56px; border-radius:16px;
-    display:grid; place-items:center; font-size:1.5rem;
-    background:linear-gradient(135deg, #eaf2ff, #d9e7ff);
-    margin-bottom:20px;
-    transition: transform .35s var(--ease);
-  }
-  .feat-card:hover .feat-ico { transform: scale(1.08) rotate(-3deg); }
-  .feat-card h3 { font-size:1.2rem; font-weight:700; margin-bottom:10px; letter-spacing:-.01em; }
-  .feat-card p { color:var(--ink-soft); font-size:.95rem; line-height:1.65; }
-  .feat-card .tag {
-    display:inline-block; margin-top:16px; font-size:.72rem; font-weight:700;
-    color:var(--blue-600); background:rgba(37,99,235,.08); padding:4px 10px; border-radius:999px;
-  }
-
-  /* ---------- Spotlight (split) ---------- */
-  .spotlight { background: linear-gradient(180deg, #fff, #eef5ff); }
-  .split { display:grid; grid-template-columns:1.05fr .95fr; gap:70px; align-items:center; }
-  .split h2 { margin-bottom:20px; }
-  .split p { color:var(--ink-soft); line-height:1.7; font-size:1.05rem; }
-  .check-list { margin-top:26px; display:flex; flex-direction:column; gap:14px; }
-  .check-list li { list-style:none; display:flex; gap:12px; align-items:flex-start; color:var(--ink); font-weight:500; font-size:.98rem; }
-  .check-list .ck {
-    width:22px; height:22px; border-radius:50%; flex-shrink:0;
-    background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff;
-    display:grid; place-items:center; font-size:.7rem; margin-top:1px;
-  }
-  .phone {
-    position:relative; margin:0 auto;
-    width:300px; height:600px; border-radius:44px;
-    background:linear-gradient(180deg,#101c3d,#0d1528);
-    border:1px solid rgba(147,186,255,.2);
-    box-shadow: 0 50px 100px -30px rgba(11,30,80,.5);
-    padding:14px;
-    transform: rotate(3deg);
-  }
-  .phone-screen { width:100%; height:100%; border-radius:32px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
-  .ph-top { background:linear-gradient(135deg,#2563eb,#1e4fd6); color:#fff; padding:20px 18px; }
-  .ph-top small { opacity:.75; font-size:.72rem; }
-  .ph-top h4 { font-size:1.1rem; margin-top:2px; }
-  .ph-call { background:rgba(255,255,255,.16); margin-top:14px; padding:10px 14px; border-radius:12px; font-size:.85rem; font-weight:600; display:flex; gap:10px; align-items:center; }
-  .ph-body { padding:16px; display:flex; flex-direction:column; gap:12px; flex:1; overflow:hidden; }
-  .ph-bubble { max-width:85%; padding:11px 14px; border-radius:16px; font-size:.8rem; line-height:1.45; }
-  .ph-bubble.pac { align-self:flex-start; background:#eef2fb; color:#33415c; border-bottom-left-radius:5px; }
-  .ph-bubble.doc { align-self:flex-end; background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff; border-bottom-right-radius:5px; }
-  .ph-soap { background:#f0f6ff; border:1px solid #dbe8ff; border-radius:14px; padding:12px; font-size:.72rem; }
-  .ph-soap b { color:var(--blue-700); }
-  .ph-soap p { color:#44526e; line-height:1.5; margin-top:4px; }
-  .ph-actions { display:flex; gap:10px; padding:14px 16px; }
-  .ph-btn { flex:1; text-align:center; background:linear-gradient(135deg,#3b76f6,#2563eb); color:#fff; border-radius:999px; padding:11px; font-size:.8rem; font-weight:700; }
-
-  /* ---------- Metrics ---------- */
-  .metrics { background:linear-gradient(135deg,#0b1220,#101c3d 55%,#0d1528); color:#fff; border-radius:0; }
-  .metrics h2 { color:#fff; }
-  .metrics .sec-label { color:#7fb2ff; }
-  .metrics .sec-head p { color:#9db4e0; }
-  .metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:28px; }
-  .metric { text-align:center; padding:30px 16px; border-radius:20px; background:rgba(255,255,255,.04); border:1px solid rgba(147,186,255,.12); transition:transform .3s var(--ease), background .3s; }
-  .metric:hover { transform:translateY(-6px); background:rgba(255,255,255,.07); }
-  .metric .num { font-size:2.6rem; font-weight:800; letter-spacing:-.03em; background:linear-gradient(100deg,#7fb2ff,#4f8bff 50%,#93baff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-  .metric .lbl { margin-top:8px; color:#a9bce4; font-size:.9rem; }
-
-  /* ---------- Testimonial ---------- */
-  .testimonial { background:#fff; }
-  .quote {
-    max-width:780px; margin:0 auto; text-align:center;
-  }
-  .quote .big { font-size:clamp(1.4rem,3vw,2rem); font-weight:600; line-height:1.45; letter-spacing:-.02em; color:#12224a; }
-  .quote .big b { background:linear-gradient(100deg,#0ea5e9,#2563eb); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-  .quote .who { margin-top:26px; display:flex; align-items:center; justify-content:center; gap:14px; }
-  .avatar { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,#4f8bff,#1e4fd6); color:#fff; display:grid; place-items:center; font-weight:700; }
-  .quote .name { font-weight:700; font-size:.98rem; text-align:left; }
-  .quote .role { font-size:.8rem; color:var(--ink-soft); text-align:left; }
-  .stars { margin-bottom:20px; color:#fbbf24; font-size:1.1rem; letter-spacing:4px; }
-
-  /* ---------- CTA ---------- */
-  .cta-wrap { text-align:center; position:relative; }
-  .cta-card {
-    position:relative;
-    max-width:900px; margin:0 auto;
-    border-radius:32px;
-    padding:80px 40px;
-    overflow:hidden;
-    background:linear-gradient(135deg,#0ea5e9,#2563eb 55%,#1e4fd6);
-    color:#fff;
-    box-shadow: 0 60px 120px -40px rgba(30,64,175,.6);
-  }
-  .cta-card::before, .cta-card::after {
-    content:""; position:absolute; border-radius:50%;
-    background:rgba(255,255,255,.12); filter:blur(20px);
-  }
-  .cta-card::before { width:340px; height:340px; top:-140px; right:-80px; }
-  .cta-card::after { width:280px; height:280px; bottom:-120px; left:-60px; }
-  .cta-card h2 { color:#fff; position:relative; }
-  .cta-card p { color:#dce9ff; margin:20px auto 36px; max-width:44ch; font-size:1.1rem; line-height:1.65; position:relative; }
-  .cta-card .btn { position:relative; }
-  .cta-card .btn-white { background:#fff; color:var(--blue-700); box-shadow:0 10px 30px rgba(0,0,0,.2); }
-  .cta-card .btn-white:hover { transform:translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,.28); }
-  .cta-note { margin-top:18px; font-size:.82rem; opacity:.75; position:relative; }
-
-  /* ---------- Footer ---------- */
-  footer { background:#0b1220; color:#8aa0c2; padding:70px 24px 30px; }
-  .foot-grid { max-width:1180px; margin:0 auto; display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:40px; padding-bottom:50px; border-bottom:1px solid rgba(147,186,255,.1); }
-  .foot-brand p { margin-top:14px; font-size:.88rem; line-height:1.6; max-width:30ch; }
-  .foot-col h5 { color:#fff; font-size:.82rem; text-transform:uppercase; letter-spacing:.12em; margin-bottom:18px; }
-  .foot-col a { display:block; color:#8aa0c2; text-decoration:none; font-size:.9rem; padding:6px 0; transition:color .2s; }
-  .foot-col a:hover { color:#7fb2ff; }
-  .foot-bottom { max-width:1180px; margin:0 auto; padding-top:26px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:.8rem; }
-
-  /* ---------- Responsive ---------- */
-  @media (max-width: 900px) {
-    .nav-links { display:none; }
-    .burger { display:flex; }
-    .mock-body { grid-template-columns:1fr; }
-    .mock-side { flex-direction:row; overflow-x:auto; }
-    .float-card { display:none; }
-    .split { grid-template-columns:1fr; gap:56px; }
-    .foot-grid { grid-template-columns:1fr 1fr; }
-    .metrics { border-radius:0; }
-  }
-  @media (max-width: 520px) {
-    .foot-grid { grid-template-columns:1fr; }
-    .hero-cta .btn { width:100%; justify-content:center; }
-  }
-
-  .no-scroll { overflow:hidden; }
-  .mobile-menu {
-    position:fixed; inset:0; z-index:200;
-    background:rgba(255,255,255,.96);
-    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
-    display:none; flex-direction:column; align-items:center; justify-content:center; gap:26px;
-  }
-  .mobile-menu.open { display:flex; }
-  .mobile-menu a { font-size:1.5rem; font-weight:700; color:var(--ink); text-decoration:none; }
-</style>
+<!-- Evita tema escuro antes da primeira pintura (evita o "flash" branco). -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("media_theme");
+      if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    } catch (e) { /* localStorage indisponível */ }
+  })();
+</script>
 </head>
 <body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<div class="backdrop" aria-hidden="true"></div>
 
-<!-- Background blobs -->
-<div class="blob b1"></div>
-<div class="blob b2"></div>
-<div class="blob b3"></div>
+<!-- Ícones reutilizáveis (evita repetição e garante consistência de traço) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-video"><path d="M3 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm12 2 4-2.5v7L15 10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></g>
+    <g id="i-bot"><rect x="4" y="7" width="16" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v4M8.5 12v1.5M15.5 12v1.5M9 16.5h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="4" r="1" fill="currentColor"/></g>
+    <g id="i-rx"><path d="M6 20V6a2 2 0 0 1 2-2h1.5L8 20H6Zm4-7h9M16 13h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-folder"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></g>
+    <g id="i-queue"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g>
+    <g id="i-money"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 9.5v5M18 9.5v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g>
+    <g id="i-alert"><path d="M12 4 2.5 20h19L12 4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4.5M12 17.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
+    <g id="i-sun"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g>
+    <g id="i-moon"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></g>
+    <g id="i-menu"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
+    <g id="i-check"><path d="m5 12.5 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+  </defs>
+</svg>
 
-<!-- Nav -->
-<nav id="nav">
-  <div class="nav-inner">
-    <a class="logo" href="#top"><span class="logo-mark">M</span> MedIA</a>
-    <div class="nav-links">
+<!-- ===================== NAV ===================== -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span>MedIA</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Navegação principal">
       <a href="#recursos">Recursos</a>
-      <a href="/static/agenda_medico.html">Agenda Médica</a>
-      <a href="/static/painel_convenios.html">Convênios & TISS</a>
-      <a href="/static/dashboard_analytics.html">Analytics</a>
-      <a href="/docs" target="_blank">API Docs</a>
-      <button onclick="abrirModalLogin()" class="btn btn-ghost" style="font-size:0.9rem;">Entrar (SSO)</button>
-      <a href="/app" class="btn btn-primary">Acessar Cockpit MVP →</a>
-    </div>
-    <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
-  </div>
-</nav>
+      <a href="#fluxo">Como funciona</a>
+      <a href="#status">Status</a>
+      <a href="/docs">API</a>
+    </nav>
 
-<!-- Mobile menu -->
-<div class="mobile-menu" id="mobileMenu">
-  <a href="#recursos">Recursos</a>
-  <a href="#plataforma">Plataforma</a>
-  <a href="#impacto">Impacto</a>
-  <a href="#demo" class="btn btn-primary">Agendar demo</a>
-</div>
-
-<!-- Hero -->
-<header id="top">
-  <span class="badge"><span class="dot"></span> Prática Médica de Vanguarda · Consultório & Home Office (CFM 2.314/2022)</span>
-  <h1>A medicina <span class="grad">ágil, moderna</span> e conectada.</h1>
-  <p class="sub">O <b>MedIA Practice & Telemedicina OS</b> foi desenhado para o médico autônomo que atende no consultório presencial e realiza telemedicina em home office. Em estrita conformidade com a <b>Resolução CFM nº 2.314/2022</b>, com prontuário multi-especialidade, TCLE eletrônico, link direto no WhatsApp para o paciente (sem app) e prescrições com QR Code.</p>
-  <div class="hero-cta">
-    <a href="/app" class="btn btn-primary btn-lg">Acessar Consultório & Telemedicina <span class="arrow">→</span></a>
-    <a href="/app" class="btn btn-ghost btn-lg">Agenda do Médico</a>
-  </div>
-
-  <div class="mock-wrap" id="mockWrap">
-    <div class="mock-glow"></div>
-    <div class="mock">
-      <div class="mock-top">
-        <i></i><i></i><i></i>
-        <div class="mock-url">app.media-saude.com.br</div>
-      </div>
-      <div class="mock-body">
-        <div class="mock-side">
-          <a href="/app" style="text-decoration:none;" class="m-item on"><span class="m-ico">🏠</span> Prontuário SOAP</a>
-          <a href="/app" style="text-decoration:none;" class="m-item"><span class="m-ico">📹</span> Telemedicina</a>
-          <a href="/static/agenda_medico.html" style="text-decoration:none;" class="m-item"><span class="m-ico">📅</span> Agenda Médica</a>
-          <a href="/static/painel_convenios.html" style="text-decoration:none;" class="m-item"><span class="m-ico">📑</span> Convênios TISS</a>
-          <a href="/static/farmacia_dispensacao.html" style="text-decoration:none;" class="m-item"><span class="m-ico">💊</span> Farmácia & Baixa</a>
-          <a href="/static/dashboard_analytics.html" style="text-decoration:none;" class="m-item"><span class="m-ico">📊</span> Analytics</a>
-          <a href="/static/campanhas_saude.html" style="text-decoration:none;" class="m-item"><span class="m-ico">📢</span> Busca Ativa</a>
-        </div>
-        <div class="mock-main">
-          <div class="m-row">
-            <div class="m-title">Maria Silva · 47 anos</div>
-            <span class="m-chip">● Em consulta</span>
-          </div>
-          <div class="m-grid">
-            <div class="m-card"><div class="m-label">PA</div><div class="m-val">128 × 82 mmHg</div></div>
-            <div class="m-card"><div class="m-label">FC</div><div class="m-val">76 bpm</div></div>
-            <div class="m-card"><div class="m-label">IMC</div><div class="m-val">27,4</div></div>
-            <div class="m-card"><div class="m-label">SpO₂</div><div class="m-val">98%</div></div>
-          </div>
-          <div class="m-card">
-            <div class="m-label">Pressão arterial · últimas consultas</div>
-            <div class="m-bars"><span style="height:45%"></span><span style="height:62%"></span><span style="height:54%"></span><span style="height:75%"></span><span style="height:68%"></span><span style="height:88%"></span><span style="height:80%"></span></div>
-          </div>
-          <div class="m-ai">
-            <span class="m-ico">✦</span>
-            <p><b>Copiloto IA</b> · Redigindo SOAP automaticamente…<br>“Cefaleia em região occipital há 3 dias, sem febre…”</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="float-card fc1">
-      <div class="ic" style="background:rgba(37,99,235,.12)">📹</div>
-      <div><div class="t">HD + E2E</div><div class="s">Vídeo criptografado</div></div>
-    </div>
-    <div class="float-card fc2">
-      <div class="ic" style="background:rgba(34,197,94,.14)">🤖</div>
-      <div><div class="t">SOAP em segundos</div><div class="s">Rascunho automático</div></div>
+    <div class="nav-actions">
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
+        <svg width="22" height="22" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+      <button class="btn btn-secondary" id="themeToggle" type="button" aria-label="Alternar tema claro e escuro">
+        <svg width="16" height="16" aria-hidden="true"><use href="#i-moon" id="themeIcon"/></svg>
+      </button>
+      <a class="btn btn-primary" href="/app">Abrir o sistema <span class="arrow" aria-hidden="true">→</span></a>
     </div>
   </div>
 </header>
 
-<!-- Strip -->
-<div class="strip" id="strip">
-  <div class="wrap">
-    <p>Pronto para integrar com o ecossistema de saúde</p>
-    <div class="marquee">
-      <div class="marquee-track">
-        <span>🔒 ICP-Brasil</span><span>🏥 Prontuário SOAP</span><span>⚡ WebRTC HD</span><span>🧠 Copiloto IA Local</span><span>📑 TISS ANS 4.01</span><span>💰 Relatório DMED</span><span>🧬 LGPD</span>
-        <span>🔒 ICP-Brasil</span><span>🏥 Prontuário SOAP</span><span>⚡ WebRTC HD</span><span>🧠 Copiloto IA Local</span><span>📑 TISS ANS 4.01</span><span>💰 Relatório DMED</span><span>🧬 LGPD</span>
-      </div>
-    </div>
-  </div>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#recursos">Recursos</a>
+  <a href="#fluxo">Como funciona</a>
+  <a href="#status">Status</a>
+  <a href="/docs">Documentação da API</a>
+  <a href="/app">Abrir o sistema</a>
 </div>
 
-<!-- Features -->
-<section class="features" id="recursos">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="sec-label">Recursos</div>
-      <h2>Tudo que uma consulta moderna precisa, <span class="grad">em um só lugar</span>.</h2>
-      <p>Do agendamento à prescrição digital, pensado junto a quem vive o dia a dia da clínica.</p>
-    </div>
-    <div class="feat-grid">
-      <div class="feat-card reveal">
-        <div class="feat-ico">📹</div>
-        <h3>Teleconsulta Integrada</h3>
-        <p>Vídeo em alta definição dentro do prontuário — sem links externos. Criptografia ponta a ponta e gravação conforme a norma.</p>
-        <span class="tag">WebRTC</span>
-      </div>
-      <div class="feat-card reveal">
-        <div class="feat-ico">🤖</div>
-        <h3>Copiloto Clínico</h3>
-        <p>Ouvimos o diálogo da consulta e rascunhamos o SOAP automaticamente. Você revisa, aprova e assina em um clique.</p>
-        <span class="tag">Ambient Scribe</span>
-      </div>
-      <div class="feat-card reveal">
-        <div class="feat-ico">💊</div>
-        <h3>Prescrição Digital</h3>
-        <p>Receitas com assinatura ICP-Brasil e QR Code de autenticação, enviadas direto ao paciente por WhatsApp ou SMS.</p>
-        <span class="tag">CFM 2.314/2022</span>
-      </div>
-      <div class="feat-card reveal">
-        <div class="feat-ico">🛡️</div>
-        <h3>IA de Segurança</h3>
-        <p>Checagem automática de alergias, interações medicamentosas e contraindicações antes da prescrição ser liberada.</p>
-        <span class="tag">Farmacovigilância</span>
-      </div>
-      <div class="feat-card reveal">
-        <div class="feat-ico">🗂️</div>
-        <h3>Prontuário Longitudinal</h3>
-        <p>Histórico completo do paciente com CIAP-2 e CID-10, evolução SOAP e codificação com autocomplete em tempo real.</p>
-        <span class="tag">PEC / SOAP</span>
-      </div>
-      <div class="feat-card reveal">
-        <div class="feat-ico">📊</div>
-        <h3>Painel de Gestão</h3>
-        <p>Métricas de atendimento, tempo de espera, telemedicina e produtividade da equipe em dashboards dinâmicos.</p>
-        <span class="tag">Analytics</span>
-      </div>
-    </div>
-  </div>
-</section>
+<main id="conteudo">
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><span class="pulse" aria-hidden="true"></span> Em desenvolvimento ativo · v1</span>
 
-<!-- Spotlight -->
-<section class="spotlight" id="plataforma">
-  <div class="wrap split">
-    <div class="reveal">
-      <div class="sec-label">Copiloto de IA</div>
-      <h2>Enquanto você conversa, <span class="grad">o prontuário se escreve sozinho</span>.</h2>
-      <p>Durante a teleconsulta, nosso copiloto de IA escuta o diálogo, identifica dados clínicos e estrutura o SOAP automaticamente. A médica apenas revisa, corrige e aprova.</p>
-      <ul class="check-list">
-        <li><span class="ck">✓</span> Transcrição de áudio em tempo real (áudio do paciente e do profissional)</li>
-        <li><span class="ck">✓</span> Sugestão inteligente de CIAP-2 e CID-10</li>
-        <li><span class="ck">✓</span> Rascunho de plano terapêutico com base em protocolos</li>
-        <li><span class="ck">✓</span> Bloqueio de segurança contra alergias e interações</li>
-      </ul>
-    </div>
-    <div class="reveal">
-      <div class="phone">
-        <div class="phone-screen">
-          <div class="ph-top">
-            <small>Teleconsulta · 12:40</small>
-            <h4>Maria Silva</h4>
-            <div class="ph-call">● Ao vivo · 00:08:32</div>
+        <h1>Prontuário eletrônico e telemedicina para a atenção primária brasileira.</h1>
+
+        <p class="lede">
+          O MedIA reúne consulta SOAP, agenda, telemedicina, prescrição digital e
+          faturamento TISS/DMED em um só sistema — com as terminologias que o
+          SUS usa: <strong>CIAP-2, CID-10, CID-11, CNES e CNS</strong>. É software
+          livre: você audita o código que guarda os dados dos seus pacientes.
+        </p>
+
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="/app">
+            Abrir o Cockpit Clínico <span class="arrow" aria-hidden="true">→</span>
+          </a>
+          <button class="btn btn-secondary btn-lg" type="button" data-open-login>
+            Acessar com perfil de demonstração
+          </button>
+        </div>
+
+        <p class="hero-note">
+          <svg width="16" height="16" aria-hidden="true"><use href="#i-alert"/></svg>
+          <span>
+            <strong>Não use com prontuários reais ainda.</strong> O sistema está em
+            desenvolvimento e ainda não implementa o ciclo de vida do dado exigido
+            pela LGPD. A seção <a href="#status">Status</a> diz exatamente o que
+            funciona e o que falta.
+          </span>
+        </p>
+      </div>
+
+      <div class="mock" role="img" aria-label="Prévia da tela de atendimento com sinais vitais e rascunho de SOAP gerado pelo copiloto">
+        <div class="mock-bar">
+          <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+          <span class="url">localhost:8000/app</span>
+        </div>
+        <div class="mock-main">
+          <div class="mock-head">
+            <span class="mock-patient">Atendimento em curso</span>
+            <span class="chip chip-live">● Em consulta</span>
           </div>
-          <div class="ph-body">
-            <div class="ph-bubble pac">Doutora, comecei a sentir uma dor de cabeça que não passa…</div>
-            <div class="ph-bubble doc">Entendi. Essa dor começou quando? E o que você costuma usar?</div>
-            <div class="ph-soap">
-              <b>✍ Copiloto IA · rascunhando SOAP</b>
-              <p>S: Cefaleia há 3 dias em região occipital, sem febre, associada a PA elevada…<br>O: PA 138×90 · FC 78 · Oroscopia sem alterações.<br>A: K86 · Hipertensão arterial (suspeita)</p>
-            </div>
+
+          <div class="vitals">
+            <div class="vital"><div class="k">PA</div><div class="v">128×82</div></div>
+            <div class="vital"><div class="k">FC</div><div class="v">76 bpm</div></div>
+            <div class="vital"><div class="k">IMC</div><div class="v">27,4</div></div>
+            <div class="vital"><div class="k">SpO₂</div><div class="v">98%</div></div>
           </div>
-          <div class="ph-actions">
-            <div class="ph-btn">Aprovar SOAP</div>
+
+          <div class="soap">
+            <h4><svg width="13" height="13" aria-hidden="true"><use href="#i-bot"/></svg> Copiloto clínico</h4>
+            <b>S</b> Cefaleia occipital há 3 dias, sem febre.<br />
+            <b>O</b> PA 138×90 · FC 78 · Oroscopia sem alterações.<br />
+            <b>A</b> <b>K86</b> · Hipertensão arterial (suspeita).
           </div>
         </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- Metrics -->
-<section class="metrics" id="impacto">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="sec-label">Impacto</div>
-      <h2>Menos digitação. <span class="grad">Mais cuidado.</span></h2>
-      <p>O tempo economizado com burocracia volta para quem mais importa.</p>
+  <!-- ===================== NÚMEROS VERIFICÁVEIS ===================== -->
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <ul class="stats" style="list-style:none;margin:0;padding:0">
+        <li class="stat"><span class="n">85</span><span class="l">rotas na API REST documentada</span></li>
+        <li class="stat"><span class="n">30</span><span class="l">tabelas com migração versionada</span></li>
+        <li class="stat"><span class="n">496</span><span class="l">testes automatizados passando</span></li>
+        <li class="stat"><span class="n">MIT</span><span class="l">licença de software livre</span></li>
+      </ul>
     </div>
-    <div class="metric-grid">
-      <div class="metric reveal"><div class="num" data-count="70">0</div><div class="lbl">% menos tempo em prontuário</div></div>
-      <div class="metric reveal"><div class="num" data-count="100">0<span style="font-size:.6em">%</span></div><div class="lbl">consultas com rascunho de SOAP</div></div>
-      <div class="metric reveal"><div class="num" data-count="24">0<span style="font-size:.6em">/7</span></div><div class="lbl">telemedicina disponível</div></div>
-      <div class="metric reveal"><div class="num" data-count="0">0<span style="font-size:.6em">ms</span></div><div class="lbl">latência de vídeo</div></div>
-    </div>
-  </div>
-</section>
+  </section>
 
-<!-- Testimonial -->
-<section class="testimonial" id="seguranca">
-  <div class="wrap quote reveal">
-    <div class="sec-label">Segurança</div>
-    <div class="stars">★★★★★</div>
-    <p class="big">“O copiloto <b>entende o fluxo real da consulta</b>. Em vez de digitar, eu volto meu tempo para o paciente — e a receita sai assinada digitalmente, dentro da norma.”</p>
-    <div class="who">
-      <div class="avatar">LM</div>
-      <div>
-        <div class="name">Dra. Letícia Mendes</div>
-        <div class="role">Médica de Família e Comunidade · Cofundadora MedIA Saúde</div>
+  <!-- ===================== RECURSOS ===================== -->
+  <section class="section" id="recursos">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="section-label">O que já funciona</span>
+        <h2>Da agendamento à receita, no mesmo prontuário.</h2>
+        <p>
+          Cada item abaixo está implementado e coberto por testes. Nada da lista
+          depende de roadmap.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-folder"/></svg></div>
+          <h3>Prontuário SOAP</h3>
+          <p>Anamnese, sinais vitais com antropometria, hipóteses diagnósticas e plano terapêutico estruturado, com histórico longitudinal do paciente.</p>
+          <span class="card-tag">PEC</span>
+        </article>
+
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-video"/></svg></div>
+          <h3>Telemedicina</h3>
+          <p>Agendamento de teleconsultas, sala virtual, fluxo de chamada e registro do Termo de Consentimento com IP e user-agent.</p>
+          <span class="card-tag">WebRTC</span>
+        </article>
+
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-bot"/></svg></div>
+          <h3>Copiloto clínico</h3>
+          <p>Rascunho de SOAP a partir da consulta, codificação cruzada entre CIAP-2, CID-10 e CID-11, e checagem de interações Rename/Anvisa.</p>
+          <span class="card-tag">IA generativa</span>
+        </article>
+
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-rx"/></svg></div>
+          <h3>Prescrição em PDF</h3>
+          <p>Receitas e atestados com QR Code de verificação de integridade — hash SHA-256 do documento, para conferência posterior.</p>
+          <span class="card-tag">ReportLab</span>
+        </article>
+
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-queue"/></svg></div>
+          <h3>Agenda e fila</h3>
+          <p>Fila de acolhimento com triagem, agenda médica multi-clínica e fluxo de atendimento do agendamento à alta.</p>
+          <span class="card-tag">Operação</span>
+        </article>
+
+        <article class="card reveal">
+          <div class="card-icon"><svg width="22" height="22" aria-hidden="true"><use href="#i-money"/></svg></div>
+          <h3>Faturamento</h3>
+          <p>Guias TISS com exportação XML, controle financeiro, Pix e relatório DMED para a Receita Federal.</p>
+          <span class="card-tag">ANS 4.01</span>
+        </article>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- CTA -->
-<section id="demo" style="padding-top:40px;">
-  <div class="wrap cta-wrap reveal">
-    <div class="cta-card">
-      <h2>Pronta para evoluir a sua prática?</h2>
-      <p>Agende uma demonstração personalizada e veja como o MedIA pode transformar o seu consultório hoje.</p>
-      <a href="/app" class="btn btn-white btn-lg">Iniciar Consulta no Cockpit <span class="arrow">→</span></a>
-      <div class="cta-note">Sem compromisso · Sem cartão de crédito</div>
-    </div>
-  </div>
-</section>
+  <!-- ===================== FLUXO ===================== -->
+  <section class="section" id="fluxo" style="background:var(--bg-elevated);border-block:1px solid var(--border)">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="section-label">Como funciona</span>
+        <h2>Quatro passos, sem trocar de sistema.</h2>
+        <p>O prontuário é o centro: tudo o que acontece na consulta entra nele e sai dele.</p>
+      </div>
 
-<!-- Footer -->
-<footer>
-  <div class="foot-grid">
-    <div class="foot-brand">
-      <a class="logo" href="#top" style="color:#fff;"><span class="logo-mark">M</span> MedIA</a>
-      <p>Telemedicina e inteligência artificial para profissionais que querem cuidar melhor — e digitar menos.</p>
+      <ol class="steps reveal" style="list-style:none;margin:0;padding:0">
+        <li class="step">
+          <h3>Agendar</h3>
+          <p>A recepção marca a consulta e o paciente entra na fila de acolhimento com a classificação de risco.</p>
+        </li>
+        <li class="step">
+          <h3>Atender</h3>
+          <p>Presencial ou teleconsulta. O copiloto rascunha o SOAP enquanto a consulta acontece.</p>
+        </li>
+        <li class="step">
+          <h3>Codificar</h3>
+          <p>CIAP-2, CID-10 e CID-11 com busca cruzada. Alergias e interações conferidas antes de liberar a receita.</p>
+        </li>
+        <li class="step">
+          <h3>Faturar</h3>
+          <p>Guia TISS gerada em XML e lançada no financeiro, com trilha de auditoria encadeada por hash.</p>
+        </li>
+      </ol>
     </div>
-    <div class="foot-col">
-      <h5>Produto</h5>
-      <a href="#recursos">Teleconsulta</a>
-      <a href="#recursos">Copiloto de IA</a>
-      <a href="#recursos">Prescrição digital</a>
-      <a href="#recursos">Prontuário</a>
+  </section>
+
+  <!-- ===================== STATUS HONESTO ===================== -->
+  <section class="section" id="status">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="section-label">Status</span>
+        <h2>O que é real, e o que ainda não é.</h2>
+        <p>
+          Preferimos listar as limitações a declarar conformidade que não existe.
+          Esta seção acompanha o código — não é material de marketing.
+        </p>
+      </div>
+
+      <div class="status-list reveal">
+        <div class="status-item">
+          <span class="badge-flex badge-ok"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> Funciona</span>
+          <div>
+            <strong>Autenticação e multi-unidade</strong>
+            <p>JWT com senha PBKDF2 e MFA/TOTP, quatro papéis (médico, médica de família, recepção, gestor) e troca de unidade ativa. Todas as rotas clínicas exigem <code>Bearer</code> fora de desenvolvimento.</p>
+          </div>
+        </div>
+
+        <div class="status-item">
+          <span class="badge-flex badge-ok"><svg width="11" height="11" aria-hidden="true"><use href="#i-check"/></svg> Funciona</span>
+          <div>
+            <strong>Schema versionado e testes no CI</strong>
+            <p>As 30 tabelas são criadas por migração Alembic, e não por <code>create_all</code> — colunas novas não somem silenciosamente. Cada <em>push</em> roda 496 testes, além do CodeQL.</p>
+          </div>
+        </div>
+
+        <div class="status-item">
+          <span class="badge-flex badge-warn"><svg width="11" height="11" aria-hidden="true"><use href="#i-alert"/></svg> Em andamento</span>
+          <div>
+            <strong>Isolamento entre clínicas e perfis</strong>
+            <p>A autenticação é exigida, mas as consultas ao banco ainda não filtram por unidade. Um médico autenticado pode, hoje, ler prontuário de outra clínica. É a frente nº 1 do roadmap.</p>
+          </div>
+        </div>
+
+        <div class="status-item">
+          <span class="badge-flex badge-warn"><svg width="11" height="11" aria-hidden="true"><use href="#i-alert"/></svg> Em andamento</span>
+          <div>
+            <strong>Ciclo de vida do dado (LGPD)</strong>
+            <p>Não há política de retenção, anonimização, backup testado nem criptografia em repouso. A trilha de auditoria registra login, mas ainda não registra acesso ao prontuário.</p>
+          </div>
+        </div>
+
+        <div class="status-item">
+          <span class="badge-flex badge-off">Não implementado</span>
+          <div>
+            <strong>Assinatura digital ICP-Brasil e login SSO federado</strong>
+            <p>O QR Code das receitas é um hash de integridade interno, <strong>não</strong> uma assinatura ICP-Brasil. O botão de SSO é um mock de interface: o <code>id_token</code> não é validado contra a JWKS do provedor e o recurso é desativado em produção.</p>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="foot-col">
-      <h5>Empresa</h5>
-      <a href="#">Sobre nós</a>
-      <a href="#">Carreiras</a>
-      <a href="#">Parcerias</a>
-      <a href="#">Blog</a>
+  </section>
+
+  <!-- ===================== INSTALAÇÃO ===================== -->
+  <section class="section" style="background:var(--bg-elevated);border-block:1px solid var(--border)">
+    <div class="wrap grid-2" style="align-items:center">
+      <div class="reveal">
+        <span class="section-label">Instalação</span>
+        <h2 style="font-size:var(--text-3xl);margin-bottom:var(--space-4)">Três comandos para rodar local.</h2>
+        <p style="color:var(--text-muted);margin-bottom:var(--space-5)">
+          Na primeira execução o sistema aplica a migração do banco e popula os
+          dados de demonstração sozinho. Não há passo manual de schema.
+        </p>
+        <a class="btn btn-primary" href="/docs">Ver a documentação da API <span class="arrow" aria-hidden="true">→</span></a>
+      </div>
+
+      <div class="code-block reveal" role="region" aria-label="Comandos de instalação">
+<span class="c"># 1. ambiente</span>
+python -m venv .venv
+<span class="k">source</span> .venv/bin/activate   <span class="c"># Windows: .venv\Scripts\activate</span>
+
+<span class="c"># 2. dependências</span>
+pip install -r requirements.txt
+
+<span class="c"># 3. subir (migra e semeia sozinho)</span>
+<span class="k">cd</span> backend &amp;&amp; uvicorn app.main:app --reload</div>
     </div>
-    <div class="foot-col">
-      <h5>Legal</h5>
-      <a href="#">Privacidade (LGPD)</a>
-      <a href="#">Termos de uso</a>
-      <a href="#">Segurança</a>
-      <a href="#">Conformidade CFM</a>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="section">
+    <div class="wrap">
+      <div class="cta reveal">
+        <h2>Abra e clique por conta própria.</h2>
+        <p>
+          Nenhum dado real é necessário para avaliar. Entre com um dos perfis de
+          demonstração e navegue pelo fluxo completo de atendimento.
+        </p>
+        <button class="btn btn-white btn-lg" type="button" data-open-login>
+          Entrar com perfil de demonstração <span class="arrow" aria-hidden="true">→</span>
+        </button>
+        <p class="cta-note">Ambiente de demonstração · dados fictícios</p>
+      </div>
     </div>
-  </div>
-  <div class="foot-bottom">
-    <span>© 2026 MedIA. Todos os direitos reservados.</span>
-    <span>Feito com cuidado para a saúde brasileira.</span>
+  </section>
+</main>
+
+<!-- ===================== RODAPÉ ===================== -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">M</span><span>MedIA</span></a>
+        <p>Software livre de prontuário eletrônico e telemedicina para a saúde brasileira.</p>
+      </div>
+
+      <div>
+        <h5>Sistema</h5>
+        <ul>
+          <li><a href="/app">Cockpit Clínico</a></li>
+          <li><a href="/docs">Documentação da API</a></li>
+          <li><a href="#status">Status do projeto</a></li>
+          <li><a href="#recursos">Recursos</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h5>Padrões</h5>
+        <ul>
+          <li><a href="#recursos">CIAP-2</a></li>
+          <li><a href="#recursos">CID-10</a></li>
+          <li><a href="#recursos">CID-11 (OMS)</a></li>
+          <li><a href="#recursos">TISS ANS 4.01</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h5>Transparência</h5>
+        <ul>
+          <li><a href="/docs">OpenAPI</a></li>
+          <li><a href="#status">Limitações conhecidas</a></li>
+          <li><a href="#status">Roadmap</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>MedIA — software livre sob licença MIT.</span>
+      <span>Software em desenvolvimento. Não use com dados reais de pacientes.</span>
+    </div>
   </div>
 </footer>
 
-<script>
-  // Nav scroll state
-  const nav = document.getElementById('nav');
-  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 30);
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
+<!-- ===================== MODAL DE ACESSO ===================== -->
+<div class="modal-backdrop" id="loginModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle" style="position:relative">
+    <button class="modal-close" type="button" data-close-login aria-label="Fechar">&times;</button>
 
-  // Mobile menu
-  const burger = document.getElementById('burger');
-  const menu = document.getElementById('mobileMenu');
-  burger.addEventListener('click', () => {
-    menu.classList.toggle('open');
-    document.body.classList.toggle('no-scroll');
-  });
-  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-    menu.classList.remove('open');
-    document.body.classList.remove('no-scroll');
-  }));
+    <h2 id="loginTitle">Acesso ao sistema</h2>
+    <p class="sub">Escolha um perfil para entrar no ambiente de demonstração.</p>
 
-  // Reveal on scroll
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
-  }, { threshold: 0.12 });
-  document.querySelectorAll('.reveal, #strip').forEach(el => io.observe(el));
-
-  // Animated counters
-  const cio = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (!e.isIntersecting) return;
-      const el = e.target;
-      const target = +el.dataset.count;
-      const dur = 1600; const start = performance.now();
-      const tick = (now) => {
-        const p = Math.min((now - start) / dur, 1);
-        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString('pt-BR');
-        if (p < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-      cio.unobserve(el);
-    });
-  }, { threshold: 0.5 });
-  document.querySelectorAll('.metric .num').forEach(el => cio.observe(el));
-
-  // Mock parallax tilt on mouse
-  const mock = document.querySelector('.mock');
-  const wrap = document.getElementById('mockWrap');
-  wrap.addEventListener('mousemove', (ev) => {
-    const r = wrap.getBoundingClientRect();
-    const x = (ev.clientX - r.left) / r.width - .5;
-    const y = (ev.clientY - r.top) / r.height - .5;
-    mock.style.transform = `rotateX(${-y * 5}deg) rotateY(${x * 7}deg)`;
-  });
-  wrap.addEventListener('mouseleave', () => { mock.style.transform = 'rotateX(2deg) rotateY(-3deg)'; });
-
-  // Smooth anchor offset
-  document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      const id = a.getAttribute('href');
-      if (id.length > 1 && document.querySelector(id)) {
-        e.preventDefault();
-        document.querySelector(id).scrollIntoView({ behavior: 'smooth' });
-      }
-    });
-  });
-
-  // Modal SSO Login
-  function abrirModalLogin() {
-    document.getElementById('modalLogin').style.display = 'flex';
-  }
-  function fecharModalLogin() {
-    document.getElementById('modalLogin').style.display = 'none';
-  }
-
-  async function loginDemo(role) {
-    try {
-      const btn = event.currentTarget;
-      btn.style.opacity = '0.5';
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: `${role}@media-saude.com.br`, demo_role: role })
-      });
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('media_token', data.access_token);
-        localStorage.setItem('media_user', JSON.stringify(data.usuario));
-        window.location.href = '/app';
-      } else {
-        alert('Erro ao realizar login de demonstração: ' + (data.detail || 'Tente novamente'));
-      }
-    } catch (e) {
-      alert('Erro na conexão com o servidor.');
-    }
-  }
-
-  async function loginSSO(provider) {
-    try {
-      const res = await fetch(`/api/v1/auth/sso/${provider}/callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: provider, id_token: `sso_${provider}_token_sample` })
-      });
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('media_token', data.access_token);
-        localStorage.setItem('media_user', JSON.stringify(data.usuario));
-        window.location.href = '/app';
-      }
-    } catch (e) {
-      alert('Falha ao conectar ao provedor SSO ' + provider);
-    }
-  }
-</script>
-
-<!-- Modal de Autenticação Moderna e SSO -->
-<div id="modalLogin" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(11,18,32,0.75); backdrop-filter:blur(10px); align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; border-radius:20px; width:100%; max-width:440px; padding:32px; box-shadow:0 30px 60px rgba(0,0,0,0.3); border:1px solid rgba(59,118,246,0.2); position:relative;">
-    <button onclick="fecharModalLogin()" style="position:absolute; top:20px; right:20px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">✕</button>
-    
-    <div style="text-align:center; margin-bottom:24px;">
-      <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#3b76f6,#1e40af); color:#fff; display:grid; place-items:center; font-weight:800; font-size:1.3rem; margin:0 auto 12px; box-shadow:0 6px 16px rgba(37,99,235,0.3);">M</div>
-      <h3 style="font-size:1.4rem; color:#0f172a; margin-bottom:4px; font-weight:700;">Acessar o MedIA</h3>
-      <p style="color:#64748b; font-size:0.88rem;">Plataforma Clínica Inteligente & Telemedicina</p>
-    </div>
-
-    <!-- Botões SSO -->
-    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
-      <button onclick="loginSSO('google')" style="display:flex; align-items:center; justify-content:center; gap:12px; width:100%; padding:12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; font-weight:600; font-size:0.95rem; cursor:pointer; transition:all 0.2s; color:#1e293b;">
-        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-        Continuar com Google
+    <div class="modal-group">
+      <h3>Perfis disponíveis</h3>
+      <button class="role-btn" type="button" data-demo-role="medico_titular">
+        <svg width="20" height="20" aria-hidden="true"><use href="#i-rx"/></svg>
+        <span><span class="t">Médico titular</span><br /><span class="d">Acesso a duas unidades · CRM/MG 65432</span></span>
       </button>
 
-      <button onclick="loginSSO('microsoft')" style="display:flex; align-items:center; justify-content:center; gap:12px; width:100%; padding:12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; font-weight:600; font-size:0.95rem; cursor:pointer; transition:all 0.2s; color:#1e293b;">
-        <svg width="20" height="20" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
-        Continuar com Microsoft
+      <button class="role-btn" type="button" data-demo-role="medica_familia">
+        <svg width="20" height="20" aria-hidden="true"><use href="#i-folder"/></svg>
+        <span><span class="t">Médica de família</span><br /><span class="d">Prontuário longitudinal · CRM/MG 78910</span></span>
+      </button>
+
+      <button class="role-btn" type="button" data-demo-role="secretaria">
+        <svg width="20" height="20" aria-hidden="true"><use href="#i-queue"/></svg>
+        <span><span class="t">Recepção</span><br /><span class="d">Fila, agenda e guias TISS</span></span>
+      </button>
+
+      <button class="role-btn" type="button" data-demo-role="admin">
+        <svg width="20" height="20" aria-hidden="true"><use href="#i-money"/></svg>
+        <span><span class="t">Gestor</span><br /><span class="d">Faturamento TISS e DMED</span></span>
       </button>
     </div>
 
-    <!-- Divisor -->
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-      <div style="flex:1; height:1px; background:#e2e8f0;"></div>
-      <span style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">Demonstração Instantânea</span>
-      <div style="flex:1; height:1px; background:#e2e8f0;"></div>
-    </div>
-
-    <!-- Acesso Rápido de Teste por Papel RBAC -->
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <button onclick="loginDemo('medico_titular')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid rgba(59,118,246,0.3); background:#f0f7ff; cursor:pointer; transition:all 0.2s;">
-        <div style="font-weight:700; font-size:0.88rem; color:#1d4ed8;">👨‍⚕️ Dr. João Paulo Versiani</div>
-        <div style="font-size:0.75rem; color:#64748b;">Médico Titular · CRM/MG 65432 · Multi-Clínica</div>
-      </button>
-      <button onclick="loginDemo('medica_familia')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
-        <div style="font-weight:700; font-size:0.88rem; color:#334155;">👩‍⚕️ Dra. Letícia Mendes</div>
-        <div style="font-size:0.75rem; color:#64748b;">Médica de Família · CRM/MG 78910 · Telemedicina</div>
-      </button>
-      <button onclick="loginDemo('secretaria')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
-        <div style="font-weight:700; font-size:0.88rem; color:#334155;">📋 Recepção & Agendamento</div>
-        <div style="font-size:0.75rem; color:#64748b;">Maria Auxiliadora · Gestão de Fila e Guias TISS</div>
-      </button>
-      <button onclick="loginDemo('admin')" style="text-align:left; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all 0.2s;">
-        <div style="font-weight:700; font-size:0.88rem; color:#334155;">⚙️ Administrador da Clínica</div>
-        <div style="font-size:0.75rem; color:#64748b;">Carlos Eduardo · Faturamento TISS ANS & DMED</div>
-      </button>
-    </div>
+    <p class="modal-note" id="loginHint">
+      Estes perfis não exigem senha e existem apenas em desenvolvimento. Em
+      staging e produção o acesso por demonstração é recusado pelo servidor.
+    </p>
   </div>
 </div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Tema claro/escuro ---------- */
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeToggle");
+
+  function aplicarIconeTema() {
+    var escuro = root.dataset.theme === "dark";
+    var use = themeBtn.querySelector("use");
+    use.setAttribute("href", escuro ? "#i-sun" : "#i-moon");
+    themeBtn.setAttribute("aria-label", escuro ? "Ativar tema claro" : "Ativar tema escuro");
+  }
+
+  themeBtn.addEventListener("click", function () {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("media_theme", root.dataset.theme); } catch (e) {}
+    aplicarIconeTema();
+  });
+  aplicarIconeTema();
+
+  /* ---------- Estado da navegação ---------- */
+  var nav = document.getElementById("nav");
+  function aoRolar() { nav.dataset.scrolled = String(window.scrollY > 24); }
+  window.addEventListener("scroll", aoRolar, { passive: true });
+  aoRolar();
+
+  /* ---------- Menu mobile ---------- */
+  var toggle = document.getElementById("navToggle");
+  var menu = document.getElementById("mobileMenu");
+
+  function fecharMenu() {
+    menu.dataset.open = "false";
+    toggle.setAttribute("aria-expanded", "false");
+  }
+  toggle.addEventListener("click", function () {
+    var aberto = menu.dataset.open === "true";
+    menu.dataset.open = String(!aberto);
+    toggle.setAttribute("aria-expanded", String(!aberto));
+  });
+  menu.addEventListener("click", function (ev) {
+    if (ev.target.closest("a")) fecharMenu();
+  });
+
+  /* ---------- Revelação no scroll ---------- */
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add("is-visible");
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("is-visible"); });
+  }
+
+  /* ---------- Modal de acesso ---------- */
+  var modal = document.getElementById("loginModal");
+  var hint = document.getElementById("loginHint");
+  var ultimoFoco = null;
+
+  function abrirModal() {
+    ultimoFoco = document.activeElement;
+    modal.hidden = false;
+    var primeiro = modal.querySelector(".role-btn");
+    if (primeiro) primeiro.focus();
+  }
+
+  function fecharModal() {
+    modal.hidden = true;
+    if (ultimoFoco && ultimoFoco.focus) ultimoFoco.focus();
+  }
+
+  document.querySelectorAll("[data-open-login]").forEach(function (b) {
+    b.addEventListener("click", abrirModal);
+  });
+  modal.addEventListener("click", function (ev) {
+    if (ev.target === modal || ev.target.closest("[data-close-login]")) fecharModal();
+  });
+
+  /* Foco preso dentro do modal enquanto ele estiver aberto. */
+  modal.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") { fecharModal(); return; }
+    if (ev.key !== "Tab") return;
+
+    var focaveis = modal.querySelectorAll("button, [href], input, select, textarea");
+    if (!focaveis.length) return;
+    var primeiro = focaveis[0];
+    var ultimo = focaveis[focaveis.length - 1];
+
+    if (ev.shiftKey && document.activeElement === primeiro) {
+      ev.preventDefault(); ultimo.focus();
+    } else if (!ev.shiftKey && document.activeElement === ultimo) {
+      ev.preventDefault(); primeiro.focus();
+    }
+  });
+
+  /* ---------- Login de demonstração ---------- */
+  function textoErro(detalhe) {
+    if (detalhe && /não (está|habilitad|dispon)/i.test(detalhe)) {
+      return "O acesso por demonstração está desativado neste ambiente. " +
+             "Isso é esperado fora de desenvolvimento — a API responde 403/503.";
+    }
+    if (detalhe) return detalhe;
+    return "Não foi possível entrar. Verifique se o servidor está rodando.";
+  }
+
+  document.querySelectorAll("[data-demo-role]").forEach(function (botao) {
+    botao.addEventListener("click", async function () {
+      var botoes = modal.querySelectorAll("[data-demo-role]");
+      botoes.forEach(function (b) { b.disabled = true; });
+      hint.textContent = "Entrando…";
+
+      try {
+        var resposta = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ demo_role: botao.dataset.demoRole })
+        });
+        var dados = await resposta.json();
+
+        if (resposta.ok && dados.access_token) {
+          localStorage.setItem("media_token", dados.access_token);
+          localStorage.setItem("media_user", JSON.stringify(dados.usuario));
+          window.location.href = "/app";
+          return;
+        }
+        hint.textContent = textoErro(dados && dados.detail);
+      } catch (erro) {
+        hint.textContent = "Não foi possível falar com o servidor. Ele está rodando?";
+      } finally {
+        botoes.forEach(function (b) { b.disabled = false; });
+      }
+    });
+  });
+})();
+</script>
 </body>
 </html>

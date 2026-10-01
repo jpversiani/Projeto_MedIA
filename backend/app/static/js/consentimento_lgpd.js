@@ -10,7 +10,7 @@
  *      com suavização de traço por curvas quadráticas;
  *   3. Gerar o hash SHA-256 do aceite (Web Crypto API) para integridade do registro;
  *   4. Registrar metadados de auditoria: IP, User-Agent e data/hora (ISO 8601);
- *   5. Enviar o registro via POST /api/v1/consentimento.
+ *   5. Enviar o registro via POST /api/v1/telemedicina/tcle/registrar.
  *
  * Uso (ES Module):
  *   import { abrirModalConsentimento } from '/static/js/consentimento_lgpd.js';
@@ -36,8 +36,12 @@ export const FINALIDADE_PADRAO = 'teleconsulta-aps';
  * Endpoint do backend responsável por persistir o consentimento.
  * O servidor DEVE registrar também o IP real da conexão (comparando com o
  * IP informado pelo cliente, que é apenas complementar/auditoria).
+ *
+ * Este caminho estava errado: apontava para `/api/v1/consentimento`, rota que
+ * NUNCA existiu. O POST caía em 404 e o termo de consentimento — exigido pela
+ * CFM 2.314/2022 — nunca era gravado. A rota real é a de registro de TCLE.
  */
-const ENDPOINT_PADRAO = '/api/v1/consentimento';
+const ENDPOINT_PADRAO = '/api/v1/telemedicina/tcle/registrar';
 
 /** Cor do traço da assinatura (azul-grafite da paleta Tailwind slate-900). */
 const COR_TINTA = '#0f172a';
@@ -678,7 +682,7 @@ function prenderFoco(raiz) {
  * @property {string}  [nomePaciente] Nome completo do paciente.
  * @property {string}  [idAgendamento] Identificador do agendamento da teleconsulta.
  * @property {{nome?: string, registro?: string}} [profissional] Médico responsável (nome e CRM).
- * @property {string}  [endpoint] Endpoint de registro (padrão: /api/v1/consentimento).
+ * @property {string}  [endpoint] Endpoint de registro (padrão: /api/v1/telemedicina/tcle/registrar).
  * @property {string}  [versaoTermo] Versão do termo exibido.
  * @property {string}  [finalidade] Finalidade do tratamento de dados.
  */

@@ -97,15 +97,23 @@ function alternarTema() {
 function aplicarTema(tema) {
   const icon = document.getElementById("theme-toggle-icon");
   const text = document.getElementById("theme-toggle-text");
+  const raiz = document.documentElement;
+
+  // O Cockpit usa a classe `dark` do Tailwind; a landing e o design system
+  // (`css/theme.css`) usam o atributo `data-theme`. Aplicamos os dois para que
+  // qualquer página do sistema leia a MESMA preferência (chave `media_theme`)
+  // e compartilhe a mesma paleta.
   if (tema === "dark") {
-    document.documentElement.classList.add("dark");
+    raiz.classList.add("dark");
+    raiz.dataset.theme = "dark";
     localStorage.setItem("media_theme", "dark");
     if (icon) {
       icon.className = "fa-solid fa-sun text-amber-400 text-xs";
     }
     if (text) text.textContent = "Claro";
   } else {
-    document.documentElement.classList.remove("dark");
+    raiz.classList.remove("dark");
+    raiz.dataset.theme = "light";
     localStorage.setItem("media_theme", "light");
     if (icon) {
       icon.className = "fa-solid fa-moon text-amber-400 text-xs";

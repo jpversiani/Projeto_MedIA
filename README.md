@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg)](https://fastapi.tiangolo.com)
-[![Tests](https://img.shields.io/badge/Pytest-469%20passing-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-496%20passing-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Plataforma de prontuário eletrônico, telemedicina, prescrição e faturamento
@@ -122,7 +122,7 @@ Papéis disponíveis: `medico_titular`, `medica_familia`, `secretaria`, `admin`.
 pytest -q          # a partir da raiz do repositório
 ```
 
-**469 testes, todos passando.** A suíte roda em SQLite em memória e é
+**496 testes, todos passando.** A suíte roda em SQLite em memória e é
 hermética: não toca no banco de desenvolvimento, e o seed e as migrações são
 desligados durante os testes.
 
@@ -169,7 +169,7 @@ Projeto_MedIA/
 │   │   ├── services/       # Regras clínicas, CFM, ANS, SHA-256
 │   │   ├── static/         # Cockpit, landing e módulos JS
 │   │   └── main.py         # Entrada FastAPI
-│   ├── tests/              # 48 arquivos, 469 testes
+│   ├── tests/              # 50 arquivos, 496 testes
 │   └── requirements.txt
 ├── docs/                   # ROADMAP_V1.md e demais documentos
 ├── scripts/

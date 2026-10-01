@@ -6,27 +6,41 @@
  * 
  * Uso:
  *   const copiloto = new CopilotoSidebar({
- *     alertasUrl: '/api/copiloto/alertas',
- *     examesUrl: '/api/copiloto/exames',
- *     soapUrl: '/api/copiloto/soap',
- *     pollingInterval: 30000, // ms
- *     targetSoapField: '#soap-textarea' // seletor CSS do campo SOAP
+ *     atendimentoId: 42,                       // obrigatório: identifica o atendimento
+ *     pollingInterval: 30000,                  // ms
+ *     targetSoapField: '#soap-textarea'        // seletor CSS do campo SOAP
  *   });
+ *
+ * NOTA SOBRE OS ENDPOINTS: os caminhos padrão usados aqui antes estavam errados
+ * — faltava o prefixo `/v1` e o segmento `/atendimentos/{id}`, então toda
+ * chamada retornava 404 e o painel nunca exibiu nada. Os caminhos reais estão
+ * em `app/api/v1/copiloto.py` e conferem com a constante de versão da API.
+ *
+ * `examesUrl` ficou sem valor padrão: NÃO existe endpoint de exames no backend.
+ * Deixá-lo configurável permite ligar quando o recurso for implementado, em vez
+ * de disparar um fetch que sempre falha.
  */
+const API_V1 = '/api/v1';
+
 class CopilotoSidebar {
   /**
    * @param {Object} config - Configurações do widget.
-   * @param {string} [config.alertasUrl='/api/copiloto/alertas'] - Endpoint para alertas.
-   * @param {string} [config.examesUrl='/api/copiloto/exames'] - Endpoint para exames.
-   * @param {string} [config.soapUrl='/api/copiloto/soap'] - Endpoint para sugestão SOAP.
+   * @param {number|string} config.atendimentoId - ID do atendimento (obrigatório).
+   * @param {string} [config.alertasUrl] - Sobrescreve o endpoint de alertas.
+   * @param {string} [config.examesUrl] - Endpoint de exames. Sem padrão: não implementado no backend.
+   * @param {string} [config.soapUrl] - Sobrescreve o endpoint de sugestão SOAP.
    * @param {number} [config.pollingInterval=30000] - Intervalo de atualização em ms.
    * @param {string} [config.targetSoapField='#soap-textarea'] - Seletor do campo SOAP.
    */
   constructor(config = {}) {
+    const atendimentoId = config.atendimentoId;
+    const base = atendimentoId != null ? `/atendimentos/${encodeURIComponent(atendimentoId)}` : '';
+
     this.config = {
-      alertasUrl: config.alertasUrl || '/api/copiloto/alertas',
-      examesUrl: config.examesUrl || '/api/copiloto/exames',
-      soapUrl: config.soapUrl || '/api/copiloto/soap',
+      atendimentoId,
+      alertasUrl: config.alertasUrl || `${API_V1}/copiloto${base}/alertas`,
+      examesUrl: config.examesUrl || null,
+      soapUrl: config.soapUrl || `${API_V1}/copiloto/ia/gerar-soap`,
       pollingInterval: config.pollingInterval || 30000,
       targetSoapField: config.targetSoapField || '#soap-textarea',
     };
@@ -151,6 +165,17 @@ class CopilotoSidebar {
    * @private
    */
   async _loadExames() {
+    // Não existe endpoint de exames no backend. Sem `examesUrl` configurado,
+    // mostramos o estado real em vez de disparar um fetch que sempre daria 404.
+    if (!this.config.examesUrl) {
+      this.examesList.innerHTML = '';
+      const li = document.createElement('li');
+      li.textContent = 'Sugestão de exames ainda não disponível.';
+      li.className = 'sem-exame';
+      this.examesList.appendChild(li);
+      return;
+    }
+
     try {
       const response = await fetch(this.config.examesUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -169,11 +194,14 @@ class CopilotoSidebar {
       exames.forEach(exame => {
         const li = document.createElement('li');
         li.className = 'exame';
-        li.innerHTML = `<strong>${exame.nome}</strong> - ${exame.dosagem || 'Dosagem não especificada'}`;
+        // textContent em vez de innerHTML: `nome` e `dosagem` vêm da API e
+        // interpolá-los em HTML é um sink de XSS.
+        li.textContent = `${exame.nome} — ${exame.dosagem || 'dosagem não especificada'}`;
         this.examesList.appendChild(li);
       });
     } catch (error) {
       console.error('Erro ao carregar exames:', error);
+      this.examesList.innerHTML = '';
       const li = document.createElement('li');
       li.textContent = 'Erro ao carregar exames.';
       li.className = 'erro';

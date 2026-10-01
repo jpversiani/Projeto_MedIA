@@ -520,8 +520,21 @@
     /** Versão do esquema do formulário (incrementar ao mudar o formato do JSON). */
     const VERSAO_FORMULARIO = "1.0";
 
-    /** Endpoint da API v1 que recebe a anamnese estruturada (ajustável por sprint). */
-    const ENDPOINT_ANAMNESE = "/api/v1/atendimentos/anamnese";
+    /**
+     * Endpoint da API v1 que recebe a anamnese estruturada.
+     *
+     * O caminho anterior tinha o sufixo `/anamnese`, que não existe: a rota
+     * casa com `GET /atendimentos/{atendimento_id}` e o POST caía em 405.
+     * A rota real de criação é `POST /api/v1/atendimentos/`.
+     *
+     * ATENÇÃO — CONTRATO AINDA NÃO FECHADO (ver docs/ROADMAP_V1.md, P2):
+     * `POST /atendimentos/` espera um `AtendimentoSOAPCreate`, que exige
+     * `cidadao_id` (chave primária). Este formulário coleta identificação por
+     * CNS/CPF e ainda não resolve o paciente para um `cidadao_id`. Por isso o
+     * envio é rejeitado com 422 até essa etapa existir — e a mensagem abaixo
+     * explica isso ao usuário em vez de mostrar um erro genérico.
+     */
+    const ENDPOINT_ANAMNESE = "/api/v1/atendimentos/";
 
     /** Atraso do debounce do autosave (ms) — evita gravar a cada tecla digitada. */
     const ATRASO_AUTOSAVE_MS = 600;
@@ -1203,8 +1216,29 @@
         });
         if (resposta.ok) {
           exibirToast("sucesso", "Anamnese registrada com sucesso na API.");
+        } else if (resposta.status === 422) {
+          // 422 = validação de schema. A causa conhecida é o `cidadao_id`
+          // ausente; mostramos a informação útil em vez de um HTTP seco.
+          let detalhe = "";
+          try {
+            const corpo = await resposta.json();
+            if (Array.isArray(corpo.detail)) {
+              detalhe = corpo.detail.map((d) => d.loc?.join(".") + ": " + d.msg).join("; ");
+            } else if (typeof corpo.detail === "string") {
+              detalhe = corpo.detail;
+            }
+          } catch (e) { /* corpo não-JSON */ }
+          exibirToast(
+            "erro",
+            "A API recusou o envio (HTTP 422). Este formulário ainda não resolve " +
+            "o paciente para `cidadao_id`, exigido por POST /atendimentos/. " +
+            "Use o botão Copia JSON para levar os dados manualmente." +
+            (detalhe ? ` Detalhe: ${detalhe}` : "")
+          );
+        } else if (resposta.status === 401) {
+          exibirToast("erro", "Sessão expirada. Entre novamente para enviar a anamnese.");
         } else {
-          exibirToast("erro", `A API respondeu com HTTP ${resposta.status} — verifique o endpoint.`);
+          exibirToast("erro", `A API respondeu com HTTP ${resposta.status}.`);
         }
       } catch (erro) {
         exibirToast("erro", "Falha de conexão com a API. O JSON permanece disponível para cópia.");

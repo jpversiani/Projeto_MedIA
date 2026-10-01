@@ -227,19 +227,61 @@ exposição regulatória.
 8. Backup/restauração, retenção e um `SECURITY.md` para reporte de vulnerabilidade.
 
 **Depois — produto**
-9. Ligar ou remover os 68% de frontend morto.
+9. Ligar ou remover o frontend morto (Copiloto, fila, consentimento,
+   acessibilidade, sincronização offline, gráficos) — 68% do código de UI.
 10. Trocar as quatro abas de dados fictícios por chamadas reais.
-11. Corrigir os seis endpoints divergentes, começando pelo consentimento LGPD.
-12. Acessibilidade do Cockpit.
+11. Acessibilidade do Cockpit (`index.html` não tem `role`, `aria-*` nem
+    `tabindex`; 10 modais sem `role="dialog"` nem foco preso).
+
+### Ainda pendente do front-end (parcialmente corrigido nesta iteração)
+
+- **`anamnese_form.html` não fecha contrato com a API.** O caminho foi
+  corrigido para `POST /api/v1/atendimentos/`, mas esse endpoint exige
+  `cidadao_id` e o formulário só coleta CNS/CPF. Falta resolver o paciente
+  para a chave primária antes de mapear anamnese → SOAP. Hoje o envio é
+  rejeitado com 422 e a interface explica o motivo ao usuário.
+- **`GET /api/copiloto/exames` não tem contraparte no backend.** O painel agora
+  mostra "ainda não disponível" em vez de disparar um fetch que sempre daria
+  404. Ou implementa a rota, ou o recurso permanece fora do produto.
+- **`GET /api/v1/notificacoes/pendientes`** (`js/notificacoes_push.js`) segue
+  sem endpoint correspondente.
+- **Service worker mente.** `sw.js:43-52` devolve **HTTP 200** com
+  `{"offline": true}` quando a rede cai; como todo guard é `if (res.ok)`, a
+  aplicação exibe "vazio" em vez de "offline". Ele sequer é registrado por
+  nenhuma página. Deve responder 503 e ser registrado (ou removido).
+- **XSS em outros pontos.** Restam 28 atribuições a `innerHTML` com dados da
+  API; o autocomplete CID-11 (`app.js:1200-1212`) escapa só `'` dentro de
+  atributo com aspas duplas.
+- **Rascunho de anamnese em `localStorage`** guarda CNS, CPF, alergias e
+  medicamentos sem expiração nem criptografia — PHI persistente em máquina
+  compartilhada.
+
+### Prevenção adicionada
+
+`backend/tests/test_contrato_frontend.py` (24 testes) varre todo o HTML/JS
+estático, remove comentários e confere cada URL de API contra a tabela de
+rotas real do OpenAPI — é o que impede o retorno dos endpoints divergentes.
+Há ainda um teste que reprova qualquer `.html` que na verdade seja saída de
+`tree` ou código-fonte: dois desses estavam sendo servidos publicamente em
+`/static/` e foram removidos.
 
 ---
 
 ## 5. Nota sobre o texto do projeto
 
-O `README.md` foi reescrito para corresponder ao que o código faz. As
-alegações que não se sustentam no código foram removidas ou rebaixadas:
-"integração nativa com Google Workspace e Microsoft Entra ID" (o SSO é um mock
-sem validação), "assinatura no padrão ICP-Brasil" (não há chamada de rede) e
-"vídeo E2E" (o WebRTC oferece DTLS-SRTP em trânsito; um relay TURN encerra o
-transporte). A conformidade LGPD/CFM **não está implementada** — o README agora
-diz isso explicitamente.
+O `README.md` e a **landing page** foram reescritos para descrever o que o
+código faz. Alegações que não se sustentam foram removidas ou rebaixadas:
+
+| Alegação antiga | O que o código faz | Como ficou na landing |
+|---|---|---|
+| "estrita conformidade CFM 2.314/2022" | Sem retenção, auditoria de acesso ou ciclo de vida do dado | Aviso no hero + seção Status |
+| "assinatura ICP-Brasil" | Sem chamada de rede; o carimbo é um UUID | "hash de integridade interno, **não** assinatura ICP-Brasil" |
+| "criptografia ponta a ponta / E2E" | WebRTC com DTLS-SRTP; relay TURN encerra o transporte | Removido |
+| "LGPD" em marquee de integrações | Não implementada | Removido |
+| "70% menos tempo em prontuário", "0ms de latência" | Nenhuma medição feita | Removido; no lugar, números verificáveis do próprio repositório (85 rotas, 30 tabelas, 496 testes) |
+| Depoimento de "Dra. Letícia Mendes, cofundadora" | Pessoa fictícia, sem dado real | Removido; no lugar, uma seção **Status** que lista o que funciona e o que não |
+
+Números hoje publicados na landing (85 rotas, 30 tabelas, 496 testes) são
+verificáveis no próprio repositório e conferidos por teste. A seção Status é
+mantida junto do código: quando uma pendência for fechada, a landing e este
+documento devem mudar juntos.
