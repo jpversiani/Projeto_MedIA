@@ -13,7 +13,7 @@ def test_gerar_termo_consentimento_tcle_sucesso():
         telefone_whatsapp="38999887766"
     )
     medico = MedicoIdentificacaoCFM(
-        nome_completo="Dr. João Paulo Versiani",
+        nome_completo="Dra. Francelli Neves Versiani",
         crm="78421",
         uf_crm="MG",
         rqe="39412",
@@ -22,7 +22,7 @@ def test_gerar_termo_consentimento_tcle_sucesso():
 
     tcle = MotorCFMTelemedicina.gerar_termo_consentimento_tcle(paciente, medico, modalidade="TELECONSULTA")
     assert tcle["norma_regulamentar"] == "CFM-2314/2022"
-    assert "Dr. João Paulo Versiani" in tcle["texto_integral"]
+    assert "Dra. Francelli Neves Versiani" in tcle["texto_integral"]
     assert "CRM: 78421-MG" in tcle["texto_integral"]
     assert "RQE: 39412" in tcle["texto_integral"]
     assert "Carlos Eduardo Pereira" in tcle["texto_integral"]
@@ -68,7 +68,7 @@ def test_gerar_link_paciente_whatsapp():
     link_info = MotorCFMTelemedicina.gerar_link_paciente(
         codigo_sala="sala_teste_99",
         nome_paciente="Roberto Fagundes",
-        nome_medico="Dr. João Paulo Versiani",
+        nome_medico="Dra. Francelli Neves Versiani",
         base_url="https://mediahealth.com.br",
         telefone_whatsapp="38991234567"
     )
@@ -79,7 +79,7 @@ def test_gerar_link_paciente_whatsapp():
 
 def test_emitir_registro_conversao_presencial():
     medico = MedicoIdentificacaoCFM(
-        nome_completo="Dr. João Paulo Versiani",
+        nome_completo="Dra. Francelli Neves Versiani",
         crm="78421",
         uf_crm="MG"
     )

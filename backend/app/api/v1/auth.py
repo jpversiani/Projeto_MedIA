@@ -86,7 +86,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
                 detail="Login de demonstração indisponível neste ambiente.",
             )
         role_map = {
-            "medico_titular": ("dr.versiani@media-saude.com.br", "Dr. João Paulo Versiani", PapelUsuarioEnum.MEDICO),
+            "medico_titular": ("dra.francelli@media-saude.com.br", "Dra. Francelli Neves Versiani", PapelUsuarioEnum.MEDICO),
             "medica_familia": ("dra.leticia@media-saude.com.br", "Dra. Letícia Mendes", PapelUsuarioEnum.MEDICO),
             "secretaria": ("recepcao@media-saude.com.br", "Maria Auxiliadora (Recepção)", PapelUsuarioEnum.RECEPCAO),
             "admin": ("admin@media-saude.com.br", "Carlos Eduardo (Gestor)", PapelUsuarioEnum.ADMIN),
@@ -94,6 +94,19 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         if payload.demo_role in role_map:
             email, nome, papel = role_map[payload.demo_role]
             usuario = db.query(Usuario).filter(Usuario.email == email).first()
+            if not usuario and payload.demo_role == "medico_titular":
+                # Migra registro legado em bancos existentes
+                usuario = db.query(Usuario).filter(Usuario.email == "dr.versiani@media-saude.com.br").first()
+                if usuario:
+                    usuario.email = email
+                    usuario.nome = nome
+                    db.commit()
+                    db.refresh(usuario)
+            if usuario and payload.demo_role == "medico_titular" and usuario.nome != nome:
+                usuario.nome = nome
+                usuario.email = email
+                db.commit()
+                db.refresh(usuario)
             if not usuario:
                 usuario = Usuario(
                     email=email,

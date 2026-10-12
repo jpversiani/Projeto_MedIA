@@ -180,7 +180,7 @@ def test_tcle_gerar_retorna_texto_y_hash_sha256(client):
         json={
             "paciente_nome": "Paciente Flujo Consulta",
             "paciente_cpf": CPF_PACIENTE,
-            "medico_nome": "Dr. João Paulo Versiani",
+            "medico_nome": "Dra. Francelli Neves Versiani",
             "medico_crm": CRM_MEDICO,
             "medico_uf": UF_MEDICO,
             "medico_rqe": "39412",
@@ -230,7 +230,7 @@ def test_link_paciente_genera_url_y_whatsapp(client):
         f"/api/v1/telemedicina/link-paciente/{codigo_sala}",
         params={
             "paciente_nome": "Paciente Flujo Consulta",
-            "medico_nome": "Dr. João Paulo Versiani",
+            "medico_nome": "Dra. Francelli Neves Versiani",
             "telefone": "38991234567",
         },
     )
@@ -263,7 +263,7 @@ def test_converter_presencial_registra_motivo_y_hash(client):
             "teleconsulta_id": consulta_id,
             "paciente_nome": "Paciente Flujo Consulta",
             "motivo_clinico": "Dolor precordial con sudoración fría, sospecha de síndrome coronario agudo.",
-            "medico_nome": "Dr. João Paulo Versiani",
+            "medico_nome": "Dra. Francelli Neves Versiani",
             "medico_crm": CRM_MEDICO,
             "medico_uf": UF_MEDICO,
         },

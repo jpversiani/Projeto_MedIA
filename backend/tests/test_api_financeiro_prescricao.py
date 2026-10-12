@@ -8,7 +8,7 @@ client = TestClient(app)
 def test_api_gerar_pix_cobranca():
     payload = {
         "chave_pix": "12345678901",
-        "nome_beneficiario": "Dr. Joao Paulo Versiani",
+        "nome_beneficiario": "Dra. Francelli Neves Versiani",
         "cidade_beneficiario": "Montes Claros",
         "valor": 350.00,
         "descricao": "Consulta Telemedicina"
@@ -35,7 +35,7 @@ def test_api_emitir_prescricao_e_validar():
     payload = {
         "paciente_nome": "Beatriz Viana",
         "paciente_cpf": "99988877766",
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": "78421",
         "medico_uf": "MG",
         "tipo": "SIMPLES",
@@ -65,7 +65,7 @@ def test_api_emitir_atestado():
     payload = {
         "paciente_nome": "Carlos Pereira",
         "paciente_cpf": "11122233344",
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": "78421",
         "medico_uf": "MG",
         "dias_afastamento": 2

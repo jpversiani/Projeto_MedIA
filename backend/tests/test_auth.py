@@ -51,7 +51,7 @@ def test_login_demo_role_medico_retorna_token(client):
     body = resp.json()
     assert body["token_type"] == "bearer"
     assert body["access_token"]
-    assert body["usuario"]["email"] == "dr.versiani@media-saude.com.br"
+    assert body["usuario"]["email"] == "dra.francelli@media-saude.com.br"
 
 
 def test_login_demo_role_secretaria_papel_recepcao(client):
@@ -196,7 +196,7 @@ def test_me_token_valido_retorna_perfil(client):
     token = login.json()["access_token"]
     resp = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
-    assert resp.json()["email"] == "dr.versiani@media-saude.com.br"
+    assert resp.json()["email"] == "dra.francelli@media-saude.com.br"
 
 
 def test_me_token_usuario_inativo_retorna_404(client, db_session):

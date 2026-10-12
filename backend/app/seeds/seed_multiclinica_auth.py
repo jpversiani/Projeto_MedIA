@@ -55,13 +55,16 @@ def seed_multiclinica():
             med1 = Profissional(
                 cns="702000123456789",
                 cpf="09876543211",
-                nome="Dr. João Paulo Versiani",
+                nome="Dra. Francelli Neves Versiani",
                 cbo="225142",
-                cbo_descricao="Médico de Família e Comunidade (CRM/MG 65432)"
+                cbo_descricao="Médica de Família e Comunidade (CRM/MG 78421)"
             )
             db.add(med1)
             db.commit()
             db.refresh(med1)
+        else:
+            med1.nome = "Dra. Francelli Neves Versiani"
+            db.commit()
 
         med2 = db.query(Profissional).filter(Profissional.cpf == "12312312399").first()
         if not med2:
@@ -78,7 +81,7 @@ def seed_multiclinica():
 
         # 3. Usuários e Vínculos Multi-Clínica
         users_data = [
-            ("dr.versiani@media-saude.com.br", "Dr. João Paulo Versiani", PapelUsuarioEnum.MEDICO, med1.id, True),
+            ("dra.francelli@media-saude.com.br", "Dra. Francelli Neves Versiani", PapelUsuarioEnum.MEDICO, med1.id, True),
             ("dra.leticia@media-saude.com.br", "Dra. Letícia Mendes", PapelUsuarioEnum.MEDICO, med2.id, False),
             ("recepcao@media-saude.com.br", "Maria Auxiliadora (Recepção)", PapelUsuarioEnum.RECEPCAO, None, False),
             ("admin@media-saude.com.br", "Carlos Eduardo (Gestor)", PapelUsuarioEnum.ADMIN, None, True),

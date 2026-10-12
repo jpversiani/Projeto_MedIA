@@ -9,7 +9,7 @@ def test_emitir_prescricao_e_download_pdf():
     payload = {
         "paciente_nome": "Mariana Souza Alencar",
         "paciente_cpf": "12345678901",
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": "78421",
         "medico_uf": "MG",
         "tipo": "SIMPLES",
@@ -49,7 +49,7 @@ def test_emitir_atestado_e_download_pdf():
     payload = {
         "paciente_nome": "Carlos Roberto Prado",
         "paciente_cpf": "98765432100",
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": "78421",
         "medico_uf": "MG",
         "dias_afastamento": 5,

@@ -36,13 +36,13 @@ def test_totp_mfa_rfc6238():
 
 def test_login_demo_medico_titular(client):
     res = client.post("/api/v1/auth/login", json={
-        "email": "dr.versiani@media-saude.com.br",
+        "email": "dra.francelli@media-saude.com.br",
         "demo_role": "medico_titular"
     })
     assert res.status_code == 200
     data = res.json()
     assert "access_token" in data
-    assert data["usuario"]["nome"] == "Dr. João Paulo Versiani"
+    assert data["usuario"]["nome"] == "Dra. Francelli Neves Versiani"
     assert data["usuario"]["clinica_ativa"]["papel"] == "MEDICO"
     assert len(data["usuario"]["vinculos"]) >= 1
 
@@ -110,7 +110,7 @@ def test_multi_tenancy_switch_clinic(client, db_session):
         db_session.refresh(segunda)
 
     login_res = client.post("/api/v1/auth/login", json={
-        "email": "dr.versiani@media-saude.com.br",
+        "email": "dra.francelli@media-saude.com.br",
         "demo_role": "medico_titular"
     })
     assert login_res.status_code == 200
@@ -161,7 +161,7 @@ def test_switch_clinic_negado_para_unidade_sem_vinculo(client, db_session):
 
 def test_audit_trail_immutable(client):
     login_res = client.post("/api/v1/auth/login", json={
-        "email": "dr.versiani@media-saude.com.br",
+        "email": "dra.francelli@media-saude.com.br",
         "demo_role": "medico_titular"
     })
     token = login_res.json()["access_token"]

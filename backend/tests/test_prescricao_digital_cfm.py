@@ -6,7 +6,7 @@ def test_emitir_prescricao_e_validar_publicamente():
     doc = MotorPrescricaoCFM.emitir_prescricao(
         paciente_nome="Juliana Mendes Prado",
         paciente_cpf="45678912344",
-        medico_nome="Dr. João Paulo Versiani",
+        medico_nome="Dra. Francelli Neves Versiani",
         medico_crm="78421",
         medico_uf="MG",
         medico_rqe="39412",
@@ -40,7 +40,7 @@ def test_emitir_atestado_e_validar():
     doc = MotorPrescricaoCFM.emitir_atestado(
         paciente_nome="Roberto Carlos Fagundes",
         paciente_cpf="98765432100",
-        medico_nome="Dr. João Paulo Versiani",
+        medico_nome="Dra. Francelli Neves Versiani",
         medico_crm="78421",
         medico_uf="MG",
         dias_afastamento=5,

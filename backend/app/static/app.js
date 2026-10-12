@@ -1005,8 +1005,9 @@ function enviarPrescricaoWhatsApp() {
   if (!ultimaPrescricaoEmitida) return;
   const pac = document.getElementById("presc-paciente-nome").value;
   const url = ultimaPrescricaoEmitida.url_validacao_local || ultimaPrescricaoEmitida.url_validacao_publica;
+  const medico = (identificacaoMedicoDaSessao && identificacaoMedicoDaSessao().nome) || "Dra. Francelli Neves Versiani";
   const msg = encodeURIComponent(
-    `Olá, ${pac}!\nSua receita médica eletrônica já está pronta e assinada digitalmente pelo Dr. João Paulo Versiani (CFM 2.314/2022).\n\n` +
+    `Olá, ${pac}!\nSua receita médica eletrônica já está pronta e assinada digitalmente por ${medico} (CFM 2.314/2022).\n\n` +
     `Código de Validação: ${ultimaPrescricaoEmitida.codigo_validacao}\n` +
     `Acesse ou apresente na farmácia através do link oficial:\n${url}`
   );
@@ -1099,8 +1100,9 @@ function enviarAtestadoWhatsApp() {
   if (!ultimoAtestadoEmitido) return;
   const pac = document.getElementById("atestado-paciente-nome").value;
   const url = ultimoAtestadoEmitido.url_validacao_local || ultimoAtestadoEmitido.url_validacao_publica;
+  const medico = (identificacaoMedicoDaSessao && identificacaoMedicoDaSessao().nome) || "Dra. Francelli Neves Versiani";
   const msg = encodeURIComponent(
-    `Olá, ${pac}!\nSeu atestado médico digital já está disponível e autenticado pelo Dr. João Paulo Versiani.\n\n` +
+    `Olá, ${pac}!\nSeu atestado médico digital já está disponível e autenticado por ${medico}.\n\n` +
     `Código Validador: ${ultimoAtestadoEmitido.codigo_validacao}\n` +
     `Verifique ou faça o download oficial através do link:\n${url}`
   );

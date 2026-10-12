@@ -62,7 +62,7 @@ def _payload(itens: list[dict] | None = None, **sustituciones) -> dict:
     payload = {
         "paciente_nome": "Paciente Receta Digital",
         "paciente_cpf": CPF_PACIENTE,
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": CRM_MEDICO,
         "medico_uf": UF_MEDICO,
         "medico_rqe": "39412",
@@ -189,7 +189,7 @@ def test_validar_receita_publicamente(client):
     assert datos["codigo"] == codigo
     assert datos["status"] == "VALIDA"
     assert datos["tipo_receita"] == "SIMPLES"
-    assert datos["medico"] == f"Dr. João Paulo Versiani (CRM {CRM_MEDICO}-{UF_MEDICO})"
+    assert datos["medico"] == f"Dra. Francelli Neves Versiani (CRM {CRM_MEDICO}-{UF_MEDICO})"
     assert datos["hash_sha256"] == emitida["hash_integridade"]
     assert any("Amoxicilina" in item for item in datos["itens"])
 
@@ -280,7 +280,7 @@ def test_motor_emite_documento_con_hash_y_repositorio():
     doc = MotorPrescricaoCFM.emitir_prescricao(
         paciente_nome="Paciente Receta Digital",
         paciente_cpf=CPF_PACIENTE,
-        medico_nome="Dr. João Paulo Versiani",
+        medico_nome="Dra. Francelli Neves Versiani",
         medico_crm=CRM_MEDICO,
         medico_uf=UF_MEDICO,
         medico_rqe="39412",

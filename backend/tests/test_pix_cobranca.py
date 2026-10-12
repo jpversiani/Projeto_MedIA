@@ -12,7 +12,7 @@ def test_calcular_crc16():
 def test_gerar_pix_copia_e_cola_sucesso():
     dados = DadosCobrancaPix(
         chave_pix="12345678901",
-        nome_beneficiario="Dr. Joao Paulo Versiani",
+        nome_beneficiario="Dra. Francelli Versiani",
         cidade_beneficiario="Montes Claros",
         valor=350.00,
         identificador_transacao="CONSULTA101",
@@ -22,7 +22,7 @@ def test_gerar_pix_copia_e_cola_sucesso():
 
     assert resultado["txid"] == "CONSULTA101"
     assert resultado["chave_pix"] == "12345678901"
-    assert resultado["beneficiario"] == "DR. JOAO PAULO VERSIANI"
+    assert resultado["beneficiario"] == "DRA. FRANCELLI VERSIANI"
     assert resultado["valor"] == "350.00"
     assert "br.gov.bcb.pix" in resultado["pix_copia_e_cola"]
     assert resultado["pix_copia_e_cola"].endswith(resultado["crc16"])

@@ -33,7 +33,7 @@ def _payload_prescripcion(itens: list[dict]) -> dict:
     return {
         "paciente_nome": "Paciente Interacciones",
         "paciente_cpf": CPF_PACIENTE,
-        "medico_nome": "Dr. João Paulo Versiani",
+        "medico_nome": "Dra. Francelli Neves Versiani",
         "medico_crm": CRM_MEDICO,
         "medico_uf": UF_MEDICO,
         "medico_rqe": "39412",
