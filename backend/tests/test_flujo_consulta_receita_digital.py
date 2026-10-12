@@ -202,58 +202,65 @@ def test_validar_codigo_inexistente_devuelve_404(client):
 
 
 # ---------------------------------------------------------------------------
-# Casos negativos — LAGUNAS de validación del schema
+# Validación del schema — las lagunas fueron cerradas
+#
+# Estos cuatro casos ANTES afirmaban el comportamiento defectuoso como si fuera
+# contrato: `itens=[]` era aceito com 201, e um ítem sem `farmaco`/`posologia`
+# devolvia **HTTP 500** (KeyError no serviço). Os testes documentavam a lacuna
+# honestamente no docstring, mas a consagravam na asserção — o que impedia que
+# qualquer correção fosse feita sem "quebrar a suíte".
+#
+# O schema agora valida o contrato inteiro. Uma receita sem medicamento não é
+# dispensável, e erro de entrada do cliente é 422, nunca 500.
 # ---------------------------------------------------------------------------
 
-def test_emitir_receita_sin_items_es_aceptada(client):
-    """LAGUNA: lista de ítems vacía NO es rechazada (201).
-
-    El schema ``EmitirPrescricaoRequest.itens`` es ``List[Dict[str, str]]``
-    sin ``min_length``: una receta sin medicamentos se emite como VALIDA.
-    Debería ser 422 (una receta sin ítems no es dispensable).
-    """
+def test_emitir_receita_sin_items_es_rechazada(client):
+    """Lista de ítems vacía → 422 (una receta sin medicamentos no es dispensable)."""
     response = client.post("/api/v1/prescricao/emitir", json=_payload(itens=[]))
-    assert response.status_code == 201, response.text
-    assert response.json()["status"] == "VALIDA"
+    assert response.status_code == 422, response.text
 
 
-def test_emitir_receita_item_sin_farmaco_genera_error_500(client_sin_relanzar_excepciones):
-    """LAGUNA: ítem sin 'farmaco' genera 500 (KeyError) en vez de 422.
-
-    El schema no valida las claves internas de cada ítem; el servicio accede
-    con ``it["farmaco"]`` y lanza KeyError → 500 Internal Server Error.
-    Debería ser 422 con validación del schema.
-    """
+def test_emitir_receita_item_sin_farmaco_es_rechazado(client):
+    """Ítem sin 'farmaco' → 422 con validación, no 500."""
     item_invalido = _item()
     del item_invalido["farmaco"]
-    response = client_sin_relanzar_excepciones.post(
+    response = client.post(
         "/api/v1/prescricao/emitir", json=_payload(itens=[item_invalido])
     )
-    assert response.status_code == 500
+    assert response.status_code == 422, response.text
+    campos = [
+        ".".join(str(p) for p in erro.get("loc", []))
+        for erro in response.json().get("detail", [])
+    ]
+    assert any("farmaco" in c for c in campos), campos
 
 
-def test_emitir_receita_item_sin_posologia_genera_error_500(client_sin_relanzar_excepciones):
-    """LAGUNA: ítem sin 'posologia' genera 500 (KeyError) en vez de 422."""
+def test_emitir_receita_item_sin_posologia_es_rechazado(client):
+    """Ítem sin 'posologia' → 422 con validación, no 500."""
     item_invalido = _item()
     del item_invalido["posologia"]
-    response = client_sin_relanzar_excepciones.post(
+    response = client.post(
         "/api/v1/prescricao/emitir", json=_payload(itens=[item_invalido])
     )
-    assert response.status_code == 500
+    assert response.status_code == 422, response.text
+    campos = [
+        ".".join(str(p) for p in erro.get("loc", []))
+        for erro in response.json().get("detail", [])
+    ]
+    assert any("posologia" in c for c in campos), campos
 
 
-def test_emitir_receita_sin_campos_medico_es_aceptada(client):
-    """LAGUNA: omitir campos del médico (CRM) NO es rechazado (201).
+def test_emitir_receita_sin_campos_medico_es_rechazada(client):
+    """Omitir el CRM → 422.
 
-    El schema ``EmitirPrescricaoRequest`` tiene valores por defecto para
-    ``medico_nome``, ``medico_crm`` y ``medico_uf``: una receta sin CRM
-    explícito se emite con el médico por defecto. Debería exigir CRM.
+    Antes el schema tenía ``medico_crm = "78421"`` como valor por defecto: una
+    receta sin CRM explícito se emitía firmada por un médico que no la emitió.
+    Eso es riesgo ético y legal, no un valor por defecto conveniente.
     """
     payload = _payload()
     del payload["medico_crm"]
     response = client.post("/api/v1/prescricao/emitir", json=payload)
-    assert response.status_code == 201, response.text
-    assert response.json()["status"] == "VALIDA"
+    assert response.status_code == 422, response.text
 
 
 def test_emitir_receita_sin_paciente_rechazada(client):

@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
 from app.models.estabelecimento import Estabelecimento
-from app.models.profissional import Profissional
 from app.schemas.auth import UsuarioOut, VinculoClinicaOut, TokenResponse
 from app.core.config import settings
 
@@ -173,7 +172,6 @@ class AuthService:
         
         for v in vinculos:
             est = db.query(Estabelecimento).filter(Estabelecimento.id == v.estabelecimento_id).first()
-            prof = db.query(Profissional).filter(Profissional.id == v.profissional_id).first() if v.profissional_id else None
             
             vout = VinculoClinicaOut(
                 id=v.id,
@@ -182,7 +180,17 @@ class AuthService:
                 cnes=est.cnes if est else "0000000",
                 papel=v.papel.value,
                 profissional_id=v.profissional_id,
-                crm=prof.cbo if prof else None,
+                # Este campo expunha `prof.cbo` — o Código Brasileiro de
+                # Ocupações (ex.: "225142"), que identifica a OCUPAÇÃO e não o
+                # registro do médico. O front-end exibia esse código como se
+                # fosse o CRM do profissional.
+                #
+                # A tabela `profissionais` (models/profissional.py) não possui
+                # coluna de CRM nem de UF, então não há dado correto a expor.
+                # Retornamos None e a interface informa que o CRM não está
+                # cadastrado, em vez de mostrar um número que não é o CRM.
+                # Resolver isso é parte da Etapa 3 (conformidade CFM Art. 5º).
+                crm=None,
                 is_default=v.is_default
             )
             vinculos_out.append(vout)

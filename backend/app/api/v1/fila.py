@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
@@ -8,6 +9,18 @@ from app.schemas.fila import FilaAcolhimentoCreate, FilaAcolhimentoUpdate, FilaA
 
 router = APIRouter(prefix="/fila", tags=["Fila de Atendimento & Acolhimento"])
 
+# Ordem de prioridade clínica (triagem de risco). Vermelho é emergência e deve
+# ser atendido antes de qualquer caso menos grave, independentemente da ordem
+# de chegada — é o princípio da triagem de Manchester.
+_ORDEM_RISCO = case(
+    (FilaAcolhimento.classificacao_risco == "VERMELHO", 0),
+    (FilaAcolhimento.classificacao_risco == "AMARELO", 1),
+    (FilaAcolhimento.classificacao_risco == "VERDE", 2),
+    (FilaAcolhimento.classificacao_risco == "AZUL", 3),
+    else_=4,  # sem classificação vai para o fim
+)
+
+
 @router.get("/", response_model=List[FilaAcolhimentoOut])
 def listar_fila(
     status: Optional[str] = Query("AGUARDANDO_ATENDIMENTO", description="Filtrar por status"),
@@ -16,10 +29,14 @@ def listar_fila(
     query = db.query(FilaAcolhimento)
     if status and status != "TODOS":
         query = query.filter(FilaAcolhimento.status == status)
-    
-    # Ordenar por prioridade de risco: VERMELHO > AMARELO > VERDE > AZUL, depois por data_hora_entrada
+
+    # A query ordenava APENAS por data_hora_entrada, apesar do comentário acima
+    # prometer prioridade por risco. Na prática, um caso VERMELHO (emergência)
+    # entrava atrás de dez casos AZUL. A ordenação agora é risco primeiro e,
+    # dentro do mesmo risco, ordem de chegada.
     return query.order_by(
-        FilaAcolhimento.data_hora_entrada.asc()
+        _ORDEM_RISCO.asc(),
+        FilaAcolhimento.data_hora_entrada.asc(),
     ).all()
 
 @router.post("/", response_model=FilaAcolhimentoOut, status_code=201)

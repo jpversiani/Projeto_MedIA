@@ -18,25 +18,57 @@ from app.services.prescricao_digital_cfm import (
 router = APIRouter(prefix="/prescricao", tags=["Prescrição Digital CFM"])
 
 
+class ItemPrescricao(BaseModel):
+    """Um medicamento prescrito.
+
+    Antes o campo era `List[Dict[str, str]]` sem validação de chaves internas.
+    O serviço acessava `it["farmaco"]` e `it["posologia"]` diretamente
+    (`prescricao_digital_cfm.py:93,96`), então um item sem essas chaves — ou
+    uma lista vazia — derrubava a requisição com `KeyError` e devolvia **HTTP
+    500** em vez de 422. Num sistema clínico, um documento emitido sem
+    medicamento ou um erro interno no lugar de uma mensagem de validação são
+    ambos inaceitáveis.
+    """
+
+    farmaco: str = Field(min_length=1, description="Nome do medicamento.")
+    posologia: str = Field(min_length=1, description="Como usar (dose, via, frequência).")
+    # Campos opcionais aceitos pelo motor de prescrição
+    # (`prescricao_digital_cfm.py:91-102`). Mantidos aqui para que a validação
+    # cubra o contrato inteiro, e não apenas as duas chaves obrigatórias.
+    concentracao: Optional[str] = None
+    forma_farmaceutica: Optional[str] = None
+    quantidade_total: Optional[str] = None
+    via_administracao: Optional[str] = None
+    instrucoes_especiais: Optional[str] = None
+
+
 class EmitirPrescricaoRequest(BaseModel):
-    paciente_nome: str
-    paciente_cpf: str
-    medico_nome: str = "Dr. João Paulo Versiani"
-    medico_crm: str = "78421"
-    medico_uf: str = "MG"
-    medico_rqe: Optional[str] = "39412"
+    paciente_nome: str = Field(min_length=1)
+    paciente_cpf: str = Field(min_length=11, max_length=11)
+
+    # SEM default: a identificação do médico vem do usuário autenticado.
+    # Antes havia `medico_nome = "Dr. João Paulo Versiani"` e `medico_crm =
+    # "78421"` como padrão, de modo que uma requisição sem esses campos emitia
+    # receita assinada por um médico que não a emitiu.
+    medico_nome: str = Field(min_length=3)
+    medico_crm: str = Field(min_length=4, max_length=10)
+    medico_uf: str = Field(min_length=2, max_length=2)
+    medico_rqe: Optional[str] = None
+
     tipo: TipoPrescricao = TipoPrescricao.SIMPLES
-    itens: List[Dict[str, str]]
+    itens: List[ItemPrescricao] = Field(min_length=1, description="Ao menos um medicamento.")
     instrucoes_gerais: Optional[str] = None
 
 
 class EmitirAtestadoRequest(BaseModel):
-    paciente_nome: str
-    paciente_cpf: str
-    medico_nome: str = "Dr. João Paulo Versiani"
-    medico_crm: str = "78421"
-    medico_uf: str = "MG"
-    dias_afastamento: int = 3
+    paciente_nome: str = Field(min_length=1)
+    paciente_cpf: str = Field(min_length=11, max_length=11)
+
+    medico_nome: str = Field(min_length=3)
+    medico_crm: str = Field(min_length=4, max_length=10)
+    medico_uf: str = Field(min_length=2, max_length=2)
+
+    dias_afastamento: int = Field(default=3, ge=1, le=365)
     cid10: Optional[str] = None
 
 
@@ -50,7 +82,9 @@ def emitir_prescricao_digital(payload: EmitirPrescricaoRequest, request: Request
         medico_crm=payload.medico_crm,
         medico_uf=payload.medico_uf,
         medico_rqe=payload.medico_rqe,
-        itens=payload.itens,
+        # O serviço trabalha com dicts; a validação de chaves obrigatórias já
+        # aconteceu no schema `ItemPrescricao`, então este acesso é seguro.
+        itens=[item.model_dump(exclude_none=True) for item in payload.itens],
         tipo=payload.tipo,
         instrucoes_gerais=payload.instrucoes_gerais,
     )

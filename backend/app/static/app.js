@@ -161,6 +161,7 @@ function verificarSessaoJWT() {
     try {
       usuarioLogado = JSON.parse(userJson);
       atualizarCabecalhoUsuario(usuarioLogado);
+      atualizarPainelConformidade();
     } catch (e) {
       abrirModalLogin();
     }
@@ -244,7 +245,50 @@ async function fazerLoginCredenciais(event) {
 function atualizarCabecalhoUsuario(user) {
   const nomeEl = document.getElementById("top-medico-nome");
   if (nomeEl && user) {
-    nomeEl.textContent = user.nome;
+    nomeEl.textContent = user.nome || "-";
+  }
+
+  // CRM e RQE vinham fixos no HTML ("CRM-MG 78421", "RQE 39412") e eram
+  // exibidos para qualquer usuario autenticado. Agora saem do vinculo do
+  // usuario com a unidade ativa; sem cadastro, dizemos isso claramente.
+  const vinculo = (user && user.clinica_ativa) || {};
+  const crmEl = document.getElementById("top-medico-crm");
+  if (crmEl) {
+    if (vinculo.crm) {
+      crmEl.textContent = "CRM " + vinculo.crm;
+      crmEl.className = "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold";
+    } else {
+      crmEl.textContent = "CRM nao informado";
+      crmEl.className = "bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold";
+    }
+  }
+
+  const rqeEl = document.getElementById("top-medico-rqe");
+  if (rqeEl) {
+    if (vinculo.rqe) {
+      rqeEl.textContent = "RQE " + vinculo.rqe;
+      rqeEl.classList.remove("hidden");
+    } else {
+      rqeEl.textContent = "";
+      rqeEl.classList.add("hidden");
+    }
+  }
+
+  // Cabeçalho do recibo DMED. Antes trazia razão social, CNPJ e CRM
+  // inventados; agora usa a unidade ativa do usuário.
+  const razao = document.getElementById("recibo-razao-social");
+  if (razao) razao.textContent = vinculo.estabelecimento_nome || "Unidade nao informada";
+
+  const cnpjCidade = document.getElementById("recibo-cnpj-cidade");
+  if (cnpjCidade) {
+    cnpjCidade.textContent = vinculo.cnes ? "CNES " + vinculo.cnes : "CNES nao informado";
+  }
+
+  const medRecibo = document.getElementById("recibo-medico");
+  if (medRecibo) {
+    medRecibo.textContent = vinculo.crm
+      ? (user.nome || "") + " - CRM " + vinculo.crm
+      : "Profissional sem CRM cadastrado";
   }
 }
 
@@ -566,13 +610,65 @@ async function iniciarSessaoTelemedicina(consulta) {
   }
 }
 
-function simularEntradaPaciente() {
-  document.getElementById("medico-aviso-esperando").classList.add("hidden");
-  const videoRemoto = document.getElementById("medico-video-remoto");
-  if (videoRemoto && localMediaStream) {
-    videoRemoto.srcObject = localMediaStream;
+// A função `simularEntradaPaciente()` foi REMOVIDA.
+//
+// Ela atribuía a própria webcam do médico (`localMediaStream`) ao elemento de
+// vídeo remoto do paciente, de modo que o médico via a si mesmo, e escrevia
+// "Aceite Confirmado" no painel de conformidade sem que nenhum consentimento
+// tivesse sido registrado. Era um mock de interface apresentado como teleconsulta.
+//
+// O que existe hoje: o backend tem o hub WebSocket de signaling em
+// `api/v1/telemedicina_ws.py`, e `js/webrtc_manager.js` implementa
+// offer/answer/ICE corretamente — mas nenhum dos dois está ligado a esta tela.
+// Até a Etapa 2 do plano (docs/REVISAO_E_PLANO_DE_EVOLUCAO.md), a sala informa
+// o estado real e o médico usa o link para falar com o paciente por outro canal.
+
+/**
+ * Atualiza o painel de conformidade com os dados REAIS da sessão.
+ *
+ * Antes estes campos eram texto fixo no HTML ("100% Conforme", "Aceite
+ * Confirmado", "CRM-MG 78421"). Agora refletem o que existe: o médico vem do
+ * usuário autenticado, e o TCLE aparece como não registrado enquanto não
+ * houver persistência (a tabela de consentimento ainda não existe).
+ */
+function atualizarPainelConformidade() {
+  const badgeMedico = document.getElementById("badge-medico-identificacao");
+  if (badgeMedico) {
+    const vinculo = usuarioLogado && usuarioLogado.clinica_ativa;
+    const crm = vinculo && vinculo.crm;
+    badgeMedico.textContent = crm
+      ? `CRM ${crm}`
+      : "não informado";
+    badgeMedico.className = crm
+      ? "font-mono text-[11px] text-slate-700 font-bold"
+      : "font-mono text-[11px] text-amber-600 font-bold";
   }
-  document.getElementById("badge-tcle-status").innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> Aceite Confirmado (${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
+
+  const badgeTcle = document.getElementById("badge-tcle-status");
+  if (badgeTcle) {
+    // Sem tabela de consentimento não há aceite a exibir. Não inventamos um.
+    badgeTcle.innerHTML =
+      '<i class="fa-solid fa-circle-minus text-[10px]"></i> Não registrado';
+    badgeTcle.className = "font-semibold text-amber-600 flex items-center gap-1";
+  }
+}
+
+/**
+ * Extrai a identificação do médico da sessão autenticada.
+ *
+ * Antes, nome e CRM eram literais ("Dr. João Paulo Versiani", "78421") enviados
+ * em toda emissão de receita e atestado. O resultado é que qualquer usuário
+ * logado — inclusive a recepção — emitia documento assinado por um médico que
+ * não o emitiu. O CRM vem do vínculo do usuário com a unidade ativa.
+ */
+function identificacaoMedicoDaSessao() {
+  const u = usuarioLogado || {};
+  const vinculo = u.clinica_ativa || {};
+  return {
+    medico_nome: u.nome || null,
+    medico_crm: vinculo.crm || null,
+    medico_uf: vinculo.uf_crm || "MG"
+  };
 }
 
 function copiarLinkPaciente() {
@@ -591,7 +687,10 @@ function enviarWhatsAppPaciente() {
   }
   const sala = document.getElementById("label-codigo-sala-atual").textContent.trim();
   const url = `${window.location.origin}/static/telemedicina_paciente.html?sala=${sala}`;
-  const msg = `Olá ${consultaAtiva ? consultaAtiva.paciente_nome : 'Paciente'}! Segue o link seguro da sua teleconsulta médica com Dr. João Paulo Versiani: ${url}`;
+  // O nome do médico vem da sessão, não de um literal. Antes toda mensagem saía
+  // assinada por "Dr. João Paulo Versiani", qualquer que fosse o usuário logado.
+  const nomeMedico = (usuarioLogado && usuarioLogado.nome) || "sua médica ou seu médico";
+  const msg = `Olá ${consultaAtiva ? consultaAtiva.paciente_nome : 'Paciente'}! Segue o link da sua teleconsulta com ${nomeMedico}: ${url}`;
   window.open(`https://api.whatsapp.com/send?phone=55${consultaAtiva ? consultaAtiva.telefone_whatsapp : ''}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
@@ -860,10 +959,7 @@ async function submeterEmissaoPrescricao() {
       body: JSON.stringify({
         paciente_nome: pacienteNome || "Mariana Souza Alencar",
         paciente_cpf: pacienteCpf || "12345678901",
-        medico_nome: "Dr. João Paulo Versiani",
-        medico_crm: "78421",
-        medico_uf: "MG",
-        medico_rqe: "39412",
+        ...identificacaoMedicoDaSessao(),
         tipo: tipo,
         itens: itens,
         instrucoes_gerais: instrucoes
@@ -958,9 +1054,7 @@ async function submeterEmissaoAtestado() {
       body: JSON.stringify({
         paciente_nome: pacienteNome || "Mariana Souza Alencar",
         paciente_cpf: pacienteCpf || "12345678901",
-        medico_nome: "Dr. João Paulo Versiani",
-        medico_crm: "78421",
-        medico_uf: "MG",
+        ...identificacaoMedicoDaSessao(),
         dias_afastamento: dias,
         cid10: cid
       })
@@ -1032,10 +1126,46 @@ function limparProntuario() {
 // PACIENTES & HONORÁRIOS
 // =========================================================================
 
+/**
+ * Renderiza um aviso de "dados de demonstração" no topo de um contêiner.
+ *
+ * Várias abas do Cockpit exibem listas fixas no código (pacientes, honorários,
+ * guias TISS, catálogo de farmácia) com nomes e CPFs que parecem reais. Num
+ * sistema de prontuário isso é indistinguível de dado verdadeiro e é risco
+ * clínico e jurídico.
+ *
+ * Enquanto a aba não consumir a API real (ver Etapa 1 em
+ * docs/REVISAO_E_PLANO_DE_EVOLUCAO.md), o aviso deixa claro o que o usuário
+ * está vendo. Ele desaparece junto com os dados fictícios.
+ */
+function avisarDadosDeDemonstracao(containerId, oQue) {
+  const alvo = document.getElementById(containerId);
+  if (!alvo || alvo.dataset.avisoDemo === "1") return;
+
+  const aviso = document.createElement("div");
+  aviso.className =
+    "mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800";
+  aviso.setAttribute("role", "status");
+  aviso.innerHTML =
+    '<i class="fa-solid fa-triangle-exclamation mt-0.5"></i>' +
+    "<span><b>Dados de demonstração.</b> " +
+    oQue +
+    " Esta aba ainda não consome a API; os registros exibidos são fixos no código e " +
+    "não correspondem a pacientes reais.</span>";
+
+  alvo.parentNode.insertBefore(aviso, alvo);
+  alvo.dataset.avisoDemo = "1";
+}
+
 async function carregarPacientes() {
   const grid = document.getElementById("cards-pacientes-grid");
   if (!grid) return;
-  
+
+  avisarDadosDeDemonstracao(
+    "cards-pacientes-grid",
+    "A listagem de pacientes ainda não usa <code>GET /api/v1/cidadaos/</code>."
+  );
+
   const pacientesExemplo = [
     { nome: "Mariana Souza Alencar", cpf: "123.456.789-01", tel: "(38) 99876-5432", ultima: "Hoje (Telemedicina)", diag: "TAG (F41.1)" },
     { nome: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tel: "(38) 99123-4567", ultima: "Hoje (Presencial)", diag: "HAS (I10)" },
@@ -1081,6 +1211,11 @@ function iniciarConsultaPaciente(nome, cpf) {
 function carregarHonorarios() {
   const tabela = document.getElementById("tabela-honorarios-corpo");
   if (!tabela) return;
+
+  avisarDadosDeDemonstracao(
+    "tabela-honorarios-corpo",
+    "O livro caixa ainda não usa <code>GET /api/v1/financeiro-medico/livro-caixa/demonstrativo</code>."
+  );
 
   const lancamentos = [
     { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00 },
@@ -1229,29 +1364,83 @@ async function salvarNovoAgendamento() {
 // AUDITORIA CRIPTOGRÁFICA LGPD / CFM
 // =========================================================================
 
-function abrirModalAuditoria() {
+/**
+ * Abre a trilha de auditoria com os eventos REAIS do servidor.
+ *
+ * Antes esta função escrevia dois blocos fixos no HTML, com hashes inventados
+ * ("8f4b238a9e7c...", "3c1a8e9f20b4...") e afirmando "TCLE Eletrônico
+ * validado" e "RECEITA DIGITAL ICP-BRASIL". A trilha de auditoria existe de
+ * verdade no backend (`GET /api/v1/auth/audit-trail`, com encadeamento
+ * SHA-256 real) e nunca era consultada — a interface mostrava ficção no lugar
+ * do dado que ela mesma produzia.
+ */
+async function abrirModalAuditoria() {
   const container = document.getElementById("tabela-auditoria-conteudo");
-  if (container) {
-    container.innerHTML = `
-      <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1">
-        <div class="flex justify-between text-slate-400 text-[10px]">
-          <span>${new Date().toISOString()}</span>
-          <span class="text-emerald-400 font-bold">CFM 2.314/2022 - Art. 6º</span>
-        </div>
-        <div class="text-slate-200">Sessão de Telemedicina iniciada para Mariana Souza Alencar (TCLE Eletrônico validado)</div>
-        <div class="text-slate-500 text-[10px] truncate">Hash: 8f4b238a9e7c10b0e517f8a70c3f0b2f567389ab4102948c0a98df23e9812401</div>
-      </div>
-      <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1">
-        <div class="flex justify-between text-slate-400 text-[10px]">
-          <span>${new Date(Date.now() - 3600000).toISOString()}</span>
-          <span class="text-blue-400 font-bold">RECEITA DIGITAL ICP-BRASIL</span>
-        </div>
-        <div class="text-slate-200">Prescrição terapêutica assinada com QR Code validador público</div>
-        <div class="text-slate-500 text-[10px] truncate">Hash: 3c1a8e9f20b48a12903fe59a4bc1098230df98a123bc0912389fe0912345bc09</div>
-      </div>
-    `;
+  const modal = document.getElementById("modal-auditoria");
+  if (modal) modal.classList.remove("hidden");
+  if (!container) return;
+
+  container.innerHTML =
+    '<div class="text-xs text-slate-400 p-3">Carregando a trilha de auditoria…</div>';
+
+  const token = localStorage.getItem("media_token");
+  if (!token) {
+    container.innerHTML =
+      '<div class="text-xs text-amber-400 p-3">Sessão não iniciada. Entre para consultar a trilha.</div>';
+    return;
   }
-  document.getElementById("modal-auditoria").classList.remove("hidden");
+
+  try {
+    const res = await fetch("/api/v1/auth/audit-trail?limit=30", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.status === 401) {
+      container.innerHTML =
+        '<div class="text-xs text-amber-400 p-3">Sessão expirada. Entre novamente.</div>';
+      return;
+    }
+    if (!res.ok) {
+      container.innerHTML = `<div class="text-xs text-rose-400 p-3">A API respondeu HTTP ${res.status}.</div>`;
+      return;
+    }
+
+    const eventos = await res.json();
+    if (!Array.isArray(eventos) || eventos.length === 0) {
+      container.innerHTML =
+        '<div class="text-xs text-slate-400 p-3">Nenhum evento de auditoria registrado ainda.</div>';
+      return;
+    }
+
+    container.innerHTML = "";
+    eventos.forEach((ev) => {
+      const bloco = document.createElement("div");
+      bloco.className = "p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1";
+
+      const topo = document.createElement("div");
+      topo.className = "flex justify-between text-slate-400 text-[10px]";
+      const quando = document.createElement("span");
+      quando.textContent = ev.timestamp || "";
+      const acao = document.createElement("span");
+      acao.className = "text-blue-400 font-bold";
+      acao.textContent = ev.acao || "";
+      topo.append(quando, acao);
+
+      const descricao = document.createElement("div");
+      descricao.className = "text-slate-200";
+      descricao.textContent = `${ev.recurso_tipo || ""} ${ev.recurso_id || ""}`.trim();
+
+      const hash = document.createElement("div");
+      hash.className = "text-slate-500 text-[10px] truncate font-mono";
+      hash.textContent = `Hash: ${ev.hash_integridade || "—"}`;
+
+      bloco.append(topo, descricao, hash);
+      container.appendChild(bloco);
+    });
+  } catch (e) {
+    container.innerHTML =
+      '<div class="text-xs text-rose-400 p-3">Falha de conexão ao carregar a trilha.</div>';
+  }
 }
 
 function fecharModalAuditoria() {
@@ -1419,6 +1608,12 @@ function carregarConvenios() {
 function filtrarGuiasTISS(operadora) {
   const tbody = document.getElementById("tabela-convenios-corpo");
   if (!tbody) return;
+
+  avisarDadosDeDemonstracao(
+    "tabela-convenios-corpo",
+    "As guias ainda não usam <code>GET /api/v1/convenios/guias</code>."
+  );
+
   const lista = (operadora === "TODAS") ? guiasTISS : guiasTISS.filter(g => g.operadora === operadora);
   tbody.innerHTML = "";
   let soma = 0;
@@ -1573,6 +1768,12 @@ const catalogoFarmacia = [
 function carregarFarmacia() {
   const tbody = document.getElementById("tabela-farmacia-corpo");
   if (!tbody) return;
+
+  avisarDadosDeDemonstracao(
+    "tabela-farmacia-corpo",
+    "O catálogo e o estoque ainda não usam <code>GET /api/v1/farmacia/</code>."
+  );
+
   tbody.innerHTML = "";
   catalogoFarmacia.forEach(m => {
     const tr = document.createElement("tr");

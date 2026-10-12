@@ -138,22 +138,69 @@ def test_atualizar_item_inexistente_retorna_404(client):
     assert resp.status_code == 404
 
 
+
 # ------------------------------------------------------------------
-# 4. Ordenação (contrato de priorização)
+# 4. Ordenação (priorização por risco — triagem de Manchester)
 # ------------------------------------------------------------------
-def test_fila_ordenada_por_data_de_entrada(client, db_session):
-    """Ordem cronológica por data_hora_entrada (FIFO) é o contrato atual."""
+def test_fila_prioriza_risco_antes_da_ordem_de_chegada(client, db_session):
+    """Risco mais grave atende primeiro, mesmo tendo chegado depois.
+
+    Antes, a query ordenava APENAS por `data_hora_entrada` enquanto o
+    comentario do endpoint prometia prioridade por risco. O teste anterior
+    fixava o FIFO puro como "contrato atual", o que blindava o defeito: um
+    caso VERMELHO (emergencia) entrava atras de dez casos AZUL.
+    """
     from datetime import datetime, timedelta, timezone
+
+    # A fila é compartilhada entre os testes da sessão; limpar evita que itens
+    # inseridos por outro teste entrem na comparação de ordem.
+    db_session.query(FilaAcolhimento).delete()
+    db_session.commit()
 
     cidadao = _seed_cidadao(db_session)
     est = _est_id(db_session)
     base = datetime.now(timezone.utc)
-    for i, minutos in enumerate([0, -30, -10]):  # entradas fora de ordem
+
+    # Inseridos do menos grave para o mais grave: a ordem de chegada e
+    # exatamente o inverso da ordem clinica correta.
+    entradas = [("AZUL", 0), ("VERDE", -5), ("AMARELO", -10), ("VERMELHO", -15)]
+    for risco, minutos in entradas:
         db_session.add(
             FilaAcolhimento(
                 cidadao_id=cidadao.id,
                 estabelecimento_id=est,
                 data_hora_entrada=base + timedelta(minutes=minutos),
+                classificacao_risco=risco,
+            )
+        )
+    db_session.commit()
+
+    resp = client.get("/api/v1/fila/")
+    assert resp.status_code == 200
+    riscos = [i["classificacao_risco"] for i in resp.json()]
+    assert riscos == ["VERMELHO", "AMARELO", "VERDE", "AZUL"], (
+        f"Esperado prioridade clinica, obtido {riscos}"
+    )
+
+
+def test_fila_desempata_por_ordem_de_chegada_dentro_do_mesmo_risco(client, db_session):
+    """Dentro do mesmo risco, quem chegou antes e atendido antes (FIFO)."""
+    from datetime import datetime, timedelta, timezone
+
+    db_session.query(FilaAcolhimento).delete()
+    db_session.commit()
+
+    cidadao = _seed_cidadao(db_session)
+    est = _est_id(db_session)
+    base = datetime.now(timezone.utc)
+
+    for minutos in [0, -30, -10]:  # entradas fora de ordem
+        db_session.add(
+            FilaAcolhimento(
+                cidadao_id=cidadao.id,
+                estabelecimento_id=est,
+                data_hora_entrada=base + timedelta(minutes=minutos),
+                classificacao_risco="VERDE",
             )
         )
     db_session.commit()
@@ -161,4 +208,4 @@ def test_fila_ordenada_por_data_de_entrada(client, db_session):
     resp = client.get("/api/v1/fila/")
     assert resp.status_code == 200
     datas = [i["data_hora_entrada"] for i in resp.json()]
-    assert datas == sorted(datas), "A fila deve sair ordenada por data_hora_entrada (FIFO)"
+    assert datas == sorted(datas), "Empate de risco deve desempatar por chegada"
