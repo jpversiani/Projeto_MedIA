@@ -15,7 +15,7 @@
 | **GitHub** | `jpversiani/Projeto_MedIA` |
 | **Descrição** | Plataforma de **prontuário eletrônico (PEC)**, telemedicina, prescrição digital e faturamento para atenção primária à saúde (APS), inspirada no e-SUS. |
 | **Linguagens** | Python 3.12+, JavaScript/HTML5 (frontend sem framework), Bash |
-| **Licença** | MIT — © 2026 Dr. João Paulo Versiani Ladeia (Desenvolvedor do Software) |
+| **Licença** | MIT — © 2026 João Paulo Versiani Ladeia (Desenvolvedor do Software) |
 | **Status v1** | Sobe, migra, semeia e autentica de ponta a ponta. **Não pronto para dados reais** (sem isolamento de tenant aplicado às queries, auditoria de prontuário e ciclo de vida do dado pendentes). |
 
 > ⚠️ **Importante:** o README e o ROADMAP deixam explícito que **não deve ser

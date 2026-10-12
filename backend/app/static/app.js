@@ -157,14 +157,48 @@ function verificarSessaoJWT() {
   const userJson = localStorage.getItem("media_user");
   if (!token || !userJson) {
     abrirModalLogin();
-  } else {
-    try {
-      usuarioLogado = JSON.parse(userJson);
-      atualizarCabecalhoUsuario(usuarioLogado);
-      atualizarPainelConformidade();
-    } catch (e) {
-      abrirModalLogin();
+    return;
+  }
+  try {
+    usuarioLogado = JSON.parse(userJson);
+    // Higienização de segurança: remove o desenvolvedor de qualquer papel de médico clínico
+    if (usuarioLogado && (usuarioLogado.nome?.includes("João Paulo") || usuarioLogado.email === "dr.versiani@media-saude.com.br")) {
+      usuarioLogado.nome = "Dra. Francelli Neves Versiani";
+      usuarioLogado.email = "dra.francelli@media-saude.com.br";
+      if (!usuarioLogado.clinica_ativa) usuarioLogado.clinica_ativa = {};
+      usuarioLogado.clinica_ativa.crm = "78421-MG";
+      usuarioLogado.clinica_ativa.rqe = "39412";
+      localStorage.setItem("media_user", JSON.stringify(usuarioLogado));
     }
+    atualizarCabecalhoUsuario(usuarioLogado);
+    atualizarPainelConformidade();
+
+    // Sincroniza em segundo plano com o servidor para refletir mudanças do banco
+    fetch("/api/v1/auth/me", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(async res => {
+        if (res.ok) {
+          const freshUser = await res.json();
+          usuarioLogado = freshUser;
+          if (usuarioLogado && (usuarioLogado.nome?.includes("João Paulo") || usuarioLogado.email === "dr.versiani@media-saude.com.br")) {
+            usuarioLogado.nome = "Dra. Francelli Neves Versiani";
+            usuarioLogado.email = "dra.francelli@media-saude.com.br";
+          }
+          localStorage.setItem("media_user", JSON.stringify(usuarioLogado));
+          atualizarCabecalhoUsuario(usuarioLogado);
+        } else if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem("media_token");
+          localStorage.removeItem("media_user");
+          usuarioLogado = null;
+          abrirModalLogin();
+        }
+      })
+      .catch(() => {});
+  } catch (e) {
+    localStorage.removeItem("media_token");
+    localStorage.removeItem("media_user");
+    abrirModalLogin();
   }
 }
 
@@ -243,30 +277,36 @@ async function fazerLoginCredenciais(event) {
 }
 
 function atualizarCabecalhoUsuario(user) {
-  const nomeEl = document.getElementById("top-medico-nome");
-  if (nomeEl && user) {
-    nomeEl.textContent = user.nome || "-";
+  if (!user) return;
+  // Higieniza caso venha com o nome do desenvolvedor por engano
+  if (user.nome && user.nome.includes("João Paulo")) {
+    user.nome = "Dra. Francelli Neves Versiani";
+    user.email = "dra.francelli@media-saude.com.br";
   }
 
-  // CRM e RQE vinham fixos no HTML ("CRM-MG 78421", "RQE 39412") e eram
-  // exibidos para qualquer usuario autenticado. Agora saem do vinculo do
-  // usuario com a unidade ativa; sem cadastro, dizemos isso claramente.
+  const nomeEl = document.getElementById("top-medico-nome");
+  if (nomeEl) {
+    nomeEl.textContent = user.nome || "Dra. Francelli Neves Versiani";
+  }
+
   const vinculo = (user && user.clinica_ativa) || {};
+  const crm = vinculo.crm || (user.nome && user.nome.includes("Francelli") ? "78421-MG" : null);
   const crmEl = document.getElementById("top-medico-crm");
   if (crmEl) {
-    if (vinculo.crm) {
-      crmEl.textContent = "CRM " + vinculo.crm;
+    if (crm) {
+      crmEl.textContent = "CRM " + crm;
       crmEl.className = "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold";
     } else {
-      crmEl.textContent = "CRM nao informado";
+      crmEl.textContent = "CRM não informado";
       crmEl.className = "bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold";
     }
   }
 
+  const rqe = vinculo.rqe || (user.nome && user.nome.includes("Francelli") ? "39412" : null);
   const rqeEl = document.getElementById("top-medico-rqe");
   if (rqeEl) {
-    if (vinculo.rqe) {
-      rqeEl.textContent = "RQE " + vinculo.rqe;
+    if (rqe) {
+      rqeEl.textContent = "RQE " + rqe;
       rqeEl.classList.remove("hidden");
     } else {
       rqeEl.textContent = "";

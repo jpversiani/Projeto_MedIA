@@ -14,7 +14,7 @@ router = APIRouter(prefix="/financeiro-medico", tags=["Financeiro & Pix Médico"
 
 class GerarPixRequest(BaseModel):
     chave_pix: str
-    nome_beneficiario: str = "Dr. João Paulo Versiani"
+    nome_beneficiario: str = "Dra. Francelli Versiani"
     cidade_beneficiario: str = "Montes Claros"
     valor: float = 350.00
     identificador_transacao: Optional[str] = None

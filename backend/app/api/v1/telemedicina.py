@@ -33,7 +33,7 @@ class FinalizarChamadaRequest(BaseModel):
 class TCLEGerarRequest(BaseModel):
     paciente_nome: str
     paciente_cpf: str
-    medico_nome: str = "Dr. João Paulo Versiani"
+    medico_nome: str = "Dra. Francelli Neves Versiani"
     medico_crm: str = "78421"
     medico_uf: str = "MG"
     medico_rqe: Optional[str] = "39412"
@@ -52,7 +52,7 @@ class ConverterPresencialRequest(BaseModel):
     teleconsulta_id: int
     paciente_nome: str
     motivo_clinico: str
-    medico_nome: str = "Dr. João Paulo Versiani"
+    medico_nome: str = "Dra. Francelli Neves Versiani"
     medico_crm: str = "78421"
     medico_uf: str = "MG"
 
@@ -187,7 +187,7 @@ def registrar_aceite_consentimento(payload: TCLERegistrarRequest):
 def obter_link_acesso_paciente(
     codigo_sala: str,
     paciente_nome: str = Query("Paciente"),
-    medico_nome: str = Query("Dr. João Paulo Versiani"),
+    medico_nome: str = Query("Dra. Francelli Neves Versiani"),
     telefone: Optional[str] = Query(None),
 ):
     """Gera o link efêmero direto para o paciente e mensagem de WhatsApp."""

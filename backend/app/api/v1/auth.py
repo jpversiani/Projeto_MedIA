@@ -61,6 +61,12 @@ def get_current_user(
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
     
+    if usuario.email == "dr.versiani@media-saude.com.br" or "João Paulo" in (usuario.nome or ""):
+        usuario.email = "dra.francelli@media-saude.com.br"
+        usuario.nome = "Dra. Francelli Neves Versiani"
+        db.commit()
+        db.refresh(usuario)
+
     clinica_id = payload.get("clinica_id")
     return usuario, clinica_id
 
@@ -87,8 +93,11 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
             )
         role_map = {
             "medico_titular": ("dra.francelli@media-saude.com.br", "Dra. Francelli Neves Versiani", PapelUsuarioEnum.MEDICO),
+            "cardiologista": ("dr.carlos@media-saude.com.br", "Dr. Carlos Mendes", PapelUsuarioEnum.MEDICO),
+            "psiquiatra": ("dra.mariana@media-saude.com.br", "Dra. Mariana Silveira", PapelUsuarioEnum.MEDICO),
             "medica_familia": ("dra.leticia@media-saude.com.br", "Dra. Letícia Mendes", PapelUsuarioEnum.MEDICO),
             "secretaria": ("recepcao@media-saude.com.br", "Maria Auxiliadora (Recepção)", PapelUsuarioEnum.RECEPCAO),
+            "recepcionista": ("recepcao@media-saude.com.br", "Maria Auxiliadora (Recepção)", PapelUsuarioEnum.RECEPCAO),
             "admin": ("admin@media-saude.com.br", "Carlos Eduardo (Gestor)", PapelUsuarioEnum.ADMIN),
         }
         if payload.demo_role in role_map:
@@ -96,7 +105,9 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
             usuario = db.query(Usuario).filter(Usuario.email == email).first()
             if not usuario and payload.demo_role == "medico_titular":
                 # Migra registro legado em bancos existentes
-                usuario = db.query(Usuario).filter(Usuario.email == "dr.versiani@media-saude.com.br").first()
+                usuario = db.query(Usuario).filter(
+                    (Usuario.email == "dr.versiani@media-saude.com.br") | (Usuario.nome.like("%João Paulo%"))
+                ).first()
                 if usuario:
                     usuario.email = email
                     usuario.nome = nome

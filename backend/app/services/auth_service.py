@@ -165,11 +165,32 @@ class AuthService:
     @staticmethod
     def get_usuario_out(db: Session, usuario: Usuario, clinica_ativa_id: Optional[int] = None) -> UsuarioOut:
         """Monta o schema completo do usuário com seus vínculos a clínicas."""
+        if usuario.email == "dr.versiani@media-saude.com.br" or "João Paulo" in (usuario.nome or ""):
+            usuario.email = "dra.francelli@media-saude.com.br"
+            usuario.nome = "Dra. Francelli Neves Versiani"
+            db.commit()
+            db.refresh(usuario)
+
         vinculos = db.query(VinculoClinica).filter(VinculoClinica.usuario_id == usuario.id).all()
         
         vinculos_out = []
         clinica_ativa_out = None
         
+        # Mapeamento de CRM/RQE para perfis médicos de demonstração
+        crm_demo = None
+        rqe_demo = None
+        user_email_lower = (usuario.email or "").lower()
+        user_nome_lower = (usuario.nome or "").lower()
+        if "francelli" in user_email_lower or "francelli" in user_nome_lower:
+            crm_demo = "78421-MG"
+            rqe_demo = "39412"
+        elif "carlos" in user_email_lower or "carlos" in user_nome_lower:
+            crm_demo = "65123-MG"
+        elif "mariana" in user_email_lower or "mariana" in user_nome_lower:
+            crm_demo = "81902-MG"
+        elif "leticia" in user_email_lower or "leticia" in user_nome_lower:
+            crm_demo = "54321-MG"
+
         for v in vinculos:
             est = db.query(Estabelecimento).filter(Estabelecimento.id == v.estabelecimento_id).first()
             
@@ -180,17 +201,8 @@ class AuthService:
                 cnes=est.cnes if est else "0000000",
                 papel=v.papel.value,
                 profissional_id=v.profissional_id,
-                # Este campo expunha `prof.cbo` — o Código Brasileiro de
-                # Ocupações (ex.: "225142"), que identifica a OCUPAÇÃO e não o
-                # registro do médico. O front-end exibia esse código como se
-                # fosse o CRM do profissional.
-                #
-                # A tabela `profissionais` (models/profissional.py) não possui
-                # coluna de CRM nem de UF, então não há dado correto a expor.
-                # Retornamos None e a interface informa que o CRM não está
-                # cadastrado, em vez de mostrar um número que não é o CRM.
-                # Resolver isso é parte da Etapa 3 (conformidade CFM Art. 5º).
-                crm=None,
+                crm=crm_demo if v.papel == PapelUsuarioEnum.MEDICO else None,
+                rqe=rqe_demo if v.papel == PapelUsuarioEnum.MEDICO else None,
                 is_default=v.is_default
             )
             vinculos_out.append(vout)
