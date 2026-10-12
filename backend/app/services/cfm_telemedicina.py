@@ -106,8 +106,8 @@ class MotorCFMTelemedicina:
         metodo: str = "ELETRONICO_WEB",
         ip_origem: Optional[str] = "127.0.0.1",
     ) -> RegistroTCLE:
-        """Gera o registro auditado de confirmação do TCLE."""
-        consentimento_id = f"TCLE-{datetime.now(timezone.utc).strftime("%Y%m%d")}-{uuid.uuid4().hex[:8].upper()}"
+        data_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        consentimento_id = f"TCLE-{data_str}-{uuid.uuid4().hex[:8].upper()}"
         agora_iso = datetime.now(timezone.utc).isoformat()
         
         payload_hash = f"{consentimento_id}:{paciente.cpf}:{agora_iso}:{metodo}:{ip_origem}"
