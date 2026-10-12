@@ -11,7 +11,12 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Annotated, Final, Literal, Self
+import sys
+from typing import Annotated, Final, Literal
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
