@@ -3,6 +3,7 @@ from app.models.cidadao import Cidadao
 from app.models.estabelecimento import Estabelecimento, Equipe
 from app.models.profissional import Profissional
 from app.models.fila import FilaAcolhimento
+from app.models.agendamento import Agendamento, TipoAtendimento, StatusAgendamento
 from app.models.atendimento import AtendimentoSOAP, AtendimentoProblema
 Atendimento = AtendimentoSOAP  # Alias para compatibilidade com serviços legados e testes
 from app.models.atendimento_offline import AtendimentoOffline, StatusSincronizacao, SyncState

@@ -564,8 +564,13 @@ function abrirAtendimentoAgenda(consulta) {
   consultaAtiva = consulta;
 
   // Atualiza banner do prontuário
+  // `valor_consulta` pode vir nulo (agendamento sem valor definido); sem a
+  // guarda, `.toFixed` lançava TypeError e abortava a abertura do atendimento.
+  const valorConsulta = Number(consulta.valor_consulta);
+  const valorTexto = `R$ ${(Number.isFinite(valorConsulta) ? valorConsulta : 0).toFixed(2)}`;
+
   document.getElementById("prontuario-nome").textContent = consulta.paciente_nome;
-  document.getElementById("prontuario-sub").textContent = `CPF: ${consulta.paciente_cpf} • Horário: ${consulta.horario} • Valor: R$ ${consulta.valor_consulta.toFixed(2)}`;
+  document.getElementById("prontuario-sub").textContent = `CPF: ${consulta.paciente_cpf} • Horário: ${consulta.horario} • Valor: ${valorTexto}`;
   document.getElementById("prontuario-iniciais").textContent = consulta.paciente_nome.split(" ").map(p => p[0]).slice(0, 2).join("");
   document.getElementById("prontuario-tag-modalidade").textContent = consulta.tipo === "TELEMEDICINA" ? "Telemedicina" : "Presencial";
   document.getElementById("soap-motivo").value = consulta.motivo_queixa || "";
@@ -1106,9 +1111,126 @@ function emitirAtestadoDigital() {
   abrirModalAtestadoDigital();
 }
 
-function concluirConsulta() {
-  alert("Atendimento clínico concluído com sucesso e gravado no prontuário eletrônico imutável!");
-  trocarAba("agenda");
+/**
+ * Grava o atendimento SOAP no prontuário.
+ *
+ * Antes, `concluirConsulta()` exibia
+ * `alert("...gravado no prontuário eletrônico imutável!")` e voltava para a
+ * agenda — **sem chamar nenhuma API**. O médico acreditava ter gravado e nada
+ * era persistido. Este era o defeito mais grave do fluxo presencial: um
+ * prontuário que não registra o atendimento.
+ *
+ * O `cidadao_id` vem do agendamento, que passou a ter vínculo com o cidadão.
+ * `profissional_id` e `estabelecimento_id` vêm do vínculo do usuário com a
+ * unidade ativa.
+ */
+async function concluirConsulta() {
+  if (!consultaAtiva) {
+    alert("Nenhum atendimento aberto. Selecione um paciente na agenda.");
+    return;
+  }
+
+  const vinculo = (usuarioLogado && usuarioLogado.clinica_ativa) || {};
+  const cidadaoId = consultaAtiva.cidadao_id;
+
+  if (!cidadaoId) {
+    alert(
+      "Este agendamento não está vinculado a um paciente cadastrado, então o " +
+      "atendimento não pode ser gravado no prontuário.\n\n" +
+      "Isso acontece com agendamentos antigos, criados antes de o vínculo existir."
+    );
+    return;
+  }
+  if (!vinculo.profissional_id || !vinculo.estabelecimento_id) {
+    alert(
+      "Não foi possível identificar o profissional ou a unidade desta sessão.\n" +
+      "O atendimento precisa de ambos para ser registrado no prontuário."
+    );
+    return;
+  }
+
+  const valor = (id) => {
+    const el = document.getElementById(id);
+    return el && el.value.trim() ? el.value.trim() : null;
+  };
+
+  const payload = {
+    cidadao_id: cidadaoId,
+    profissional_id: vinculo.profissional_id,
+    estabelecimento_id: vinculo.estabelecimento_id,
+    fila_id: consultaAtiva.fila_id || null,
+
+    subjetivo_motivo: valor("soap-motivo"),
+    subjetivo_notas: valor("soap-subjetivo-hda"),
+    objetivo_exame_fisico: valor("soap-exame-dirigido"),
+    avaliacao_notas: valor("soap-raciocinio"),
+    plano_prescricoes: valor("soap-prescricao"),
+    plano_exames: valor("soap-exames"),
+    problemas: [],
+  };
+
+  const temConteudo =
+    payload.subjetivo_motivo ||
+    payload.subjetivo_notas ||
+    payload.objetivo_exame_fisico ||
+    payload.avaliacao_notas ||
+    payload.plano_prescricoes ||
+    payload.plano_exames;
+
+  if (!temConteudo) {
+    alert("O prontuário está vazio. Preencha ao menos um campo antes de concluir.");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/v1/atendimentos/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.status === 401) {
+      alert("Sessão expirada. Entre novamente para gravar o atendimento.");
+      return;
+    }
+    if (!res.ok) {
+      let detalhe = "";
+      try {
+        const corpo = await res.json();
+        if (Array.isArray(corpo.detail)) {
+          detalhe = corpo.detail
+            .map((d) => (d.loc || []).join(".") + ": " + d.msg)
+            .join("; ");
+        } else if (typeof corpo.detail === "string") {
+          detalhe = corpo.detail;
+        }
+      } catch (e) { /* corpo não-JSON */ }
+      alert(
+        `Não foi possível gravar o atendimento (HTTP ${res.status}).` +
+        (detalhe ? `\n\n${detalhe}` : "")
+      );
+      return;
+    }
+
+    const gravado = await res.json();
+
+    // Conclui o agendamento na agenda, para a lista refletir o estado real.
+    if (consultaAtiva.codigo) {
+      try {
+        await fetch(
+          `/api/v1/agenda/${encodeURIComponent(consultaAtiva.codigo)}/status?novo_status=CONCLUIDO`,
+          { method: "PATCH" }
+        );
+      } catch (e) { /* a agenda pode ser recarregada depois */ }
+    }
+
+    consultaAtiva = null;
+    alert(`Atendimento gravado no prontuário (registro #${gravado.id}).`);
+    trocarAba("agenda");
+    carregarAgenda();
+  } catch (e) {
+    alert("Falha de conexão. O atendimento NÃO foi gravado — verifique a rede e tente novamente.");
+  }
 }
 
 function limparProntuario() {
