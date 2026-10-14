@@ -265,6 +265,11 @@
               <span>Prontuário & SOAP</span>
             </button>
 
+            <button onclick="trocarAba('acolhimento')" id="btn-menu-acolhimento" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all">
+              <i class="fa-solid fa-users-line w-4 text-center text-amber-400"></i>
+              <span>Acolhimento & Fila</span>
+            </button>
+
           </div>
         </div>
 
@@ -810,6 +815,128 @@
                 </button>
               </div>
 
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+ 
+      <!-- ========================================== -->
+      <!-- ABA: ACOLHIMENTO E FILA DE ESPERA (MANCHESTER) -->
+      <!-- ========================================== -->
+      <section id="aba-acolhimento" class="space-y-6 hidden">
+        
+        <!-- Header da Aba -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-3">
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Fila de Acolhimento & Triagem</h2>
+              <span id="fila-espera-contador" class="inline-flex items-center justify-center min-w-8 px-2 py-0.5 rounded-full text-sm font-bold bg-slate-300 text-slate-600">0</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Classificação de Risco Manchester (Emergência > Urgência > Pouco Urgente > Não Urgente)</p>
+          </div>
+          
+          <div class="flex items-center space-x-3">
+            <span id="fila-espera-atualizacao" class="text-xs text-slate-400 font-mono"></span>
+            
+            <button id="fila-espera-som" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm">
+              <i class="fa-solid fa-volume-xmark"></i>
+              <span>Som: Desligado</span>
+            </button>
+
+            <button onclick="window.filaEsperaPainel?.chamarProximo()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 shadow-md shadow-blue-500/20 transition-all">
+              <i class="fa-solid fa-bullhorn"></i>
+              <span>Chamar Próximo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Banner do Cidadão Chamado no Momento -->
+        <div id="fila-espera-chamada" class="hidden">
+          <!-- Injetado dinamicamente por fila_espera.js -->
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Lista da Fila de Espera (2 colunas em desktop) -->
+          <div class="lg:col-span-2 space-y-3">
+            <div class="flex items-center justify-between px-1">
+              <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-2">
+                <i class="fa-solid fa-stopwatch text-slate-400"></i>
+                <span>Cidadãos Aguardando Atendimento</span>
+              </h3>
+              <button onclick="window.filaEsperaPainel?.atualizar()" class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1">
+                <i class="fa-solid fa-rotate text-[10px]"></i>
+                <span>Atualizar</span>
+              </button>
+            </div>
+
+            <div id="fila-espera-lista" class="space-y-2.5">
+              <!-- Injetado dinamicamente por fila_espera.js -->
+            </div>
+          </div>
+
+          <!-- Painel Lateral: Fazer Check-in de Paciente Agendado -->
+          <div class="space-y-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+              <div class="flex items-center space-x-2 text-slate-800 font-bold text-sm border-b border-slate-100 pb-3">
+                <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                <span>Check-in na Recepção</span>
+              </div>
+
+              <p class="text-xs text-slate-500 leading-relaxed">
+                Localize a consulta agendada pelo código ou ID para dar entrada do cidadão na sala de espera com a devida classificação de risco.
+              </p>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Código / ID da Consulta</label>
+                  <input type="text" id="input-checkin-codigo" placeholder="Ex: 1 ou CNS-20261014-001" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-blue-500 shadow-sm font-mono">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Classificação de Risco (Manchester)</label>
+                  <select id="select-checkin-risco" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-blue-500 shadow-sm font-medium">
+                    <option value="VERDE" selected>🟢 VERDE — Pouco Urgente (até 60 min)</option>
+                    <option value="AMARELO">🟡 AMARELO — Urgência (até 15 min)</option>
+                    <option value="VERMELHO">🔴 VERMELHO — Emergência (imediato)</option>
+                    <option value="AZUL">🔵 AZUL — Não Urgente (até 120 min)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Motivo / Queixa Principal (Opcional)</label>
+                  <input type="text" id="input-checkin-motivo" placeholder="Ex: Cefaleia há 2 dias, febre leve" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-blue-500 shadow-sm">
+                </div>
+
+                <button onclick="realizarCheckinRapido()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20 transition-all">
+                  <i class="fa-solid fa-user-check"></i>
+                  <span>Confirmar Entrada na Fila</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Guia Manchester rápido -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 text-xs space-y-2 text-slate-600">
+              <span class="font-bold text-slate-700 block">Tempo Máximo de Espera SUS/APS:</span>
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-red-600">🔴 Emergência</span>
+                <span class="font-mono text-slate-500">Imediato (0 min)</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-amber-600">🟡 Urgência</span>
+                <span class="font-mono text-slate-500">Até 15 min</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-emerald-600">🟢 Pouco Urgente</span>
+                <span class="font-mono text-slate-500">Até 60 min</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-blue-600">🔵 Não Urgente</span>
+                <span class="font-mono text-slate-500">Até 120 min</span>
+              </div>
             </div>
 
           </div>
@@ -1694,5 +1821,9 @@
 
   <script src="/static/app.js"></script>
   <script src="/static/js/command_bar.js"></script>
+  <script type="module">
+    import { FilaEsperaPainel } from "/static/js/fila_espera.js";
+    window.filaEsperaPainel = new FilaEsperaPainel();
+  </script>
 </body>
 </html>

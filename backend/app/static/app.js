@@ -349,7 +349,7 @@ function fazerLogout() {
 // =========================================================================
 
 function trocarAba(aba) {
-  const abas = ["agenda", "telemedicina", "prontuario", "pacientes", "convenios", "farmacia", "analytics", "honorarios"];
+  const abas = ["agenda", "telemedicina", "prontuario", "pacientes", "convenios", "farmacia", "analytics", "honorarios", "acolhimento"];
   abas.forEach(a => {
     const el = document.getElementById(`aba-${a}`);
     const btn = document.getElementById(`btn-menu-${a}`);
@@ -372,6 +372,55 @@ function trocarAba(aba) {
   if (aba === "farmacia") carregarFarmacia();
   if (aba === "analytics") carregarAnalytics();
   if (aba === "honorarios") carregarHonorarios();
+  if (aba === "acolhimento") carregarAcolhimento();
+}
+
+function carregarAcolhimento() {
+  if (window.filaEsperaPainel) {
+    window.filaEsperaPainel.iniciar();
+    window.filaEsperaPainel.atualizar();
+  }
+}
+
+async function realizarCheckinRapido() {
+  const inputCodigo = document.getElementById("input-checkin-codigo");
+  const selectRisco = document.getElementById("select-checkin-risco");
+  const inputMotivo = document.getElementById("input-checkin-motivo");
+
+  if (!inputCodigo || !inputCodigo.value.trim()) {
+    alert("Informe o código ou ID do agendamento para o check-in.");
+    return;
+  }
+  const codigo = encodeURIComponent(inputCodigo.value.trim());
+  const risco = selectRisco ? selectRisco.value : "VERDE";
+  const motivo = inputMotivo && inputMotivo.value.trim() ? encodeURIComponent(inputMotivo.value.trim()) : "";
+
+  let url = `/api/v1/agenda/${codigo}/checkin?classificacao_risco=${risco}`;
+  if (motivo) url += `&motivo_acolhimento=${motivo}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" }
+    });
+    if (res.status === 201) {
+      inputCodigo.value = "";
+      if (inputMotivo) inputMotivo.value = "";
+      if (window.filaEsperaPainel) await window.filaEsperaPainel.atualizar();
+      alert(`Check-in confirmado com sucesso! Paciente na fila de espera (Classificação: ${risco}).`);
+    } else if (res.status === 409) {
+      alert("Aviso: Agendamento cancelado ou não elegível para check-in.");
+    } else if (res.status === 404) {
+      alert("Agendamento não localizado com o código fornecido.");
+    } else if (res.status === 422) {
+      alert("Classificação de risco inválida ou parâmetros incorretos.");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(`Erro no check-in: ${err.detail || 'Falha na requisição'}`);
+    }
+  } catch (err) {
+    alert(`Erro de conexão ao realizar check-in: ${err.message}`);
+  }
 }
 
 function alternarModoTrabalho(modo) {
