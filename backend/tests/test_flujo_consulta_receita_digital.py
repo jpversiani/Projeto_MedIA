@@ -275,7 +275,7 @@ def test_emitir_receita_sin_paciente_rechazada(client):
 # Contrato del servicio (nivel unitario, sin HTTP)
 # ---------------------------------------------------------------------------
 
-def test_motor_emite_documento_con_hash_y_repositorio():
+def test_motor_emite_documento_con_hash_y_repositorio(db_session):
     """El motor emite el documento con hash y lo registra en el validador."""
     doc = MotorPrescricaoCFM.emitir_prescricao(
         paciente_nome="Paciente Receta Digital",
@@ -287,6 +287,7 @@ def test_motor_emite_documento_con_hash_y_repositorio():
         itens=[_item()],
         tipo=TipoPrescricao.SIMPLES,
         instrucoes_gerais="Tomar según indicación.",
+        db=db_session,
     )
     assert doc.codigo_validacao.startswith("CFM-")
     assert doc.status == "VALIDA"
@@ -294,6 +295,6 @@ def test_motor_emite_documento_con_hash_y_repositorio():
     assert len(doc.itens) == 1
     assert doc.itens[0].farmaco == "Amoxicilina + Clavulanato"
 
-    val = MotorPrescricaoCFM.validar_documento_publico(doc.codigo_validacao)
+    val = MotorPrescricaoCFM.validar_documento_publico(doc.codigo_validacao, db=db_session)
     assert val is not None
-    assert val["status"] == "VALIDA"
+    assert val["status"] == "VALIDA"

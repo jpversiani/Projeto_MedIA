@@ -15,12 +15,17 @@ class Base(DeclarativeBase):
 
 
 _connect_args: dict[str, object] = {}
+_engine_kwargs: dict[str, object] = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     _connect_args = {"check_same_thread": False}
+    if ":memory:" in settings.DATABASE_URL:
+        from sqlalchemy.pool import StaticPool
+        _engine_kwargs["poolclass"] = StaticPool
 
-engine = create_engine(settings.DATABASE_URL, connect_args=_connect_args, echo=False)
+engine = create_engine(settings.DATABASE_URL, connect_args=_connect_args, echo=False, **_engine_kwargs)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+
 
 
 def get_db() -> Iterator[Session]:

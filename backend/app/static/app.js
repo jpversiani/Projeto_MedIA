@@ -1053,6 +1053,8 @@ async function submeterEmissaoPrescricao() {
       body: JSON.stringify({
         paciente_nome: pacienteNome || "Mariana Souza Alencar",
         paciente_cpf: pacienteCpf || "12345678901",
+        atendimento_id: (consultaAtiva && consultaAtiva.atendimento_id) || null,
+        cidadao_id: (consultaAtiva && (consultaAtiva.cidadao_id || consultaAtiva.paciente_id)) || null,
         ...identificacaoMedicoDaSessao(),
         tipo: tipo,
         itens: itens,

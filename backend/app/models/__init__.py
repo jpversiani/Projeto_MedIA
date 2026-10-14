@@ -15,3 +15,4 @@ from app.models.copiloto import CopilotoAuditoria
 from app.models.mensageria import MensagemPreventiva, AlertaBuscaAtiva
 from app.models.convenios import Operadora, Plano, GuiaTISS, LancamentoFinanceiro
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
+from app.models.documento_cfm import DocumentoCFM

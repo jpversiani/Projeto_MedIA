@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 # Garantir importação de todos os modelos
 import app.models
+from app.core import database as app_db
 from app.core.database import Base, get_db
 from app.main import app
 from app.seeds.init_data import seed_database
@@ -40,6 +41,9 @@ engine = create_engine(
     poolclass=StaticPool
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+app_db.SessionLocal = TestingSessionLocal
+app_db.engine = engine
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
