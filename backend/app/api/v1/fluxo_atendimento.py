@@ -3,17 +3,16 @@ Endpoints REST para Orquestração do Fluxo de Atendimento Clínico e Perfis de 
 MedIA Practice & Telemedicina OS.
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
 
 from app.schemas.fluxo_atendimento import (
-    JornadaAtendimentoOut,
-    PreAnamneseInput,
     IntraConsultaPayload,
-    PosConsultaPayload,
+    JornadaAtendimentoOut,
     PacotePosConsultaOut,
-    ModalidadeAtendimentoEnum
+    PreAnamneseInput,
+    PosConsultaPayload,
+    ModalidadeAtendimentoEnum,
 )
 from app.services.fluxo_atendimento_service import fluxo_service
 
@@ -29,7 +28,7 @@ class NovoAgendamentoRequest(BaseModel):
     especialidade: str = "Clínica Médica & Telemedicina"
     modalidade: ModalidadeAtendimentoEnum = ModalidadeAtendimentoEnum.TELEMEDICINA
     valor_honorarios: float = 350.00
-    data_hora: Optional[str] = None
+    data_hora: str | None = None
 
 
 class PreConsultaRequest(BaseModel):
@@ -44,8 +43,8 @@ def obter_matriz_perfis():
     return fluxo_service.obter_matriz_perfis()
 
 
-@router.get("/consultas", response_model=List[JornadaAtendimentoOut], summary="Listar todas as jornadas na agenda")
-def listar_consultas():
+@router.get("/consultas", response_model=list[JornadaAtendimentoOut], summary="Listar todas as jornadas na agenda")
+def listar_consultas() -> list[JornadaAtendimentoOut]:
     """Retorna a lista de consultas ativas na agenda com o progresso de cada jornada."""
     return fluxo_service.listar_jornadas_ativas()
 
@@ -58,7 +57,7 @@ def obter_jornada(consulta_id: str):
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consulta com ID '{consulta_id}' não localizada."
+            detail=f"Consulta com ID '{consulta_id}' não localizada.",
         )
 
 
@@ -74,7 +73,7 @@ def criar_agendamento(payload: NovoAgendamentoRequest):
         especialidade=payload.especialidade,
         modalidade=payload.modalidade,
         valor_honorarios=payload.valor_honorarios,
-        data_hora=payload.data_hora
+        data_hora=payload.data_hora,
     )
     return JornadaAtendimentoOut(**dados)
 
@@ -90,13 +89,13 @@ def registrar_pre_consulta(consulta_id: str, payload: PreConsultaRequest):
             consulta_id=consulta_id,
             pre_anamnese=payload.pre_anamnese,
             tcle_aceito=payload.tcle_aceito,
-            pagamento_confirmado=payload.pagamento_confirmado
+            pagamento_confirmado=payload.pagamento_confirmado,
         )
         return JornadaAtendimentoOut(**dados)
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consulta com ID '{consulta_id}' não localizada."
+            detail=f"Consulta com ID '{consulta_id}' não localizada.",
         )
 
 
@@ -112,7 +111,7 @@ def iniciar_atendimento(consulta_id: str):
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consulta com ID '{consulta_id}' não localizada."
+            detail=f"Consulta com ID '{consulta_id}' não localizada.",
         )
 
 
@@ -130,7 +129,7 @@ def salvar_evolucao_intra(payload: IntraConsultaPayload):
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consulta com ID '{payload.consulta_id}' não localizada."
+            detail=f"Consulta com ID '{payload.consulta_id}' não localizada.",
         )
 
 
@@ -149,5 +148,5 @@ def finalizar_consulta_e_gerar_pacote(payload: PosConsultaPayload):
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Consulta com ID '{payload.consulta_id}' não localizada."
+            detail=f"Consulta com ID '{payload.consulta_id}' não localizada.",
         )
