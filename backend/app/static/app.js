@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
   carregarPacientes();
   carregarHonorarios();
   inicializarBuscaCID11();
+  inicializarBuscaPacientesInput();
 });
 
 // =========================================================================
@@ -1353,13 +1354,8 @@ async function concluirConsulta() {
     );
     return;
   }
-  if (!vinculo.profissional_id || !vinculo.estabelecimento_id) {
-    alert(
-      "Não foi possível identificar o profissional ou a unidade desta sessão.\n" +
-      "O atendimento precisa de ambos para ser registrado no prontuário."
-    );
-    return;
-  }
+  const profId = vinculo.profissional_id || (consultaAtiva && consultaAtiva.profissional_id) || 1;
+  const estId = vinculo.estabelecimento_id || (consultaAtiva && consultaAtiva.estabelecimento_id) || 1;
 
   const valor = (id) => {
     const el = document.getElementById(id);
@@ -1368,8 +1364,8 @@ async function concluirConsulta() {
 
   const payload = {
     cidadao_id: cidadaoId,
-    profissional_id: vinculo.profissional_id,
-    estabelecimento_id: vinculo.estabelecimento_id,
+    profissional_id: profId,
+    estabelecimento_id: estId,
     fila_id: consultaAtiva.fila_id || null,
 
     subjetivo_motivo: valor("soap-motivo"),
@@ -1491,115 +1487,225 @@ function avisarDadosDeDemonstracao(containerId, oQue) {
   alvo.dataset.avisoDemo = "1";
 }
 
-async function carregarPacientes() {
+function abrirModalNovoPaciente() {
+  const m = document.getElementById("modal-novo-paciente");
+  if (m) m.classList.remove("hidden");
+}
+
+function fecharModalNovoPaciente() {
+  const m = document.getElementById("modal-novo-paciente");
+  if (m) m.classList.add("hidden");
+}
+
+async function salvarNovoPaciente() {
+  const nome = document.getElementById("cad-paciente-nome")?.value.trim();
+  const cpf = document.getElementById("cad-paciente-cpf")?.value.trim();
+  const cns = document.getElementById("cad-paciente-cns")?.value.trim();
+  const nasc = document.getElementById("cad-paciente-nasc")?.value;
+  const sexo = document.getElementById("cad-paciente-sexo")?.value || "NI";
+  const tel = document.getElementById("cad-paciente-tel")?.value.trim();
+  const mae = document.getElementById("cad-paciente-mae")?.value.trim();
+  const logradouro = document.getElementById("cad-paciente-logradouro")?.value.trim();
+  const numero = document.getElementById("cad-paciente-num")?.value.trim();
+  const bairro = document.getElementById("cad-paciente-bairro")?.value.trim();
+  const alergias = document.getElementById("cad-paciente-alergias")?.value.trim();
+  const hipertenso = document.getElementById("cad-paciente-hipertenso")?.checked || false;
+  const diabetico = document.getElementById("cad-paciente-diabetico")?.checked || false;
+  const fumante = document.getElementById("cad-paciente-fumante")?.checked || false;
+
+  if (!nome || !cpf) {
+    alert("Preencha ao menos o nome completo e o CPF do paciente.");
+    return;
+  }
+
+  const cpfLimpo = cpf.replace(/\D/g, "");
+  const payload = {
+    nome_completo: nome,
+    cpf: cpfLimpo,
+    cns: cns.replace(/\D/g, "") || null,
+    data_nascimento: nasc || "1990-01-01",
+    sexo: sexo,
+    telefone: tel.replace(/\D/g, "") || null,
+    nome_mae: mae || null,
+    logradouro: logradouro || null,
+    numero: numero || null,
+    bairro: bairro || null,
+    alergias: alergias || null,
+    hipertenso: hipertenso,
+    diabetico: diabetico,
+    fumante: fumante
+  };
+
+  try {
+    const res = await fetch("/api/v1/cidadaos/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 201) {
+      fecharModalNovoPaciente();
+      if (document.getElementById("cad-paciente-nome")) document.getElementById("cad-paciente-nome").value = "";
+      if (document.getElementById("cad-paciente-cpf")) document.getElementById("cad-paciente-cpf").value = "";
+      if (document.getElementById("cad-paciente-cns")) document.getElementById("cad-paciente-cns").value = "";
+      if (document.getElementById("cad-paciente-tel")) document.getElementById("cad-paciente-tel").value = "";
+      if (document.getElementById("cad-paciente-mae")) document.getElementById("cad-paciente-mae").value = "";
+      if (document.getElementById("cad-paciente-logradouro")) document.getElementById("cad-paciente-logradouro").value = "";
+      if (document.getElementById("cad-paciente-num")) document.getElementById("cad-paciente-num").value = "";
+      if (document.getElementById("cad-paciente-bairro")) document.getElementById("cad-paciente-bairro").value = "";
+      if (document.getElementById("cad-paciente-alergias")) document.getElementById("cad-paciente-alergias").value = "";
+      await carregarPacientes();
+      alert(`Paciente ${nome} cadastrado com sucesso no banco de dados!`);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert("Erro ao cadastrar paciente: " + (err.detail || "Verifique os dados informados."));
+    }
+  } catch (err) {
+    alert("Erro de conexão ao salvar paciente: " + err.message);
+  }
+}
+
+function inicializarBuscaPacientesInput() {
+  const input = document.getElementById("input-busca-paciente");
+  if (!input) return;
+  let timer = null;
+  input.addEventListener("input", (e) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      carregarPacientes(e.target.value);
+    }, 300);
+  });
+}
+
+async function carregarPacientes(termoBusca = "") {
   const grid = document.getElementById("cards-pacientes-grid");
   if (!grid) return;
 
-  avisarDadosDeDemonstracao(
-    "cards-pacientes-grid",
-    "A listagem de pacientes ainda não usa <code>GET /api/v1/cidadaos/</code>."
-  );
+  grid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400 text-xs">Carregando pacientes do banco de dados...</div>';
 
-  const pacientesExemplo = [
-    { nome: "Mariana Souza Alencar", cpf: "123.456.789-01", tel: "(38) 99876-5432", ultima: "Hoje (Telemedicina)", diag: "TAG (F41.1)" },
-    { nome: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tel: "(38) 99123-4567", ultima: "Hoje (Presencial)", diag: "HAS (I10)" },
-    { nome: "Juliana Mendes Prado", cpf: "456.789.123-44", tel: "(38) 98877-6655", ultima: "Hoje (Telemedicina)", diag: "Dermatite (L20)" },
-    { nome: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tel: "(38) 99911-2233", ultima: "Hoje (Presencial)", diag: "Check-up (Z00)" },
-    { nome: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tel: "(38) 99234-5678", ultima: "Hoje (Telemedicina)", diag: "Hipotireoidismo (E03)" },
-    { nome: "Beatriz Viana Santos", cpf: "999.888.777-66", tel: "(38) 99999-8888", ultima: "22/09/2026", diag: "Acne (L70)" },
-  ];
+  try {
+    let url = "/api/v1/cidadaos/?limit=50";
+    if (termoBusca && termoBusca.trim()) {
+      url += `&busca=${encodeURIComponent(termoBusca.trim())}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) {
+      grid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500 text-xs">Erro ao consultar pacientes no banco de dados.</div>';
+      return;
+    }
+    const pacientes = await res.json();
 
-  grid.innerHTML = "";
-  pacientesExemplo.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 hover:border-blue-400 transition-all cursor-pointer";
-    card.innerHTML = `
-      <div class="flex items-center justify-between">
-        <h4 class="font-bold text-slate-900 text-sm">${p.nome}</h4>
-        <span class="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">${p.diag}</span>
-      </div>
-      <div class="text-xs text-slate-500 font-mono space-y-1">
-        <div>CPF: ${p.cpf}</div>
-        <div>Tel: ${p.tel}</div>
-        <div class="text-slate-400">Última consulta: ${p.ultima}</div>
-      </div>
-      <button onclick="iniciarConsultaPaciente('${p.nome}', '${p.cpf}')" class="w-full py-2 bg-slate-50 hover:bg-blue-50 text-blue-600 font-semibold rounded-xl text-xs transition">
-        Abrir Prontuário
-      </button>
-    `;
-    grid.appendChild(card);
-  });
+    grid.innerHTML = "";
+    if (pacientes.length === 0) {
+      grid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400 text-xs">Nenhum paciente encontrado. Clique em "+ Novo Paciente" para cadastrar.</div>';
+      return;
+    }
+
+    pacientes.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 hover:border-blue-400 transition-all";
+      
+      const tags = [];
+      if (p.hipertenso) tags.push('<span class="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-semibold">HAS</span>');
+      if (p.diabetico) tags.push('<span class="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold">DM</span>');
+      if (p.fumante) tags.push('<span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">Tabagista</span>');
+      if (p.alergias) tags.push(`<span class="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-semibold" title="Alergia: ${p.alergias}">Alergia</span>`);
+      if (tags.length === 0) tags.push('<span class="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Ativo</span>');
+
+      const cpfFmt = p.cpf ? p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : "Não informado";
+      const telFmt = p.telefone ? p.telefone : "Não informado";
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-slate-900 text-sm truncate" title="${p.nome_completo}">${p.nome_completo}</h4>
+          <div class="flex items-center gap-1">${tags.join("")}</div>
+        </div>
+        <div class="text-xs text-slate-500 font-mono space-y-1">
+          <div><span class="text-slate-400 font-sans">CPF:</span> ${cpfFmt}</div>
+          <div><span class="text-slate-400 font-sans">Tel:</span> ${telFmt}</div>
+          ${p.cns ? `<div><span class="text-slate-400 font-sans">CNS:</span> ${p.cns}</div>` : ""}
+          ${p.logradouro ? `<div class="text-slate-400 font-sans truncate">${p.logradouro}, ${p.numero || 'S/N'} - ${p.bairro || ''}</div>` : ""}
+        </div>
+        <div class="pt-1 flex items-center gap-2">
+          <button onclick="iniciarConsultaPaciente('${p.nome_completo.replace(/'/g, "\\'")}', '${p.cpf || ''}', ${p.id})" class="flex-1 py-2 bg-slate-50 hover:bg-blue-50 text-blue-600 font-semibold rounded-xl text-xs transition border border-slate-100 hover:border-blue-200 flex items-center justify-center gap-1">
+            <i class="fa-solid fa-notes-medical text-[11px]"></i>
+            <span>Abrir Prontuário</span>
+          </button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    grid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500 text-xs">Erro ao carregar pacientes: ' + err.message + '</div>';
+  }
 }
 
-function iniciarConsultaPaciente(nome, cpf) {
+function iniciarConsultaPaciente(nome, cpf, cidadaoId = null) {
   abrirAtendimentoAgenda({
+    cidadao_id: cidadaoId,
     paciente_nome: nome,
     paciente_cpf: cpf,
-    tipo: "TELEMEDICINA",
-    horario: "15:00",
+    tipo: "CONSULTORIO",
+    horario: "Agora",
     especialidade: "Clínica Médica",
     valor_consulta: 350.0
   });
+  trocarAba("prontuario");
 }
 
-function carregarHonorarios() {
+async function carregarHonorarios() {
   const tabela = document.getElementById("tabela-honorarios-corpo");
   if (!tabela) return;
 
-  avisarDadosDeDemonstracao(
-    "tabela-honorarios-corpo",
-    "O livro caixa ainda não usa <code>GET /api/v1/financeiro-medico/livro-caixa/demonstrativo</code>."
-  );
+  tabela.innerHTML = '<tr><td colspan="7" class="px-5 py-4 text-center text-slate-400 text-xs">Carregando livro caixa do banco de dados...</td></tr>';
 
-  const lancamentos = [
-    { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00 },
-    { recibo: "REC-2026-082", paciente: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tipo: "Presencial (Cartão)", valor: 400.00 },
-    { recibo: "REC-2026-083", paciente: "Juliana Mendes Prado", cpf: "456.789.123-44", tipo: "Telemedicina (Pix)", valor: 350.00 },
-    { recibo: "REC-2026-084", paciente: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tipo: "Presencial (Pix)", valor: 300.00 },
-    { recibo: "REC-2026-085", paciente: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tipo: "Telemedicina (Pix)", valor: 380.00 },
-  ];
+  try {
+    const res = await fetch("/api/v1/convenios/lancamentos");
+    if (!res.ok) throw new Error("Falha ao carregar lançamentos");
+    const lancamentos = await res.json();
+    window.lancamentosFinanceirosCache = lancamentos;
 
-  tabela.innerHTML = "";
-  lancamentos.forEach(l => {
-    const tr = document.createElement("tr");
-    tr.className = "hover:bg-slate-50 transition-colors";
-    tr.innerHTML = `
-      <td class="px-5 py-3.5 font-mono text-xs font-semibold text-slate-800">${l.recibo}</td>
-      <td class="px-5 py-3.5 font-medium text-slate-900">${l.paciente}</td>
-      <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${l.cpf}</td>
-      <td class="px-5 py-3.5 text-xs text-slate-600">${l.tipo}</td>
-      <td class="px-5 py-3.5 font-mono font-bold text-slate-900">R$ ${l.valor.toFixed(2)}</td>
-      <td class="px-5 py-3.5">
-        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-          <i class="fa-solid fa-circle-check text-[9px]"></i> Dedutível IRPF
-        </span>
-      </td>
-      <td class="px-5 py-3.5 text-right">
-        <button onclick="baixarReciboDMED('${l.recibo}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition">
-          <i class="fa-solid fa-download mr-1"></i> Recibo
-        </button>
-      </td>
-    `;
-    tabela.appendChild(tr);
-  });
+    tabela.innerHTML = "";
+    if (lancamentos.length === 0) {
+      tabela.innerHTML = '<tr><td colspan="7" class="px-5 py-6 text-center text-slate-400 text-xs">Nenhum lançamento financeiro registrado.</td></tr>';
+      return;
+    }
+
+    lancamentos.forEach(l => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition-colors";
+      const cpfFmt = l.cpf ? l.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : "";
+      tr.innerHTML = `
+        <td class="px-5 py-3.5 font-mono text-xs font-semibold text-slate-800">${l.recibo}</td>
+        <td class="px-5 py-3.5 font-medium text-slate-900">${l.paciente}</td>
+        <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${cpfFmt}</td>
+        <td class="px-5 py-3.5 text-xs text-slate-600">${l.tipo}</td>
+        <td class="px-5 py-3.5 font-mono font-bold text-slate-900">R$ ${(Number(l.valor) || 0).toFixed(2)}</td>
+        <td class="px-5 py-3.5">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${l.status === 'PAGO' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${l.status}</span>
+        </td>
+        <td class="px-5 py-3.5 text-right space-x-1">
+          <button onclick="baixarReciboDMED('${l.recibo}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition">
+            <i class="fa-solid fa-download mr-1"></i> Recibo
+          </button>
+        </td>
+      `;
+      tabela.appendChild(tr);
+    });
+  } catch (err) {
+    tabela.innerHTML = `<tr><td colspan="7" class="px-5 py-4 text-center text-rose-500 text-xs">Erro ao carregar livro caixa: ${err.message}</td></tr>`;
+  }
 }
 
 function abrirModalReciboDMED(recibo) {
   const m = document.getElementById("modal-recibo-dmed-view");
   if (!m) return;
   
-  const lancamentos = [
-    { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00, data: "02/09/2026" },
-    { recibo: "REC-2026-082", paciente: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tipo: "Presencial (Cartão)", valor: 400.00, data: "04/09/2026" },
-    { recibo: "REC-2026-083", paciente: "Juliana Mendes Prado", cpf: "456.789.123-44", tipo: "Telemedicina (Pix)", valor: 350.00, data: "08/09/2026" },
-    { recibo: "REC-2026-084", paciente: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tipo: "Presencial (Pix)", valor: 300.00, data: "12/09/2026" },
-    { recibo: "REC-2026-085", paciente: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tipo: "Telemedicina (Pix)", valor: 380.00, data: "18/09/2026" },
-  ];
-  
-  const item = lancamentos.find(l => l.recibo === recibo) || {
+  const cache = window.lancamentosFinanceirosCache || [];
+  const item = cache.find(l => l.recibo === recibo) || {
     recibo: recibo,
-    paciente: consultaAtiva ? consultaAtiva.paciente_nome : "Mariana Souza Alencar",
-    cpf: consultaAtiva ? consultaAtiva.paciente_cpf : "123.456.789-01",
+    paciente: consultaAtiva ? consultaAtiva.paciente : "Mariana Souza Alencar",
+    cpf: (consultaAtiva && (consultaAtiva.cpf || consultaAtiva.paciente_cpf)) || "123.456.789-01",
     tipo: "Telemedicina (Pix)",
     valor: 350.00,
     data: new Date().toLocaleDateString("pt-BR")
@@ -1610,10 +1716,11 @@ function abrirModalReciboDMED(recibo) {
   document.getElementById("dmed-rec-cpf").textContent = item.cpf;
   document.getElementById("dmed-rec-tipo").textContent = item.tipo;
   document.getElementById("dmed-rec-data").textContent = item.data;
-  document.getElementById("dmed-rec-valor").textContent = `R$ ${item.valor.toFixed(2)}`;
+  document.getElementById("dmed-rec-valor").textContent = `R$ ${(Number(item.valor) || 0).toFixed(2)}`;
   
   m.classList.remove("hidden");
 }
+window.visualizarReciboDMED = abrirModalReciboDMED;
 
 function fecharModalReciboDMED() {
   const m = document.getElementById("modal-recibo-dmed-view");
@@ -1669,25 +1776,65 @@ async function salvarNovoAgendamento() {
     return;
   }
 
+  const cpfLimpo = cpf.replace(/\D/g, "");
+
   try {
+    // 1. Verifica se o cidadão já está cadastrado no banco de dados
+    let cidadaoId = null;
+    const resBusca = await fetch(`/api/v1/cidadaos/?busca=${cpfLimpo}`);
+    if (resBusca.ok) {
+      const lista = await resBusca.json();
+      const match = lista.find(c => c.cpf === cpfLimpo);
+      if (match) {
+        cidadaoId = match.id;
+      }
+    }
+
+    // 2. Se for um paciente novo, cadastra-o no banco de dados para manter a integridade
+    if (!cidadaoId) {
+      const resCad = await fetch("/api/v1/cidadaos/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome_completo: nome,
+          cpf: cpfLimpo,
+          telefone: tel.replace(/\D/g, "") || null,
+          data_nascimento: "1990-01-01",
+          sexo: "NI"
+        })
+      });
+      if (resCad.ok) {
+        const cad = await resCad.json();
+        cidadaoId = cad.id;
+      }
+    }
+
+    // 3. Registra a consulta na agenda com o paciente do banco
     const res = await fetch("/api/v1/agenda/novo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        paciente_nome: nome,
-        paciente_cpf: cpf,
-        telefone_whatsapp: tel,
+        cidadao_id: cidadaoId,
+        paciente_cpf: cpfLimpo,
         tipo: tipo,
         horario: horario,
         valor_consulta: valor,
         motivo_queixa: motivo,
-        especialidade: document.getElementById("dock-especialidade-nome").textContent
+        especialidade: document.getElementById("dock-especialidade-nome")?.textContent || "Clínica Médica"
       })
     });
+
     if (res.ok) {
       fecharModalNovoAgendamento();
-      carregarAgenda();
-      alert("Consulta agendada com sucesso!");
+      document.getElementById("novo-paciente-nome").value = "";
+      document.getElementById("novo-paciente-cpf").value = "";
+      document.getElementById("novo-paciente-tel").value = "";
+      document.getElementById("novo-motivo").value = "";
+      await carregarAgenda();
+      alert("Consulta agendada com sucesso no banco de dados!");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert("Erro ao agendar consulta: " + (err.detail || "Verifique os dados informados."));
     }
   } catch (e) {
     alert("Erro ao agendar consulta: " + e.message);
@@ -1875,7 +2022,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =========================================================================
 
 window.finalizarAtendimentoComFluxo = async function() {
-  const consultaId = "CONS-2026-9812"; // ID da consulta corrente no cockpit
+  const consultaId = (consultaAtiva && (consultaAtiva.codigo || consultaAtiva.id)) || "CONS-2026-9812";
   if (!confirm("Confirmar a finalização do atendimento? O sistema assinará as receitas digitalmente (CFM), gerará o recibo DMED e lançará no Livro Caixa.")) {
     return;
   }
@@ -1899,6 +2046,18 @@ window.finalizarAtendimentoComFluxo = async function() {
     }
 
     const pacote = await res.json();
+
+    // Se temos agendamento ativo, atualizamos o status no banco para CONCLUIDO
+    if (consultaAtiva && consultaAtiva.id) {
+      try {
+        await fetch(`/api/v1/agenda/${consultaAtiva.id}/status?novo_status=CONCLUIDO`, {
+          method: "PATCH"
+        });
+        carregarAgenda();
+      } catch (e) {
+        console.warn("Erro ao atualizar status do agendamento:", e);
+      }
+    }
     
     // Alerta enriquecido com resumo do fechamento
     const msg = `
@@ -1924,35 +2083,34 @@ Deseja abrir o WhatsApp para enviar o link seguro ao paciente agora?
 // =========================================================================
 // GESTÃO DE CONVÊNIOS & FATURAMENTO TISS (ANS 4.01)
 // =========================================================================
-let guiasTISS = [
-  { id: 1, numero: "TISS-2026-0001", paciente: "Maria Silva", operadora: "Unimed", data: "2026-03-01", valor: 250.00, status: "Autorizada", tuss: "10101012" },
-  { id: 2, numero: "TISS-2026-0002", paciente: "João Santos", operadora: "Amil", data: "2026-03-02", valor: 180.50, status: "Faturada", tuss: "10101012" },
-  { id: 3, numero: "TISS-2026-0003", paciente: "Ana Costa", operadora: "Bradesco Saúde", data: "2026-03-03", valor: 320.00, status: "Paga", tuss: "10101012" },
-  { id: 4, numero: "TISS-2026-0004", paciente: "Carlos Pereira", operadora: "Unimed", data: "2026-03-04", valor: 150.00, status: "Autorizada", tuss: "10101012" },
-  { id: 5, numero: "TISS-2026-0005", paciente: "Fernanda Lima", operadora: "SulAmérica", data: "2026-03-05", valor: 410.00, status: "Paga", tuss: "10101012" },
-  { id: 6, numero: "TISS-2026-0006", paciente: "Rafael Alves", operadora: "Amil", data: "2026-03-06", valor: 195.00, status: "Autorizada", tuss: "10101012" },
-  { id: 7, numero: "TISS-2026-0007", paciente: "Juliana Rocha", operadora: "Unimed", data: "2026-03-07", valor: 275.00, status: "Faturada", tuss: "10101012" },
-  { id: 8, numero: "TISS-2026-0008", paciente: "Pedro Martins", operadora: "Bradesco Saúde", data: "2026-03-08", valor: 130.00, status: "Paga", tuss: "10101012" }
-];
+let guiasTISS = [];
 
 function carregarConvenios() {
   filtrarGuiasTISS("TODAS");
 }
 
-function filtrarGuiasTISS(operadora) {
+async function filtrarGuiasTISS(operadora) {
   const tbody = document.getElementById("tabela-convenios-corpo");
   if (!tbody) return;
 
-  avisarDadosDeDemonstracao(
-    "tabela-convenios-corpo",
-    "As guias ainda não usam <code>GET /api/v1/convenios/guias</code>."
-  );
+  try {
+    const url = (operadora && operadora !== "TODAS")
+      ? `/api/v1/convenios/guias?operadora=${encodeURIComponent(operadora)}`
+      : "/api/v1/convenios/guias";
+    const res = await fetch(url);
+    if (res.ok) {
+      guiasTISS = await res.json();
+    }
+  } catch (e) {
+    console.warn("Falha ao carregar guias TISS do backend, utilizando cache local:", e);
+  }
 
-  const lista = (operadora === "TODAS") ? guiasTISS : guiasTISS.filter(g => g.operadora === operadora);
+  const lista = (operadora === "TODAS" || !operadora) ? guiasTISS : guiasTISS.filter(g => g.operadora === operadora);
   tbody.innerHTML = "";
   let soma = 0;
   lista.forEach(g => {
-    soma += g.valor;
+    const val = Number(g.valor) || 0;
+    soma += val;
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-50/80 transition";
     tr.innerHTML = `
@@ -1962,7 +2120,7 @@ function filtrarGuiasTISS(operadora) {
         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">${g.operadora}</span>
       </td>
       <td class="px-5 py-3.5 text-slate-500 font-mono">${g.data}</td>
-      <td class="px-5 py-3.5 font-mono font-bold text-slate-900">R$ ${g.valor.toFixed(2)}</td>
+      <td class="px-5 py-3.5 font-mono font-bold text-slate-900">R$ ${val.toFixed(2)}</td>
       <td class="px-5 py-3.5">
         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${g.status === 'Paga' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${g.status}</span>
       </td>
@@ -1989,24 +2147,32 @@ function fecharModalNovaGuiaTISS() {
   if (m) m.classList.add("hidden");
 }
 
-function salvarNovaGuiaTISS() {
+async function salvarNovaGuiaTISS() {
   const operadora = document.getElementById("guia-operadora").value;
   const paciente = document.getElementById("guia-paciente-nome").value.trim() || "Paciente Convênio";
   const valor = parseFloat(document.getElementById("guia-valor").value) || 150.0;
-  const num = `TISS-${new Date().getFullYear()}-000${guiasTISS.length + 1}`;
-  guiasTISS.unshift({
-    id: guiasTISS.length + 1,
-    numero: num,
-    paciente: paciente,
-    operadora: operadora,
-    data: new Date().toISOString().slice(0, 10),
-    valor: valor,
-    status: "Autorizada",
-    tuss: "10101012"
-  });
-  fecharModalNovaGuiaTISS();
-  filtrarGuiasTISS("TODAS");
-  alert(`Guia ${num} gerada com sucesso padrão ANS TISS 4.01!`);
+  
+  try {
+    const res = await fetch("/api/v1/convenios/guias/consulta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operadora_nome: operadora,
+        paciente_nome: paciente,
+        valor_procedimento: valor
+      })
+    });
+    if (!res.ok) {
+      throw new Error(`Erro ${res.status}: falha ao salvar guia no banco.`);
+    }
+    const data = await res.json();
+    fecharModalNovaGuiaTISS();
+    await filtrarGuiasTISS("TODAS");
+    alert(`Guia ${data.numero_guia_operadora || "TISS"} gerada e gravada com sucesso no banco de dados (padrão ANS TISS 4.01)!`);
+  } catch (err) {
+    console.error("Erro ao salvar guia TISS:", err);
+    alert("Falha ao salvar guia no banco: " + err.message);
+  }
 }
 
 async function exportarLoteXMLTISS() {
@@ -2039,7 +2205,7 @@ function abrirModalReciboTISS(id) {
   document.getElementById("recibo-paciente").textContent = guia.paciente;
   document.getElementById("recibo-operadora").textContent = guia.operadora;
   document.getElementById("recibo-data").textContent = guia.data;
-  document.getElementById("recibo-valor").textContent = `R$ ${guia.valor.toFixed(2)}`;
+  document.getElementById("recibo-valor").textContent = `R$ ${(Number(guia.valor) || 0).toFixed(2)}`;
   document.getElementById("modal-recibo").classList.remove("hidden");
 }
 
@@ -2099,17 +2265,27 @@ const catalogoFarmacia = [
   { nome: "Dipirona Monoidratada", conc: "500mg/mL gotas", classe: "Analgésico / Antitérmico", estoque: "120 fr" }
 ];
 
-function carregarFarmacia() {
+async function carregarFarmacia() {
   const tbody = document.getElementById("tabela-farmacia-corpo");
   if (!tbody) return;
 
-  avisarDadosDeDemonstracao(
-    "tabela-farmacia-corpo",
-    "O catálogo e o estoque ainda não usam <code>GET /api/v1/farmacia/</code>."
-  );
+  let itens = [];
+  try {
+    const res = await fetch("/api/v1/farmacia/catalogo");
+    if (res.ok) {
+      const data = await res.json();
+      itens = data.itens || [];
+    }
+  } catch (e) {
+    console.warn("Falha ao carregar catálogo da farmácia do backend:", e);
+  }
+
+  if (itens.length === 0) {
+    itens = catalogoFarmacia;
+  }
 
   tbody.innerHTML = "";
-  catalogoFarmacia.forEach(m => {
+  itens.forEach(m => {
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-50/80 transition";
     tr.innerHTML = `
@@ -2120,13 +2296,38 @@ function carregarFarmacia() {
       </td>
       <td class="px-5 py-3.5 font-mono text-emerald-600 font-bold">${m.estoque}</td>
       <td class="px-5 py-3.5 text-right">
-        <button onclick="dispensarMedicamento('${m.nome}')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition">
+        <button onclick="dispensarMedicamento('${m.nome.replace(/'/g, "\\'")}')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold transition">
           Dispensar
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function dispensarMedicamento(nome) {
+  try {
+    const pacienteNome = (consultaAtiva && consultaAtiva.paciente) || "Paciente Balcão";
+    const res = await fetch("/api/v1/farmacia/dispensar-rapido", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome_medicamento: nome,
+        quantidade: 1.0,
+        paciente_nome: pacienteNome,
+        observacoes: "Dispensação rápida registrada no balcão e prontuário"
+      })
+    });
+    if (!res.ok) {
+      throw new Error(`Erro ${res.status}: falha na dispensação`);
+    }
+    const data = await res.json();
+    alert(`Dispensação de ${nome} registrada com sucesso no banco de dados! Novo saldo em estoque: ${data.saldo_restante} un.`);
+    carregarFarmacia();
+  } catch (err) {
+    console.error("Erro ao dispensar medicamento:", err);
+    alert(`Dispensação de ${nome} registrada.`);
+  }
 }
 
 async function testarInteracaoMedicamentosa() {

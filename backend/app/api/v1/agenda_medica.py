@@ -49,6 +49,8 @@ class AgendamentoCreate(BaseModel):
 
     cidadao_id: Optional[int] = None
     paciente_cpf: Optional[str] = None
+    paciente_nome: Optional[str] = None
+    telefone_whatsapp: Optional[str] = None
 
     tipo: TipoAtendimento = TipoAtendimento.PRESENCIAL
     data_consulta: Optional[date] = None
@@ -132,7 +134,11 @@ def _serializar(ag: Agendamento) -> AgendamentoOut:
     )
 
 
-def _resolver_cidadao(db: Session, cidadao_id: Optional[int], cpf: Optional[str]) -> Cidadao:
+def _resolver_cidadao(
+    db: Session,
+    cidadao_id: Optional[int],
+    cpf: Optional[str],
+) -> Cidadao:
     """Localiza o cidadão do agendamento, exigindo que ele exista no cadastro."""
     if cidadao_id:
         cidadao = db.query(Cidadao).filter(Cidadao.id == cidadao_id).first()

@@ -67,27 +67,246 @@ def seed_database(db: Session):
         db.add(prof_enf)
 
     # 3. Cidadão de Exemplo
-    cidadao_exemplo = db.query(Cidadao).filter(Cidadao.cpf == "12345678900").first()
-    if not cidadao_exemplo:
-        cidadao_exemplo = Cidadao(
-            cns="898000123456789",
-            cpf="12345678900",
-            nome_completo="Sebastião Ferreira Santos",
-            nome_mae="Maria de Lourdes Santos",
-            data_nascimento=date(1968, 5, 14),
-            sexo="M",
-            raca_cor="Parda",
-            telefone="38999887766",
-            logradouro="Rua Belo Horizonte",
-            numero="120",
-            bairro="Major Prates",
-            municipio_ibge="3143302",
-            hipertenso=True,
-            diabetico=False,
-            fumante=False,
-            alergias="Dipirona"
-        )
-        db.add(cidadao_exemplo)
+    # 3. Cidadãos e Pacientes do Consultório
+    pacientes_iniciais = [
+        {
+            "cpf": "12345678900",
+            "cns": "898000123456789",
+            "nome_completo": "Sebastião Ferreira Santos",
+            "nome_mae": "Maria de Lourdes Santos",
+            "data_nascimento": date(1968, 5, 14),
+            "sexo": "M",
+            "raca_cor": "Parda",
+            "telefone": "38999887766",
+            "logradouro": "Rua Belo Horizonte",
+            "numero": "120",
+            "bairro": "Major Prates",
+            "municipio_ibge": "3143302",
+            "hipertenso": True,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "Dipirona",
+        },
+        {
+            "cpf": "12345678901",
+            "cns": "898000123456701",
+            "nome_completo": "Mariana Souza Alencar",
+            "nome_mae": "Carla Regina Alencar",
+            "data_nascimento": date(1992, 8, 22),
+            "sexo": "F",
+            "raca_cor": "Branca",
+            "telefone": "38998765432",
+            "logradouro": "Rua Santa Maria",
+            "numero": "450",
+            "bairro": "Todos os Santos",
+            "municipio_ibge": "3143302",
+            "hipertenso": False,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "Penicilina",
+        },
+        {
+            "cpf": "98765432100",
+            "cns": "898000123456702",
+            "nome_completo": "Roberto Carlos Fagundes",
+            "nome_mae": "Aparecida Fagundes",
+            "data_nascimento": date(1961, 3, 10),
+            "sexo": "M",
+            "raca_cor": "Parda",
+            "telefone": "38991234567",
+            "logradouro": "Avenida Sanitária",
+            "numero": "1002",
+            "bairro": "Centro",
+            "municipio_ibge": "3143302",
+            "hipertenso": True,
+            "diabetico": True,
+            "fumante": False,
+            "alergias": "Nenhuma relatada",
+        },
+        {
+            "cpf": "45678912344",
+            "cns": "898000123456703",
+            "nome_completo": "Juliana Mendes Prado",
+            "nome_mae": "Cláudia Mendes",
+            "data_nascimento": date(1987, 11, 5),
+            "sexo": "F",
+            "raca_cor": "Parda",
+            "telefone": "38988776655",
+            "logradouro": "Rua Dr. Veloso",
+            "numero": "310",
+            "bairro": "Centro",
+            "municipio_ibge": "3143302",
+            "hipertenso": False,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "Sulfa",
+        },
+        {
+            "cpf": "11122233344",
+            "cns": "898000123456704",
+            "nome_completo": "Carlos Eduardo Pereira",
+            "nome_mae": "Helena Pereira",
+            "data_nascimento": date(1979, 6, 18),
+            "sexo": "M",
+            "raca_cor": "Branca",
+            "telefone": "38999112233",
+            "logradouro": "Rua Simeão Ribeiro",
+            "numero": "85",
+            "bairro": "Melo",
+            "municipio_ibge": "3143302",
+            "hipertenso": False,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "Nenhuma",
+        },
+        {
+            "cpf": "55566677701",
+            "cns": "898000123456705",
+            "nome_completo": "Camila Guimarães Ribeiro",
+            "nome_mae": "Patrícia Guimarães",
+            "data_nascimento": date(1995, 1, 30),
+            "sexo": "F",
+            "raca_cor": "Parda",
+            "telefone": "38992345678",
+            "logradouro": "Rua Dom Pedro II",
+            "numero": "215",
+            "bairro": "Ibituruna",
+            "municipio_ibge": "3143302",
+            "hipertenso": False,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "AINEs (Ibuprofeno)",
+        },
+        {
+            "cpf": "99988877701",
+            "cns": "898000123456706",
+            "nome_completo": "Beatriz Viana Santos",
+            "nome_mae": "Rosana Viana",
+            "data_nascimento": date(2001, 9, 12),
+            "sexo": "F",
+            "raca_cor": "Branca",
+            "telefone": "38999998888",
+            "logradouro": "Rua Coronel Altino",
+            "numero": "98",
+            "bairro": "Funcionários",
+            "municipio_ibge": "3143302",
+            "hipertenso": False,
+            "diabetico": False,
+            "fumante": False,
+            "alergias": "Nenhuma",
+        },
+    ]
+
+    for p_data in pacientes_iniciais:
+        cid_existente = db.query(Cidadao).filter(
+            (Cidadao.cpf == p_data["cpf"]) | (Cidadao.cns == p_data["cns"])
+        ).first()
+        if not cid_existente:
+            db.add(Cidadao(**p_data))
+        else:
+            for k, v in p_data.items():
+                setattr(cid_existente, k, v)
+    db.flush()
+
+    # 3.1 Operadoras de Saúde e Planos TISS
+    from app.models.convenios import Operadora, Plano, GuiaTISS, GuiaStatus, TipoGuia, LancamentoFinanceiro, LancamentoTipo, LancamentoStatus
+    from datetime import datetime, time, UTC
+    import uuid
+
+    ops_data = [
+        ("Unimed", "305685", "12345678000199", "Unimed Pleno"),
+        ("Bradesco Saúde", "005711", "98765432000188", "Bradesco Top Nacional"),
+        ("Amil", "326305", "11223344000177", "Amil Fácil S80"),
+        ("SulAmérica", "006246", "55667788000166", "SulAmérica Especial"),
+    ]
+
+    for op_nome, reg_ans, cnpj_op, plano_nome in ops_data:
+        op = db.query(Operadora).filter(Operadora.registro_ans == reg_ans).first()
+        if not op:
+            op = Operadora(nome=op_nome, registro_ans=reg_ans, cnpj=cnpj_op, ativo=True)
+            db.add(op)
+            db.flush()
+        plano = db.query(Plano).filter(Plano.operadora_id == op.id).first()
+        if not plano:
+            db.add(Plano(operadora_id=op.id, nome=plano_nome, codigo_plano=f"PL-{op.id:03d}", tipo="AMBULATORIAL", ativo=True))
+    db.flush()
+
+    # 3.2 Agendamentos Iniciais do Dia
+    from app.models.agendamento import Agendamento, StatusAgendamento, TipoAtendimento
+
+    mariana = db.query(Cidadao).filter(Cidadao.cpf == "12345678901").first()
+    roberto = db.query(Cidadao).filter(Cidadao.cpf == "98765432100").first()
+    juliana = db.query(Cidadao).filter(Cidadao.cpf == "45678912344").first()
+    carlos = db.query(Cidadao).filter(Cidadao.cpf == "11122233344").first()
+    camila = db.query(Cidadao).filter(Cidadao.cpf == "55566677701").first()
+
+    agenda_inicial = [
+        (mariana, TipoAtendimento.TELEMEDICINA, time(9, 0), "Ansiedade e insônia há 3 semanas", 350.0, "Psiquiatria", StatusAgendamento.AGENDADO),
+        (roberto, TipoAtendimento.PRESENCIAL, time(10, 0), "Controle de Hipertensão e retorno de exames", 400.0, "Cardiologia", StatusAgendamento.SALA_DE_ESPERA),
+        (juliana, TipoAtendimento.TELEMEDICINA, time(11, 0), "Lesões pruriginosas em membros superiores", 350.0, "Dermatologia", StatusAgendamento.AGENDADO),
+        (carlos, TipoAtendimento.PRESENCIAL, time(14, 0), "Check-up preventivo anual e cansaço fácil", 300.0, "Clínica Médica", StatusAgendamento.AGENDADO),
+        (camila, TipoAtendimento.TELEMEDICINA, time(15, 30), "Ajuste de dose de levotiroxina", 380.0, "Endocrinologia", StatusAgendamento.AGENDADO),
+    ]
+
+    for pac, tipo_at, hora, queixa, val, esp, st in agenda_inicial:
+        if pac and not db.query(Agendamento).filter(Agendamento.cidadao_id == pac.id).first():
+            ag = Agendamento(
+                codigo=f"AG-{uuid.uuid4().hex[:6].upper()}",
+                cidadao_id=pac.id,
+                profissional_id=prof_medico.id if prof_medico else None,
+                estabelecimento_id=est.id if est else None,
+                tipo=tipo_at.value,
+                status=st.value,
+                data_consulta=date.today(),
+                horario=hora,
+                duracao_minutos=30,
+                especialidade=esp,
+                motivo_queixa=queixa,
+                valor_consulta=val,
+                codigo_sala_telemedicina=f"sala_{uuid.uuid4().hex[:10]}" if tipo_at == TipoAtendimento.TELEMEDICINA else None,
+            )
+            db.add(ag)
+    db.flush()
+
+    # 3.3 Guias TISS e Lançamentos Iniciais
+    unimed_plano = db.query(Plano).first()
+    if unimed_plano and not db.query(GuiaTISS).first():
+        guias_iniciais = [
+            ("TISS-2026-0001", "Mariana Souza Alencar", "12345678901", "Unimed", 250.0, GuiaStatus.AUTORIZADA),
+            ("TISS-2026-0002", "Roberto Carlos Fagundes", "98765432100", "Amil", 180.50, GuiaStatus.ENVIADA),
+            ("TISS-2026-0003", "Juliana Mendes Prado", "45678912344", "Bradesco Saúde", 320.0, GuiaStatus.PAGA),
+            ("TISS-2026-0004", "Carlos Eduardo Pereira", "11122233344", "SulAmérica", 280.0, GuiaStatus.PAGA),
+            ("TISS-2026-0005", "Camila Guimarães Ribeiro", "55566677701", "Unimed", 350.0, GuiaStatus.GERADA),
+        ]
+        for num, pac_nome, pac_cpf, op_ref, vlr, st_guia in guias_iniciais:
+            p_ref = db.query(Plano).join(Operadora).filter(Operadora.nome.ilike(f"%{op_ref}%")).first() or unimed_plano
+            g = GuiaTISS(
+                numero_guia=num,
+                tipo_guia=TipoGuia.CONSULTA,
+                plano_id=p_ref.id,
+                paciente_nome=pac_nome,
+                paciente_cpf=pac_cpf,
+                numero_carteira="00192837465",
+                status=st_guia,
+                procedimento_tuss="10101012",
+                valor_total=vlr,
+                data_emissao=datetime.now(UTC),
+            )
+            db.add(g)
+            db.flush()
+
+            db.add(LancamentoFinanceiro(
+                guia_id=g.id,
+                paciente_cpf=pac_cpf,
+                paciente_nome=pac_nome,
+                tipo=LancamentoTipo.CONVENIO,
+                valor=vlr,
+                descricao=f"Guia TISS Consulta {num} - {op_ref}",
+                status=LancamentoStatus.PAGO if st_guia == GuiaStatus.PAGA else LancamentoStatus.PENDENTE,
+                recibo_numero=f"REC-2026-{g.id:03d}",
+                data_lancamento=datetime.now(UTC),
+            ))
+    db.flush()
 
     # 4. Terminologias CIAP-2 (Atenção Primária à Saúde)
     ciap2_lista = [

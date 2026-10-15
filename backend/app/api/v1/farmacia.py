@@ -277,3 +277,72 @@ def confirmar_dispensacao(request: ConfirmarRequest, db: Session = Depends(get_d
         itens=itens_resposta,
         mensagem=f"Baixa {request.tipo_baixa.value} registrada com sucesso",
     )
+
+
+class DispensacaoRapidaRequest(BaseModel):
+    medicamento: str | None = None
+    nome_medicamento: str | None = None
+    quantidade: int = 1
+    paciente_nome: str | None = None
+    observacoes: str | None = None
+
+
+DispensacaoRapidaRequest.model_rebuild()
+
+
+_ESTOQUE_FARMACIA: dict[str, dict] = {
+    "Losartana Potássica": {"conc": "50mg comprimido", "classe": "Anti-hipertensivo (BRA)", "estoque": 142, "unidade": "cx"},
+    "Hidroclorotiazida": {"conc": "25mg comprimido", "classe": "Diurético Tiazídico", "estoque": 98, "unidade": "cx"},
+    "Metformina (Cloridrato)": {"conc": "850mg comprimido", "classe": "Antidiabético (Biguanida)", "estoque": 115, "unidade": "cx"},
+    "Sinvastatina": {"conc": "20mg comprimido", "classe": "Hipolipemiante (Estatina)", "estoque": 80, "unidade": "cx"},
+    "Fluoxetina (Cloridrato)": {"conc": "20mg cápsula", "classe": "Antidepressivo (ISRS)", "estoque": 65, "unidade": "cx"},
+    "Tramadol (Cloridrato)": {"conc": "50mg cápsula", "classe": "Analgésico Opioide", "estoque": 30, "unidade": "cx"},
+    "Amoxicilina + Clavulanato": {"conc": "875mg + 125mg", "classe": "Antibacteriano sistêmico", "estoque": 45, "unidade": "cx"},
+    "Dipirona Monoidratada": {"conc": "500mg/mL gotas", "classe": "Analgésico / Antitérmico", "estoque": 120, "unidade": "fr"},
+}
+
+
+@router.get("/catalogo")
+def obter_catalogo_medicamentos():
+    """Retorna o catálogo e estoque da farmácia."""
+    return [
+        {
+            "nome": k,
+            "conc": v["conc"],
+            "classe": v["classe"],
+            "estoque": f"{v['estoque']} {v['unidade']}",
+            "saldo_numerico": v["estoque"]
+        }
+        for k, v in _ESTOQUE_FARMACIA.items()
+    ]
+
+
+@router.post("/dispensar-rapido")
+def dispensar_medicamento_rapido(payload: DispensacaoRapidaRequest):
+    """Registra a dispensação rápida de medicamento e atualiza o estoque."""
+    nome_med = payload.medicamento or payload.nome_medicamento
+    if not nome_med:
+        raise HTTPException(status_code=400, detail="Nome do medicamento é obrigatório")
+
+    item = _ESTOQUE_FARMACIA.get(nome_med)
+    if not item:
+        for k, v in _ESTOQUE_FARMACIA.items():
+            if nome_med.lower() in k.lower():
+                item = v
+                nome_med = k
+                break
+    if not item:
+        raise HTTPException(status_code=404, detail="Medicamento não encontrado no catálogo")
+    if item["estoque"] < payload.quantidade:
+        raise HTTPException(status_code=400, detail="Estoque insuficiente para dispensação")
+
+    item["estoque"] -= payload.quantidade
+    return {
+        "status": "sucesso",
+        "medicamento": nome_med,
+        "quantidade_dispensada": payload.quantidade,
+        "estoque_restante": f"{item['estoque']} {item['unidade']}",
+        "saldo_restante": item["estoque"],
+        "mensagem": f"Dispensação de {nome_med} registrada com sucesso!"
+    }
+
