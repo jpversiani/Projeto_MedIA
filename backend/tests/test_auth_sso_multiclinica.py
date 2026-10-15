@@ -1,13 +1,16 @@
 """
 Suíte de Testes Automatizados para Autenticação, SSO (Google/Microsoft), Multi-Tenancy e Trilha de Auditoria (LGPD).
 """
-import pytest
-from fastapi.testclient import TestClient
-from app.main import app
-from app.core.database import SessionLocal
-from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
+
 from app.models.estabelecimento import Estabelecimento
-from app.services.auth_service import hash_password, verify_password, generate_totp_secret, verify_totp_token, get_totp_token
+from app.models.usuario import VinculoClinica
+from app.services.auth_service import (
+    generate_totp_secret,
+    get_totp_token,
+    hash_password,
+    verify_password,
+    verify_totp_token,
+)
 
 # NOTA: o cliente HTTP vem da fixture `client` do conftest.py, que sobrescreve
 # `get_db` para o banco SQLite em memória já populado por `seed_database`.
