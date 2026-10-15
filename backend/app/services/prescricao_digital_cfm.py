@@ -5,13 +5,13 @@ para verificação em farmácias e órgãos de controle sem expor dados confiden
 Persiste todos os documentos no banco de dados (tabela documentos_cfm).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import json
-from typing import Dict, List, Optional
 import uuid
+from typing import Optional, Dict
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ class ItemMedicamentoPrescricao:
     posologia: str
     quantidade_total: str
     via_administracao: str = "Oral"
-    instrucoes_especiais: Optional[str] = None
+    instrucoes_especiais: str | None = None
 
 
 @dataclass
@@ -42,17 +42,17 @@ class DocumentoPrescricaoCFM:
     medico_nome: str
     medico_crm: str
     medico_uf: str
-    medico_rqe: Optional[str]
+    medico_rqe: str | None
     paciente_nome: str
     paciente_cpf: str
     data_emissao: str
-    itens: List[ItemMedicamentoPrescricao]
-    instrucoes_gerais: Optional[str] = None
+    itens: list[ItemMedicamentoPrescricao]
+    instrucoes_gerais: str | None = None
     hash_integridade_sha256: str = ""
     status: str = "VALIDA"
-    data_dispensacao: Optional[str] = None
-    atendimento_id: Optional[int] = None
-    cidadao_id: Optional[int] = None
+    data_dispensacao: str | None = None
+    atendimento_id: int | None = None
+    cidadao_id: int | None = None
 
 
 @dataclass
@@ -64,12 +64,12 @@ class DocumentoAtestadoCFM:
     paciente_nome: str
     paciente_cpf: str
     dias_afastamento: int
-    motivo_cid10: Optional[str]  # Somente se autorizado expressamente pelo paciente (CFM)
+    motivo_cid10: str | None  # Somente se autorizado expressamente pelo paciente (CFM)
     data_emissao: str
     hash_integridade_sha256: str = ""
     status: str = "VALIDO"
-    atendimento_id: Optional[int] = None
-    cidadao_id: Optional[int] = None
+    atendimento_id: int | None = None
+    cidadao_id: int | None = None
 
 
 class MotorPrescricaoCFM:
@@ -83,13 +83,13 @@ class MotorPrescricaoCFM:
         medico_nome: str,
         medico_crm: str,
         medico_uf: str,
-        medico_rqe: Optional[str],
-        itens: List[Dict[str, str]],
+        medico_rqe: str | None,
+        itens: list[dict[str, str]],
         tipo: TipoPrescricao = TipoPrescricao.SIMPLES,
-        instrucoes_gerais: Optional[str] = None,
-        atendimento_id: Optional[int] = None,
-        cidadao_id: Optional[int] = None,
-        db: Optional[Session] = None,
+        instrucoes_gerais: str | None = None,
+        atendimento_id: int | None = None,
+        cidadao_id: int | None = None,
+        db: Session | None = None,
     ) -> DocumentoPrescricaoCFM:
         """Emite uma prescrição médica digital estruturada com código validador e persistência em banco."""
         if db is None:
@@ -133,12 +133,12 @@ class MotorPrescricaoCFM:
         medico_nome: str,
         medico_crm: str,
         medico_uf: str,
-        medico_rqe: Optional[str],
-        itens: List[Dict[str, str]],
+        medico_rqe: str | None,
+        itens: list[dict[str, str]],
         tipo: TipoPrescricao,
-        instrucoes_gerais: Optional[str],
-        atendimento_id: Optional[int],
-        cidadao_id: Optional[int],
+        instrucoes_gerais: str | None,
+        atendimento_id: int | None,
+        cidadao_id: int | None,
     ) -> DocumentoPrescricaoCFM:
         partes = uuid.uuid4().hex.upper()
         codigo_validacao = f"CFM-{partes[:4]}-{partes[4:8]}-{partes[8:12]}"
@@ -223,10 +223,10 @@ class MotorPrescricaoCFM:
         medico_crm: str,
         medico_uf: str,
         dias_afastamento: int,
-        cid10: Optional[str] = None,
-        atendimento_id: Optional[int] = None,
-        cidadao_id: Optional[int] = None,
-        db: Optional[Session] = None,
+        cid10: str | None = None,
+        atendimento_id: int | None = None,
+        cidadao_id: int | None = None,
+        db: Session | None = None,
     ) -> DocumentoAtestadoCFM:
         """Emite atestado médico digital em conformidade com as normas do CFM com persistência em banco."""
         if db is None:
