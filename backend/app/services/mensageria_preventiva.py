@@ -14,11 +14,11 @@ da Família. Não há integração com sistemas públicos (SUS/SISAB) ou IoT.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Any, Sequence
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 # Modelos de domínio (assumindo que existem no projeto)
@@ -54,7 +54,7 @@ class AlertaBuscaAtiva(BaseModel):
     nome_paciente: str
     telefone: str
     tipo_alerta: str  # "vacina_atrasada" ou "diabetes_sem_acompanhamento"
-    detalhes: Dict[str, Any] = Field(default_factory=dict)
+    detalhes: dict[str, Any] = Field(default_factory=dict)
     canal: str = Field(default="whatsapp")
     conteudo: str
 
@@ -96,7 +96,7 @@ class MensageriaPreventivaService:
         self,
         horas_antecedencia: int = 24,
         canal: str = "whatsapp",
-    ) -> List[MensagemLembrete]:
+    ) -> list[MensagemLembrete]:
         """
         Gera lembretes para teleconsultas agendadas nas próximas `horas_antecedencia`.
 
@@ -135,7 +135,7 @@ class MensageriaPreventivaService:
         )
 
         resultados = self.session.execute(stmt).all()
-        mensagens: List[MensagemLembrete] = []
+        mensagens: list[MensagemLembrete] = []
 
         for row in resultados:
             conteudo = (
@@ -164,7 +164,7 @@ class MensageriaPreventivaService:
         idade_maxima_anos: int = 12,
         dias_atraso: int = 30,
         canal: str = "whatsapp",
-    ) -> List[AlertaBuscaAtiva]:
+    ) -> list[AlertaBuscaAtiva]:
         """
         Identifica crianças com vacinas atrasadas.
 
@@ -361,7 +361,6 @@ def verificar_janela_horario(horario: datetime) -> bool:
     """
     Verifica se o horário está dentro da janela permitida (08:00 às 20:00).
     """
-    from datetime import time, timezone
     t = horario.time()
     return time(8, 0, 0) <= t < time(20, 0, 0)
 
