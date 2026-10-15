@@ -18,15 +18,14 @@ Conformidade LGPD/CFM:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import StrEnum
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _agora_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(datetime.UTC)
 
 
 class TipoAlerta(StrEnum):
@@ -189,10 +188,4 @@ class EventoCopilotoWS(BaseModel):
     enviado_em: datetime = Field(default_factory=_agora_utc)
 
 
-TipoAlertaLiteral = Literal[
-    "alergia",
-    "risco",
-    "interacao_medicamentosa",
-    "dose_maxima_excedida",
-    "red_flag_clinica",
-]
+
