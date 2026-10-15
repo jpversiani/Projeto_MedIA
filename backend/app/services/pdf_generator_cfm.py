@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import io
 from datetime import datetime
-from typing import Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm, mm
+from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-from reportlab.graphics.shapes import Drawing, Rect
+from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
 
 from app.services.prescricao_digital_cfm import (
     DocumentoAtestadoCFM,
@@ -162,10 +163,9 @@ class GeradorPDFMedicoCFM:
 
         # Data formatada
         try:
-            dt_obj = datetime.fromisoformat(doc.data_emissao.replace("Z", "+00:00"))
-            data_fmt = dt_obj.strftime("%d/%m/%Y às %H:%M")
-        except Exception:
-            data_fmt = doc.data_emissao
+            data_fmt = datetime.fromisoformat(doc.data_emissao.replace("Z", "+00:00")).strftime("%d/%m/%Y às %H:%M")  # noqa: FURB162
+        except (ValueError, TypeError):
+            data_fmt = str(doc.data_emissao)
 
         c.drawRightString(largura - margem - 10, y_atual - 0.85 * cm, f"Data de Emissão: {data_fmt}")
 
@@ -295,7 +295,7 @@ class GeradorPDFMedicoCFM:
 
         c.setFont("Helvetica-Oblique", 7)
         c.setFillColor(colors.HexColor("#2563eb"))
-        c.drawString(x_info, y_rodape + 0.8 * cm, f"Verifique a autenticidade apontando a câmera ou acessando:")
+        c.drawString(x_info, y_rodape + 0.8 * cm, "Verifique a autenticidade apontando a câmera ou acessando:")
         c.drawString(x_info, y_rodape + 0.4 * cm, url_validacao)
 
     @classmethod
@@ -364,10 +364,9 @@ class GeradorPDFMedicoCFM:
         )
 
         # Quebra simples de texto
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import Paragraph
 
-        styles = getSampleStyleSheet()
         style_corpo = ParagraphStyle(
             name="AtestadoCorpo",
             fontName="Helvetica",
@@ -378,7 +377,7 @@ class GeradorPDFMedicoCFM:
         )
 
         p = Paragraph(paragrafo1, style_corpo)
-        w, h = p.wrap(largura_util, 200)
+        _, h = p.wrap(largura_util, 200)
         p.drawOn(c, margem, y - h)
 
         y = y - h - 1.5 * cm
@@ -399,9 +398,8 @@ class GeradorPDFMedicoCFM:
         # Local e Data
         y -= 1.0 * cm
         try:
-            dt_obj = datetime.fromisoformat(doc.data_emissao.replace("Z", "+00:00"))
-            data_fmt = dt_obj.strftime("%d de %B de %Y")
-        except Exception:
+            data_fmt = datetime.fromisoformat(doc.data_emissao.replace("Z", "+00:00")).strftime("%d de %B de %Y")  # noqa: FURB162
+        except ValueError:
             data_fmt = doc.data_emissao
 
         c.setFont("Helvetica", 10)
