@@ -4,11 +4,12 @@ Conformidade: Relação Nacional de Medicamentos Essenciais (Rename) e Bulário 
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Set
+from typing import ClassVar
+
 import re
 
 
-@dataclass
+@dataclass(frozen=True)
 class AlertaInteracao:
     medicamento_a: str
     medicamento_b: str
@@ -20,8 +21,8 @@ class AlertaInteracao:
 @dataclass
 class RelatorioFarmacologico:
     total_medicamentos_analisados: int
-    interacoes_detectadas: List[AlertaInteracao]
-    alertas_alergia: List[str]
+    interacoes_detectadas: list[AlertaInteracao]
+    alertas_alergia: list[str]
     aprovado_para_dispensacao: bool
 
 
@@ -29,7 +30,7 @@ class VerificadorFarmacologico:
     """Motor de checagem cruzada de interações medicamentosas e hipersensibilidades."""
 
     # Base de pares de interação de alta relevância clínica
-    INTERACOES_CONHECIDAS = [
+    INTERACOES_CONHECIDAS: ClassVar[list[AlertaInteracao]] = [
         AlertaInteracao(
             medicamento_a="enalapril",
             medicamento_b="espironolactona",
@@ -89,7 +90,7 @@ class VerificadorFarmacologico:
     ]
 
     # Grupos de reatividade cruzada de alergias comuns
-    CLASSES_ALERGICAS = {
+    CLASSES_ALERGICAS: ClassVar[dict[str, list[str]]] = {
         "penicilina": ["amoxicilina", "ampicilina", "penicilina", "benzetacil", "cefalexina"],
         "sulfa": ["sulfametoxazol", "furosemida", "hidroclorotiazida", "glibenclamida"],
         "dipirona": ["dipirona", "metamizol"],
@@ -104,15 +105,15 @@ class VerificadorFarmacologico:
     @classmethod
     def checar_interacoes_e_alergias(
         cls,
-        medicamentos_prescritos: List[str],
-        alergias_paciente: List[str]
+        medicamentos_prescritos: list[str],
+        alergias_paciente: list[str]
     ) -> RelatorioFarmacologico:
         """Realiza varredura combinatória de interações medicamentosas e hipersensibilidades."""
         meds_norm = [cls.normalizar_termo(m) for m in medicamentos_prescritos if m]
         alergias_norm = [cls.normalizar_termo(a) for a in alergias_paciente if a]
 
-        interacoes_encontradas: List[AlertaInteracao] = []
-        alertas_alergias: List[str] = []
+        interacoes_encontradas: list[AlertaInteracao] = []
+        alertas_alergias: list[str] = []
 
         # 1. Checagem de Alergias
         for med in meds_norm:
@@ -123,11 +124,12 @@ class VerificadorFarmacologico:
                 
                 # Confronto por classe farmacológica de reatividade cruzada
                 for classe, membros in cls.CLASSES_ALERGICAS.items():
-                    if any(cls.normalizar_termo(m) in alergia for m in membros):
-                        if any(cls.normalizar_termo(m) in med for m in membros):
-                            alertas_alergias.append(
-                                f"ALERTA DE REATIVIDADE CRUZADA: Prescrição de '{med}' perigosa para histórico alérgico de '{alergia}' (Classe: {classe.upper()})."
-                            )
+                    membro_in_alergia = any(cls.normalizar_termo(m) in alergia for m in membros)
+                    membro_in_med = any(cls.normalizar_termo(m) in med for m in membros)
+                    if membro_in_alergia and membro_in_med:
+                        alertas_alergias.append(
+                            f"ALERTA DE REATIVIDADE CRUZADA: Prescrição de '{med}' perigosa para histórico alérgico de '{alergia}' (Classe: {classe.upper()})."
+                        )
 
         # 2. Checagem de Interações Par-a-Par
         for i in range(len(meds_norm)):
