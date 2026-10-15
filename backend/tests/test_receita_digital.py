@@ -13,10 +13,10 @@ cobertura de testes automatizados com pytest.
 from __future__ import annotations
 
 import base64
+from datetime import UTC, datetime, timedelta, timezone
 import hashlib
 import json
 import unicodedata
-from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -38,7 +38,7 @@ from app.services.receita_digital import (
 CHAVE_TESTE: bytes = b"chave-hmac-teste-projeto-media-32b"
 CNS_VALIDO: str = "110433218196000"
 CPF_VALIDO: str = "52998224725"
-DATA_EMISSAO_FIXA: datetime = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
+DATA_EMISSAO_FIXA: datetime = datetime(2026, 9, 25, 12, 0, 0, tzinfo=UTC)
 CAMPOS_METADADOS: tuple[str, ...] = (
     "hash_assinatura",
     "assinatura",
