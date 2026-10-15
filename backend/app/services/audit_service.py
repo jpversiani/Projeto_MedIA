@@ -2,22 +2,24 @@
 Serviço de Trilha de Auditoria Imutável (LGPD Art. 11 & Resolução CFM 2.314/2022).
 Garante registro inviolável de acesso a prontuários, teleconsultas e prescrições.
 """
-import json
+from datetime import datetime, UTC
 import hashlib
-from datetime import datetime, timezone
-from typing import Optional, Any, Dict
+import json
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from app.models.usuario import AuditTrail
 
 
 def calcular_hash_auditoria(
-    usuario_id: Optional[int],
-    estabelecimento_id: Optional[int],
+    usuario_id: int | None,
+    estabelecimento_id: int | None,
     acao: str,
     recurso_tipo: str,
     recurso_id: str,
     timestamp: datetime,
-    hash_anterior: Optional[str]
+    hash_anterior: str | None,
 ) -> str:
     """Gera hash criptográfico SHA-256 canônico encadeado."""
     raw = (
@@ -34,11 +36,11 @@ class AuditService:
         acao: str,
         recurso_tipo: str,
         recurso_id: str,
-        usuario_id: Optional[int] = None,
-        estabelecimento_id: Optional[int] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        detalhes: Optional[Dict[str, Any]] = None
+        usuario_id: int | None = None,
+        estabelecimento_id: int | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        detalhes: dict[str, Any] | None = None,
     ) -> AuditTrail:
         """
         Registra uma ação clínica ou administrativa de forma imutável com prova criptográfica.
@@ -46,7 +48,7 @@ class AuditService:
         ultimo = db.query(AuditTrail).order_by(AuditTrail.id.desc()).first()
         hash_anterior = ultimo.hash_integridade if ultimo else None
         
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         hash_atual = calcular_hash_auditoria(
             usuario_id=usuario_id,
             estabelecimento_id=estabelecimento_id,
