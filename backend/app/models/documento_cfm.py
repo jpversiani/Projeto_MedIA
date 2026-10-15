@@ -5,7 +5,8 @@ substituindo repositórios voláteis em memória e vinculando os documentos aos 
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
@@ -39,7 +40,7 @@ class DocumentoCFM(Base):
 
     conteudo = Column(JSON, nullable=False)   # dados estruturados: itens, instruções, dias, cid, etc.
     data_emissao = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     atendimento = relationship("AtendimentoSOAP", foreign_keys=[atendimento_id])
     cidadao = relationship("Cidadao", foreign_keys=[cidadao_id])
