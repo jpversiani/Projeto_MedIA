@@ -1,6 +1,3 @@
-from fastapi.testclient import TestClient
-from app.main import app
-
 def test_emitir_prescricao_e_download_pdf(client):
 
     # 1. Emitir prescrição
