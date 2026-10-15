@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,7 +18,7 @@ class GuiaTISSConsulta(BaseModel):
                      "profissional_crm", "profissional_uf", "codigo_consulta", "data_consulta")
     @classmethod
     def validar_nao_vazio(cls, v: str) -> str:
-        if not v or not str(v).strip():
+        if not v or not v.strip():
             raise ValueError("Campo obrigatório não pode ser vazio")
         return v
 
