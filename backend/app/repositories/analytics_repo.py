@@ -1,1 +1,1 @@
-backend/app/repositories/analytics_repo.py
+"""Analytics repository."""
