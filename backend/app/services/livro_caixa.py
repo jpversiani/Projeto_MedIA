@@ -4,9 +4,7 @@ Permite apurar receitas de consultas presenciais e telemedicina, calcular despes
 e estimar o IRPF mensal do profissional da saúde.
 """
 
-from dataclasses import dataclass, field
-from datetime import date
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -33,16 +31,16 @@ class MotorLivroCaixaMedico:
     """Motor de cálculo e apuração de Carnê-Leão e livro caixa para médicos."""
 
     # Tabela Progressiva Mensal do IRPF (Vigente 2026)
-    FAIXAS_IRPF = [
+    FAIXAS_IRPF: tuple[dict[str, float], ...] = (
         {"limite": 2259.20, "aliquota": 0.0, "parcela_deduzir": 0.0},
         {"limite": 2826.65, "aliquota": 0.075, "parcela_deduzir": 169.44},
         {"limite": 3751.05, "aliquota": 0.15, "parcela_deduzir": 381.44},
         {"limite": 4664.68, "aliquota": 0.225, "parcela_deduzir": 662.77},
         {"limite": float("inf"), "aliquota": 0.275, "parcela_deduzir": 896.00},
-    ]
+    )
 
     @classmethod
-    def calcular_irpf_carne_leao(cls, base_calculo: float) -> Dict[str, float]:
+    def calcular_irpf_carne_leao(cls, base_calculo: float) -> dict[str, float]:
         """Calcula o imposto devido no mês com base na tabela progressiva oficial."""
         if base_calculo <= 0:
             return {"base_calculo": 0.0, "aliquota_efetiva": 0.0, "imposto_devido": 0.0}
@@ -69,10 +67,10 @@ class MotorLivroCaixaMedico:
     @classmethod
     def gerar_demonstrativo_mensal(
         cls,
-        receitas: List[LancamentoReceita],
-        despesas: List[LancamentoDespesa],
+        receitas: list[LancamentoReceita],
+        despesas: list[LancamentoDespesa],
         mes_ano: str = "09/2026",
-    ) -> Dict:
+    ) -> dict:
         """Gera o balancete completo do mês com segregação Presencial vs Telemedicina."""
         total_presencial = sum(r.valor for r in receitas if r.tipo_consulta == "PRESENCIAL")
         total_telemedicina = sum(r.valor for r in receitas if r.tipo_consulta == "TELEMEDICINA")
