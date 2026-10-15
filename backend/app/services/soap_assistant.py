@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import logging
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
-logger = logging.getLogger(__name__)
+
+
 class SOAPInput(BaseModel):
     patient_id: str
     complaints: list[str]
@@ -17,7 +19,10 @@ class SOAPInput(BaseModel):
     def validate_complaints(cls, v: list[str]) -> list[str]:
         if not v:
             raise ValueError("Complaints cannot be empty")
-        return [c.strip() for c in v if c.strip()]
+        cleaned = [c.strip() for c in v if c.strip()]
+        if not cleaned:
+            raise ValueError("Complaints cannot be empty or only whitespace")
+        return cleaned
 class SOAPOutput(BaseModel):
     subjective: str
     objective: str
