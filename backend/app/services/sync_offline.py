@@ -14,24 +14,16 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+import uuid
+from datetime import datetime
+from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.database import Base
-from app.models.atendimento_offline import (
-    AtendimentoOffline,
-    StatusSincronizacao,
-)
+from app.models.atendimento_offline import AtendimentoOffline
 from app.schemas.atendimento_offline import (
     AtendimentoOfflineCreate,
-    AtendimentoOfflineOut,
-    LoteSincronizacaoRequest,
     LoteSincronizacaoResponse,
-    StatusSincronizacaoOut,
 )
 
 
@@ -74,10 +66,9 @@ class ServicoSincronizacaoOffline:
 
     def gerar_id_local(self) -> str:
         """Gera um UUID v4 para identificação idempotente do upload."""
-        import uuid
         return str(uuid.uuid4())
 
-    def criar_lote_offline(self, itens: List[AtendimentoOfflineCreate]) -> LoteSincronizacaoResponse:
+    def criar_lote_offline(self, itens: list[AtendimentoOfflineCreate]) -> LoteSincronizacaoResponse:
         """Cria um lote de atendimentos para envio ao servidor."""
         if not itens:
             raise ValueError("O lote não pode estar vazio.")
@@ -123,19 +114,19 @@ class ServicoSincronizacaoOffline:
 
         # Gera resposta com estatísticas
         response = LoteSincronizacaoResponse(
-            recebidos=len(items),
+            recebidos=len(itens),
             duplicados=None,
-            total_recebidos=len(items),
+            total_recebidos=len(itens),
             total_duplicados=0,
         )
 
         # Verifica conflitos com o servidor (simulação - em produção seria chamada ao endpoint)
         # Se houver conflitos, resolveria-os aqui
-        self._resolver_conflitos_itens(items)
+        self._resolver_conflitos_itens(itens)
 
         return response
 
-    def _resolver_conflitos_itens(self, itens: List[AtendimentoOfflineCreate]) -> None:
+    def _resolver_conflitos_itens(self, itens: list[AtendimentoOfflineCreate]) -> None:
         """Resolve conflitos entre versões locais e remotas."""
         # Simulação: em produção, chamaríamos o serviço de sincronização remota
         # para comparar com o estado do servidor e aplicar Last-Write-Wins
@@ -145,11 +136,11 @@ class ServicoSincronizacaoOffline:
     # Reconciliação Bidirecional
     # ----------------------------------------------------------------------
 
-    def verificar_conflitos(self, itens: List[AtendimentoOfflineCreate]) -> List[Tuple[str, str]]:
+    def verificar_conflitos(self, itens: list[AtendimentoOfflineCreate]) -> list[dict[str, str]]:
         """Verifica conflitos entre versões locais e remotas.
 
-        Retorna uma lista de tuplas (campo, mensagem_de_conflito) indicando
-        onde há divergências que precisam ser resolvidas.
+        Retorna uma lista de dicionários com as informações do conflito,
+        indicando onde há divergências que precisam ser resolvidas.
 
         Args:
             itens: Lista de AtendimentoOfflineCreate representando o estado local.
@@ -157,7 +148,7 @@ class ServicoSincronizacaoOffline:
         Returns:
             Lista de conflitos detectados.
         """
-        conflitos = []
+        conflitos: list[dict[str, str]] = []
 
         # Para cada item, verifica se existe um equivalente no servidor
         # com o mesmo id_local (idempotência) ou se há divergências nos campos
@@ -186,7 +177,7 @@ class ServicoSincronizacaoOffline:
 
         return conflitos
 
-    def resolver_conflictos_last_write_wins(self, itens: List[AtendimentoOfflineCreate]) -> List[AtendimentoOffline]:
+    def resolver_conflictos_last_write_wins(self, itens: list[AtendimentoOfflineCreate]) -> list[AtendimentoOffline]:
         """Resolve conflitos aplicando a estratégia Last-Write-Wins com hash de versão.
 
         Para cada item conflitante, compara os hashes de versão:
@@ -225,7 +216,7 @@ class ServicoSincronizacaoOffline:
     # Empacotamento em Lotes Comprimidos
     # ----------------------------------------------------------------------
 
-    def comprimir_lote(self, itens: List[AtendimentoOfflineCreate]) -> List[Dict[str, Any]]:
+    def comprimir_lote(self, itens: list[AtendimentoOfflineCreate]) -> list[dict[str, Any]]:
         """Comprime um lote de atendimentos em formato JSON compacto.
 
         Arquivo é tratado como "compressão" através de serialização eficiente
@@ -302,7 +293,7 @@ class ServicoSincronizacaoOffline:
             logger.info(f"Lote de {len(lote_comprimido)} atendimentos para envio.")
             return True
 
-        except Exception as e:
+        except BaseException as e:
             logger.error(f"Erro durante a sincronização: {e}")
             return False
 
