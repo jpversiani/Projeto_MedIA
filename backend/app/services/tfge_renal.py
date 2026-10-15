@@ -40,7 +40,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 import math
 from typing import Final, Literal
 

@@ -50,7 +50,13 @@ import re
 import unicodedata
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 from typing import Final, Sequence, TypeAlias
 
 from pydantic import (

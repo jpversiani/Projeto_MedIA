@@ -21,7 +21,13 @@ CID-10. Todas as mensagens, comentários e docstrings em Português do Brasil.
 
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 from re import Pattern, compile as re_compilar
 from typing import Final
 

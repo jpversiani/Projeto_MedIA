@@ -11,7 +11,13 @@ Projeto MedIA (Python 3.12, Pydantic v2, SQLAlchemy 2.0).
 from __future__ import annotations
 
 from datetime import date, datetime, UTC
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 from typing import Final
 
 from fastapi import APIRouter, Depends, HTTPException, status
