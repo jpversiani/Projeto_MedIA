@@ -1,8 +1,7 @@
-import pytest
 from app.services.templates_especialidades import (
     CATALOGO_ESPECIALIDADES,
-    obter_especialidade,
     listar_todas_especialidades,
+    obter_especialidade,
 )
 
 
