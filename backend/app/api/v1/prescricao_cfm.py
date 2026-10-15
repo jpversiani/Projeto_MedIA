@@ -2,8 +2,7 @@
 Rotas REST de Prescrição Digital, Atestados Médicos e Validação Pública CFM 2.314/2022.
 """
 
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -37,18 +36,18 @@ class ItemPrescricao(BaseModel):
     # Campos opcionais aceitos pelo motor de prescrição
     # (`prescricao_digital_cfm.py:91-102`). Mantidos aqui para que a validação
     # cubra o contrato inteiro, e não apenas as duas chaves obrigatórias.
-    concentracao: Optional[str] = None
-    forma_farmaceutica: Optional[str] = None
-    quantidade_total: Optional[str] = None
-    via_administracao: Optional[str] = None
-    instrucoes_especiais: Optional[str] = None
+    concentracao: str | None = None
+    forma_farmaceutica: str | None = None
+    quantidade_total: str | None = None
+    via_administracao: str | None = None
+    instrucoes_especiais: str | None = None
 
 
 class EmitirPrescricaoRequest(BaseModel):
     paciente_nome: str = Field(min_length=1)
     paciente_cpf: str = Field(min_length=11, max_length=11)
-    atendimento_id: Optional[int] = None
-    cidadao_id: Optional[int] = None
+    atendimento_id: int | None = None
+    cidadao_id: int | None = None
 
     # SEM default: a identificação do médico vem do usuário autenticado.
     # Antes havia `medico_nome = "Dr. João Paulo Versiani"` e `medico_crm =
@@ -57,25 +56,25 @@ class EmitirPrescricaoRequest(BaseModel):
     medico_nome: str = Field(min_length=3)
     medico_crm: str = Field(min_length=4, max_length=10)
     medico_uf: str = Field(min_length=2, max_length=2)
-    medico_rqe: Optional[str] = None
+    medico_rqe: str | None = None
 
     tipo: TipoPrescricao = TipoPrescricao.SIMPLES
-    itens: List[ItemPrescricao] = Field(min_length=1, description="Ao menos um medicamento.")
-    instrucoes_gerais: Optional[str] = None
+    itens: list[ItemPrescricao] = Field(min_length=1, description="Ao menos um medicamento.")
+    instrucoes_gerais: str | None = None
 
 
 class EmitirAtestadoRequest(BaseModel):
     paciente_nome: str = Field(min_length=1)
     paciente_cpf: str = Field(min_length=11, max_length=11)
-    atendimento_id: Optional[int] = None
-    cidadao_id: Optional[int] = None
+    atendimento_id: int | None = None
+    cidadao_id: int | None = None
 
     medico_nome: str = Field(min_length=3)
     medico_crm: str = Field(min_length=4, max_length=10)
     medico_uf: str = Field(min_length=2, max_length=2)
 
     dias_afastamento: int = Field(default=3, ge=1, le=365)
-    cid10: Optional[str] = None
+    cid10: str | None = None
 
 
 @router.post("/emitir", status_code=status.HTTP_201_CREATED)
