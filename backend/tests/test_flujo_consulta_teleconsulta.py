@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
-
 # CPFs de teste (11 dígitos, sem uso em outros testes de cidadãos)
 CPF_PACIENTE: str = "33344455566"
 CPF_PACIENTE_2: str = "44455566677"
