@@ -11,16 +11,12 @@ Projeto MedIA — SUS/APS (Python 3.12, Pydantic v2).
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime
-from typing import Annotated, Final, Literal
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.services.validadores import normalizar_cnes, normalizar_cns, normalizar_cpf
-
-# Hash SHA-256 em hex minúsculo (conteúdo do QR Code da receita digital)
-REGEX_HASH_RECEITA: Final[str] = r"^[a-f0-9]{64}$"
 
 TipoDispensacao = Literal["TOTAL", "FRACIONADA"]
 StatusReceita = Literal[
@@ -173,9 +169,9 @@ class DispensacaoConfirmarOut(BaseModel):
 
 
 __all__ = [
-    "DispensacaoConsultarIn",
-    "DispensacaoConsultarOut",
     "DispensacaoConfirmarIn",
     "DispensacaoConfirmarOut",
+    "DispensacaoConsultarIn",
+    "DispensacaoConsultarOut",
     "ItemDispensacaoIn",
 ]
