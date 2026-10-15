@@ -1,11 +1,10 @@
 """Testes para a Aba de Acolhimento no Cockpit (T1 do Handoff).
 
-Garante que o HTML, JS e o endpoint de check-in funcionam perfeitamente integrados.
+Garante que o HTML, JS e o endpoint de check-in funcionem perfeitamente integrados.
 """
+from datetime import date, time
 from pathlib import Path
-from fastapi.testclient import TestClient
 
-from app.main import app
 from app.models.agendamento import Agendamento, StatusAgendamento, TipoAtendimento
 from app.models.cidadao import Cidadao
 from app.models.fila import FilaAcolhimento
@@ -24,7 +23,7 @@ def test_html_possui_elementos_obrigatorios_de_acolhimento():
     assert 'id="fila-espera-chamada"' in html
     assert 'id="fila-espera-atualizacao"' in html
     assert 'id="fila-espera-som"' in html
-    assert 'fila_espera.js' in html
+    assert "fila_espera.js" in html
 
 
 def test_app_js_suporta_aba_acolhimento():
@@ -38,9 +37,6 @@ def test_app_js_suporta_aba_acolhimento():
 
 def test_fluxo_checkin_agenda_na_fila(client, db_session):
     """Testa o endpoint de check-in que o botão da tela de acolhimento aciona."""
-
-
-    from datetime import date, time
     # Cria cidadão exclusivo
     cidadao = Cidadao(
         nome_completo="Cidadão Teste Acolhimento",
