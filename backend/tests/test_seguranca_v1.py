@@ -5,6 +5,7 @@ A suíte é hermética: `conftest.py` define ENVIRONMENT=test, usa SQLite em
 memória e desliga migração/seed no startup.
 """
 import os
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -78,8 +79,6 @@ def env_file():
     Não usamos `tmp_path` nem `tempfile.mkdtemp`: ambos criam diretórios no
     `%TEMP%` do sistema (que pode não ser gravável em container/sandbox).
     """
-    import uuid
-
     caminho = os.path.join(os.path.dirname(__file__), f".env.test.{uuid.uuid4().hex}")
     yield caminho
     if os.path.exists(caminho):
@@ -158,8 +157,7 @@ def test_rota_clinica_exige_bearer_token(metodo, url, client, db_session):
     Antes, `curl /api/v1/cidadaos/` listava pacientes e
     `curl -X POST /api/v1/prescricao/emitir` emitia uma receita, sem token.
     """
-    from fastapi import Depends, FastAPI
-    from app.api.v1.auth import get_current_user
+    from fastapi import FastAPI
     from app.api.v1.router import build_clinical_router
 
     # App isolada com o router clínico protegido, reaproveitando a sessão
