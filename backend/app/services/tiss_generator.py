@@ -4,17 +4,19 @@ Geração, estruturação XML e auditoria anti-glosas de Guias de Consulta e SAD
 Conformidade: Padrão TISS ANS versão 4.01.00 e Tabela TUSS.
 """
 
-from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
-from typing import Dict, List, Optional, Any
-import xml.etree.ElementTree as ET
+from __future__ import annotations
+
 import re
 import uuid
+from datetime import UTC, date, datetime, timezone
+from typing import Any
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 
 
 def gerar_numero_guia() -> str:
     """Gera um número sequencial único para a Guia TISS."""
-    return f"TISS-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    return f"TISS-{datetime.now(UTC).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
 
 @dataclass
@@ -24,8 +26,8 @@ class GuiaConsultaTISS:
     nome_operadora: str
     numero_carteira: str
     nome_beneficiario: str
-    cpf_beneficiario: Optional[str]
-    cns_beneficiario: Optional[str]
+    cpf_beneficiario: str | None
+    cns_beneficiario: str | None
     codigo_cnes: str
     nome_contratado: str
     crm_medico: str
@@ -35,7 +37,7 @@ class GuiaConsultaTISS:
     codigo_tuss_procedimento: str = "10101012"  # Consulta em consultório (TUSS padrão)
     descricao_procedimento: str = "Consulta médica em atenção primária/especializada"
     valor_procedimento: float = 150.00
-    cid10_principal: Optional[str] = None
+    cid10_principal: str | None = None
     tipo_consulta: str = "1"  # 1: Primeira Consulta, 2: Retorno, 3: Pré-natal
 
 
@@ -43,9 +45,9 @@ class GuiaConsultaTISS:
 class RelatorioAuditoriaTISS:
     valida: bool
     numero_guia: str
-    alertas_glosa: List[str] = field(default_factory=list)
+    alertas_glosa: list[str] = field(default_factory=list)
     conformidade_ans: bool = False
-    xml_gerado: Optional[str] = None
+    xml_gerado: str | None = None
 
 
 class MotorFaturamentoTISS:
@@ -55,7 +57,7 @@ class MotorFaturamentoTISS:
     TUSS_CONSULTA_PADRAO = "10101012"
 
     @classmethod
-    def validar_guia(cls, guia: GuiaConsultaTISS) -> List[str]:
+    def validar_guia(cls, guia: GuiaConsultaTISS) -> list[str]:
         """Audita campos obrigatórios para prevenir glosas administrativas."""
         alertas = []
 
@@ -285,8 +287,8 @@ class TISSGenerator(MotorFaturamentoTISS):
         paciente_cpf: str,
         valor: float,
         descricao_servico: str = "Consulta Médica em Atenção Primária à Saúde",
-        data_emissao: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        data_emissao: datetime | None = None,
+    ) -> dict[str, Any]:
         """Gera estrutura fiscal compatível com as regras da DMED da Receita Federal."""
         data = data_emissao or datetime.now(timezone.utc)
         return {
