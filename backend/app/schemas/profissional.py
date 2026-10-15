@@ -1,16 +1,19 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
 
 class ProfissionalBase(BaseModel):
     cns: str
     cpf: str
     nome: str
     cbo: str
-    cbo_descricao: Optional[str] = None
+    cbo_descricao: str | None = None
+
 
 class ProfissionalCreate(ProfissionalBase):
     pass
+
 
 class ProfissionalOut(ProfissionalBase):
     id: int
