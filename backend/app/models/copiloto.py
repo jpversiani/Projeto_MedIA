@@ -7,17 +7,15 @@ rastreabilidade da telemedicina e supervisão humana sobre a IA).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
-
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime
 
 from app.core.database import Base
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 def _agora_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(datetime.UTC)
 
 
 class CopilotoAuditoria(Base):
@@ -34,7 +32,7 @@ class CopilotoAuditoria(Base):
     atendimento_id: Mapped[int] = mapped_column(
         ForeignKey("atendimentos_soap.id"), nullable=False, index=True
     )
-    profissional_id: Mapped[Optional[int]] = mapped_column(
+    profissional_id: Mapped[int | None] = mapped_column(
         ForeignKey("profissionais.id"), nullable=True
     )
 
@@ -49,8 +47,8 @@ class CopilotoAuditoria(Base):
     plano: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Codificação SUS/APS
-    cid10: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-    ciap2: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    cid10: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    ciap2: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     # Motor responsável pela sugestão (rastreabilidade do modelo)
     modelo: Mapped[str] = mapped_column(String(120), nullable=False, default="MedIA-CDS-1.0")
