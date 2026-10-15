@@ -7,10 +7,9 @@ Verifica:
 4. Endpoints REST da API FastAPI
 """
 
-import pytest
-from fastapi.testclient import TestClient
 from app.main import app
-from app.services.cid11_service import CID11Service, ItemCID11, cid11_service
+from app.services.cid11_service import cid11_service
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
