@@ -14,11 +14,10 @@ from __future__ import annotations
 import logging
 import os
 
-from sqlalchemy.orm import Session
-
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.estabelecimento import Estabelecimento
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger("media.bootstrap")
 
