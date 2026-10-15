@@ -1,5 +1,4 @@
-import pytest
-from app.services.pix_cobranca import MotorPixCobranca, DadosCobrancaPix, calcular_crc16
+from app.services.pix_cobranca import DadosCobrancaPix, MotorPixCobranca, calcular_crc16
 
 
 def test_calcular_crc16():
