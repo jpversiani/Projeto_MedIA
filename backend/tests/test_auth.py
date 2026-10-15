@@ -5,21 +5,19 @@ Cobrem: login demo/local, credenciais inválidas, MFA, SSO (Google/Microsoft),
 portador de token (válido/inválido/expirado/ausente), multi-tenancy
 (switch-clinic) e trilha de auditoria (LGPD/CFM).
 """
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
 
+from app.models.estabelecimento import Estabelecimento
+from app.models.usuario import Usuario, VinculoClinica
 from app.services.auth_service import (
     SECRET_KEY,
     ALGORITHM,
-    create_access_token,
     hash_password,
     verify_password,
 )
-from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
-from app.models.estabelecimento import Estabelecimento
 
 
 # ------------------------------------------------------------------
@@ -27,7 +25,7 @@ from app.models.estabelecimento import Estabelecimento
 # ------------------------------------------------------------------
 def _make_token(usuario: Usuario, vinculo: VinculoClinica = None, exp_delta_min: int = 60) -> str:
     """Emite um JWT controlado (para simular expiração/conteúdo adulterado)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(usuario.id),
         "email": usuario.email,
