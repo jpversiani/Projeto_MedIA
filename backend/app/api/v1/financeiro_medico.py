@@ -2,11 +2,11 @@
 Rotas REST de Gestão Financeira, Pix e Livro Caixa para Médicos.
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
-from app.services.pix_cobranca import MotorPixCobranca, DadosCobrancaPix
+from app.services.livro_caixa import MotorLivroCaixaMedico, LancamentoDespesa, LancamentoReceita
+from app.services.pix_cobranca import DadosCobrancaPix, MotorPixCobranca
 from app.services.livro_caixa import MotorLivroCaixaMedico, LancamentoReceita, LancamentoDespesa
 
 router = APIRouter(prefix="/financeiro-medico", tags=["Financeiro & Pix Médico"])
@@ -17,8 +17,8 @@ class GerarPixRequest(BaseModel):
     nome_beneficiario: str = "Dra. Francelli Versiani"
     cidade_beneficiario: str = "Montes Claros"
     valor: float = 350.00
-    identificador_transacao: Optional[str] = None
-    descricao: Optional[str] = "Consulta Medica Telemedicina"
+    identificador_transacao: str | None = None
+    descricao: str | None = "Consulta Medica Telemedicina"
 
 
 @router.post("/pix/gerar-cobranca")
