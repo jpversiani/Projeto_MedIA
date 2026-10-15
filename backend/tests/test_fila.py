@@ -4,8 +4,8 @@ Testes de integridade da FILA DE ATENDIMENTO & ACOLHIMENTO do MedIA.
 Cobrem: listagem com filtro de status, criação com cálculo de IMC,
 validações de existência (404), atualização de status e ordenação.
 """
+from datetime import datetime, timedelta, timezone
 import pytest
-
 from app.models.cidadao import Cidadao
 from app.models.estabelecimento import Estabelecimento
 from app.models.fila import FilaAcolhimento
@@ -150,8 +150,6 @@ def test_fila_prioriza_risco_antes_da_ordem_de_chegada(client, db_session):
     fixava o FIFO puro como "contrato atual", o que blindava o defeito: um
     caso VERMELHO (emergencia) entrava atras de dez casos AZUL.
     """
-    from datetime import datetime, timedelta, timezone
-
     # A fila é compartilhada entre os testes da sessão; limpar evita que itens
     # inseridos por outro teste entrem na comparação de ordem.
     db_session.query(FilaAcolhimento).delete()
@@ -185,8 +183,6 @@ def test_fila_prioriza_risco_antes_da_ordem_de_chegada(client, db_session):
 
 def test_fila_desempata_por_ordem_de_chegada_dentro_do_mesmo_risco(client, db_session):
     """Dentro do mesmo risco, quem chegou antes e atendido antes (FIFO)."""
-    from datetime import datetime, timedelta, timezone
-
     db_session.query(FilaAcolhimento).delete()
     db_session.commit()
 
