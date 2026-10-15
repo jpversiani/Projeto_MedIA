@@ -17,17 +17,17 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any
 
 import httpx
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
 class HipoteseDiagnosticaIA(BaseModel):
     cid10: str
-    cid11: Optional[str] = None
+    cid11: str | None = None
     descricao: str
     probabilidade: str = Field(..., description="'alta', 'moderada' ou 'baixa'")
     justificativa: str
@@ -38,7 +38,7 @@ class SugestaoSOAPIA(BaseModel):
     subjetivo_hda: str
     objetivo_exame: str
     avaliacao_raciocinio: str
-    hipoteses: List[HipoteseDiagnosticaIA] = Field(default_factory=list)
+    hipoteses: list[HipoteseDiagnosticaIA] = Field(default_factory=list)
     plano_prescricao: str
     plano_exames: str
     motor_utilizado: str
@@ -48,11 +48,11 @@ class MotorIAGenerativaCopiloto:
     """Motor de inteligência artificial clínica generativa com fallback resiliente."""
 
     @classmethod
-    def _obter_gemini_api_key(cls) -> Optional[str]:
+    def _obter_gemini_api_key(cls) -> str | None:
         return os.getenv("GEMINI_API_KEY")
 
     @classmethod
-    def estruturar_soap(cls, texto_bruto: str, contexto_paciente: Optional[Dict[str, Any]] = None) -> SugestaoSOAPIA:
+    def estruturar_soap(cls, texto_bruto: str, contexto_paciente: dict[str, Any] | None = None) -> SugestaoSOAPIA:
         """Estrutura texto clínico livre no padrão SOAP."""
         api_key = cls._obter_gemini_api_key()
         if api_key:
@@ -60,14 +60,14 @@ class MotorIAGenerativaCopiloto:
                 resultado_gemini = cls._chamar_gemini_soap(texto_bruto, api_key, contexto_paciente)
                 if resultado_gemini:
                     return resultado_gemini
-            except Exception as e:
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError, IndexError) as e:
                 logger.warning(f"Falha ao consultar Gemini API, acionando fallback clínico: {e}")
 
         # Fallback clínico inteligente baseado em processamento de linguagem natural e regras de APS
         return cls._fallback_estruturar_soap(texto_bruto, contexto_paciente)
 
     @classmethod
-    def diagnostico_diferencial(cls, queixa_sintomas: str) -> List[HipoteseDiagnosticaIA]:
+    def diagnostico_diferencial(cls, queixa_sintomas: str) -> list[HipoteseDiagnosticaIA]:
         """Gera hipóteses diagnósticas diferenciais estruturadas."""
         api_key = cls._obter_gemini_api_key()
         if api_key:
@@ -82,8 +82,8 @@ class MotorIAGenerativaCopiloto:
 
     @classmethod
     def _chamar_gemini_soap(
-        cls, texto: str, api_key: str, contexto: Optional[Dict[str, Any]] = None
-    ) -> Optional[SugestaoSOAPIA]:
+        cls, texto: str, api_key: str, contexto: dict[str, Any] | None = None
+    ) -> SugestaoSOAPIA | None:
         """Chama a API do Google Gemini para estruturação clínica SOAP."""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         prompt_sistema = (
@@ -137,7 +137,7 @@ class MotorIAGenerativaCopiloto:
         return None
 
     @classmethod
-    def _chamar_gemini_diagnostico(cls, sintomas: str, api_key: str) -> Optional[List[HipoteseDiagnosticaIA]]:
+    def _chamar_gemini_diagnostico(cls, sintomas: str, api_key: str) -> list[HipoteseDiagnosticaIA] | None:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         prompt = (
             "Como especialista médico, liste até 3 diagnósticos diferenciais para os seguintes sintomas clínicos. "
@@ -157,10 +157,10 @@ class MotorIAGenerativaCopiloto:
         return None
 
     @classmethod
-    def _fallback_diagnostico_diferencial(cls, queixa_sintomas: str) -> List[HipoteseDiagnosticaIA]:
+    def _fallback_diagnostico_diferencial(cls, queixa_sintomas: str) -> list[HipoteseDiagnosticaIA]:
         """Motor local determinístico de diagnóstico diferencial para operação offline."""
         texto_lower = queixa_sintomas.lower()
-        hipoteses: List[HipoteseDiagnosticaIA] = []
+        hipoteses: list[HipoteseDiagnosticaIA] = []
 
         if any(term in texto_lower for term in ["ansiedade", "panico", "angustia", "insonia", "inquieto", "palpitacao"]):
             hipoteses.append(
@@ -233,7 +233,7 @@ class MotorIAGenerativaCopiloto:
 
     @classmethod
     def _fallback_estruturar_soap(
-        cls, texto: str, contexto: Optional[Dict[str, Any]] = None
+        cls, texto: str, contexto: dict[str, Any] | None = None
     ) -> SugestaoSOAPIA:
         """Motor local determinístico de estruturação SOAP para operação offline ou sem chave."""
         texto_lower = texto.lower()
@@ -261,7 +261,7 @@ class MotorIAGenerativaCopiloto:
         sinais_str = " • ".join(sinais) if sinais else "Sinais vitais normais e estáveis na admissão."
 
         # Raciocínio Diagnóstico Baseado em Palavras-chave Clínicas
-        hipoteses: List[HipoteseDiagnosticaIA] = []
+        hipoteses: list[HipoteseDiagnosticaIA] = []
         prescricao_sugerida = ""
         exames_sugeridos = ""
         raciocinio = ""
