@@ -13,14 +13,13 @@ CRM-UF, tipo, fecha, ítems) — ver ``MotorPrescricaoCFM.emitir_prescricao``.
 El hash NO es determinístico entre dos POSTs porque incluye ``data_emissao``
 (timestamp de emisión).
 """
-
 from __future__ import annotations
 
 import hashlib
 import json
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from app.main import app
 from app.services.prescricao_digital_cfm import MotorPrescricaoCFM, TipoPrescricao
@@ -297,4 +296,4 @@ def test_motor_emite_documento_con_hash_y_repositorio(db_session):
 
     val = MotorPrescricaoCFM.validar_documento_publico(doc.codigo_validacao, db=db_session)
     assert val is not None
-    assert val["status"] == "VALIDA"
+    assert val["status"] == "VALIDA"
