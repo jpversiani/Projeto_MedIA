@@ -4,13 +4,11 @@ Regulamenta a prática da telemedicina no Brasil para consultas médicas, telein
 telediagnóstico, telemonitoramento e teletriagem.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import hashlib
-import json
-from typing import Dict, List, Optional
 import urllib.parse
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -18,19 +16,19 @@ class MedicoIdentificacaoCFM:
     nome_completo: str
     crm: str
     uf_crm: str
-    rqe: Optional[str] = None  # Registro de Qualificação de Especialista (quando especialista)
+    rqe: str | None = None  # Registro de Qualificação de Especialista (quando especialista)
     especialidade: str = "Clínica Médica"
-    email_contato: Optional[str] = None
-    endereco_profissional: Optional[str] = "Consultório Médico Particular"
+    email_contato: str | None = None
+    endereco_profissional: str | None = "Consultório Médico Particular"
 
 
 @dataclass
 class PacienteIdentificacaoCFM:
     nome_completo: str
     cpf: str
-    telefone_whatsapp: Optional[str] = None
-    email: Optional[str] = None
-    data_nascimento: Optional[str] = None
+    telefone_whatsapp: str | None = None
+    email: str | None = None
+    data_nascimento: str | None = None
 
 
 @dataclass
@@ -41,7 +39,7 @@ class RegistroTCLE:
     paciente_nome: str
     data_hora_aceite: str
     metodo_aceite: str  # "ELETRONICO_SMS", "ELETRONICO_WHATSAPP", "ELETRONICO_WEB", "VERBAL_GRAVADO"
-    ip_origem: Optional[str] = None
+    ip_origem: str | None = None
     hash_tcle: str = ""
     texto_resumo: str = ""
 
@@ -59,7 +57,7 @@ class MotorCFMTelemedicina:
         paciente: PacienteIdentificacaoCFM,
         medico: MedicoIdentificacaoCFM,
         modalidade: str = "TELECONSULTA",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Gera o texto formal do TCLE contendo as informações obrigatórias:
         - Natureza e limites da telemedicina (impossibilidade de exame físico presencial completo);
@@ -67,8 +65,8 @@ class MotorCFMTelemedicina:
         - Prerrogativa médica e do paciente de converter para consulta presencial a qualquer momento;
         - Ausência de garantia de resultados.
         """
-        data_hora_emissao = datetime.now(timezone.utc).strftime("%d/%m/%Y às %H:%M:%S UTC")
-        
+        data_hora_emissao = datetime.now(UTC).strftime("%d/%m/%Y às %H:%M:%S UTC")
+
         texto_tcle = (
             f"TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO (TCLE) PARA TELEMEDICINA\n"
             f"Conforme Resolução CFM nº 2.314/2022 (Conselho Federal de Medicina) e LGPD (Lei 13.709/2018)\n\n"
@@ -104,12 +102,12 @@ class MotorCFMTelemedicina:
         cls,
         paciente: PacienteIdentificacaoCFM,
         metodo: str = "ELETRONICO_WEB",
-        ip_origem: Optional[str] = "127.0.0.1",
+        ip_origem: str | None = "127.0.0.1",
     ) -> RegistroTCLE:
-        data_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        data_str = datetime.now(UTC).strftime("%Y%m%d")
         consentimento_id = f"TCLE-{data_str}-{uuid.uuid4().hex[:8].upper()}"
-        agora_iso = datetime.now(timezone.utc).isoformat()
-        
+        agora_iso = datetime.now(UTC).isoformat()
+
         payload_hash = f"{consentimento_id}:{paciente.cpf}:{agora_iso}:{metodo}:{ip_origem}"
         hash_registro = hashlib.sha256(payload_hash.encode("utf-8")).hexdigest()
 
@@ -121,11 +119,11 @@ class MotorCFMTelemedicina:
             metodo_aceite=metodo,
             ip_origem=ip_origem,
             hash_tcle=hash_registro,
-            texto_resumo=f"Consentimento informado registrado para teleconsulta em {agora_iso} via {metodo}."
+            texto_resumo=f"Consentimento informado registrado para teleconsulta em {agora_iso} via {metodo}.",
         )
 
     @classmethod
-    def validar_requisitos_medico(cls, medico: MedicoIdentificacaoCFM) -> List[str]:
+    def validar_requisitos_medico(cls, medico: MedicoIdentificacaoCFM) -> list[str]:
         """Valida exigências do Art. 5º da Resolução CFM 2.314/2022."""
         erros = []
         if not medico.nome_completo or len(medico.nome_completo.strip()) < 3:
@@ -143,14 +141,14 @@ class MotorCFMTelemedicina:
         nome_paciente: str,
         nome_medico: str,
         base_url: str = "http://localhost:8000",
-        telefone_whatsapp: Optional[str] = None,
-    ) -> Dict[str, str]:
+        telefone_whatsapp: str | None = None,
+    ) -> dict[str, str]:
         """
         Gera link direto e seguro para o paciente entrar na sala WebRTC pelo navegador
         (sem precisar instalar nenhum aplicativo ou fazer cadastro prévio).
         """
         url_sala_paciente = f"{base_url}/static/telemedicina_paciente.html?sala={codigo_sala}"
-        
+
         mensagem_whatsapp = (
             f"Olá {nome_paciente}! Sua teleconsulta com o(a) {nome_medico} está pronta. "
             f"Clique no link para acessar a sala segura pelo seu navegador (celular ou computador, sem precisar baixar aplicativo): "
@@ -179,12 +177,12 @@ class MotorCFMTelemedicina:
         paciente_nome: str,
         medico: MedicoIdentificacaoCFM,
         motivo_clinico: str,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Registra a conversão de teleconsulta para atendimento presencial (Art. 3º do CFM 2.314/2022).
         O médico tem soberania e autonomia técnica para exigir exame presencial quando considerar necessário.
         """
-        agora = datetime.now(timezone.utc).isoformat()
+        agora = datetime.now(UTC).isoformat()
         relatorio = (
             f"CONVERSÃO DE TELECONSULTA PARA ATENDIMENTO PRESENCIAL (ART. 3º CFM 2.314/2022)\n"
             f"Teleconsulta ID: {teleconsulta_id}\n"
