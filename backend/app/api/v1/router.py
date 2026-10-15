@@ -10,10 +10,10 @@ from app.api.v1.copiloto import router as copiloto_router
 from app.api.v1.farmacia import router as farmacia_router
 from app.api.v1.telemedicina_ws import router as telemedicina_ws_router
 from app.api.v1.convenios import router as convenios_router
-from app.api.v1.auth import router as auth_router
-from app.api.v1.tiss import router as tiss_router
+from app.api.v1.auth import get_current_user, router as auth_router
 from app.api.v1.dmed import router as dmed_router
 from app.api.v1.clinica import router as clinica_router
+from app.api.v1.tiss import router as tiss_router
 from app.api.v1.agenda_medica import router as agenda_medica_router
 from app.api.v1.prescricao_cfm import router as prescricao_cfm_router
 from app.api.v1.financeiro_medico import router as financeiro_medico_router
@@ -21,7 +21,6 @@ from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.health import router as health_router
 from app.api.v1.sincronizacao import router as sincronizacao_router
-from app.api.v1.auth import router as auth_router, get_current_user
 from app.core.config import settings
 
 api_router = APIRouter()
