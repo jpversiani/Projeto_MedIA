@@ -1,7 +1,6 @@
 """Pydantic models for telemedicina WebSocket communication."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,11 +11,11 @@ class SdpMessage(BaseModel):
     sdp: str = Field(..., description="Raw SDP string")
     room_code: str = Field(..., description="Room identifier")
     timestamp: datetime = Field(default_factory=datetime.now)
-    patient_id: Optional[str] = Field(None, description="Patient identifier")
-    provider_id: Optional[str] = Field(None, description="Provider/clinic identifier")
-    medical_record_id: Optional[str] = Field(None, description="Medical record ID")
-    cns: Optional[str] = Field(None, description="CNS identifier")
-    cip: Optional[str] = Field(None, description="CIP identifier")
+    patient_id: str | None = Field(None, description="Patient identifier")
+    provider_id: str | None = Field(None, description="Provider/clinic identifier")
+    medical_record_id: str | None = Field(None, description="Medical record ID")
+    cns: str | None = Field(None, description="CNS identifier")
+    cip: str | None = Field(None, description="CIP identifier")
 
 
 class IceCandidate(BaseModel):
@@ -33,8 +32,8 @@ class IceCandidate(BaseModel):
 class MedicalStateSync(BaseModel):
     """Medical state synchronization payload for telemedicina room."""
     patient_cnf: str = Field(..., description="Patient CPF identifier")
-    patient_name: Optional[str] = Field(None, description="Patient name")
-    cnp: Optional[str] = Field(None, description="National health card number")
-    cpid: Optional[str] = Field(None, description="Primary care ID")
+    patient_name: str | None = Field(None, description="Patient name")
+    cnp: str | None = Field(None, description="National health card number")
+    cpid: str | None = Field(None, description="Primary care ID")
     clinical_data: dict
     timestamp: datetime = Field(default_factory=datetime.now)
