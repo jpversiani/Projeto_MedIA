@@ -15,13 +15,12 @@ import re
 from pathlib import Path
 
 import pytest
-
 from app.main import app
 
-STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
+STATIC_DIR: Path = Path(__file__).resolve().parents[1] / "app" / "static"
 
 # Extensões varridas. `.html` e `.js` cobrem todo o front-end atual.
-ARQUIVOS_FRONTEND = sorted(
+ARQUIVOS_FRONTEND: list[Path] = sorted(
     p for p in STATIC_DIR.rglob("*")
     if p.suffix in (".html", ".js") and "node_modules" not in p.parts
 )
@@ -60,7 +59,7 @@ def _rotas_do_backend() -> set[str]:
     return caminhos
 
 
-ROTAS = _rotas_do_backend()
+ROTAS: set[str] = _rotas_do_backend()
 
 
 def _coletar_urls() -> list[tuple[Path, str]]:
@@ -74,10 +73,10 @@ def _coletar_urls() -> list[tuple[Path, str]]:
     return achados
 
 
-URLS_ENCONTRADAS = _coletar_urls()
+URLS_ENCONTRADAS: list[tuple[Path, str]] = _coletar_urls()
 
 
-def test_existe_alguma_url_para_auditar():
+def test_existe_alguma_url_para_auditar() -> None:
     """Trava de sanidade: se o varrimento parar de achar URLs, o teste vira falso positivo."""
     assert URLS_ENCONTRADAS, (
         "Nenhuma URL de API encontrada no front-end. O padrão de busca quebrou "
@@ -91,7 +90,7 @@ def test_existe_alguma_url_para_auditar():
     URLS_ENCONTRADAS,
     ids=[f"{a.relative_to(STATIC_DIR)}:{u}" for a, u in URLS_ENCONTRADAS],
 )
-def test_url_do_frontend_existe_no_backend(arquivo, url):
+def test_url_do_frontend_existe_no_backend(arquivo: Path, url: str) -> None:
     """Cada URL chamada pelo front-end precisa corresponder a uma rota real.
 
     URLs com placeholder dinâmico (ex.: `/atendimentos/${id}/alertas`) são
@@ -132,7 +131,7 @@ def test_url_do_frontend_existe_no_backend(arquivo, url):
     )
 
 
-def test_consentimento_lgpd_aponta_para_rota_de_tcle():
+def test_consentimento_lgpd_aponta_para_rota_de_tcle() -> None:
     """O termo de consentimento precisa gravar em uma rota existente.
 
     Este endpoint apontava para `/api/v1/consentimento`, que nunca existiu: o
@@ -148,7 +147,7 @@ def test_consentimento_lgpd_aponta_para_rota_de_tcle():
     assert "/api/v1/telemedicina/tcle/registrar" in ROTAS
 
 
-def test_paginas_estaticas_nao_sao_dumps_de_codigo():
+def test_paginas_estaticas_nao_sao_dumps_de_codigo() -> None:
     """Nenhum `.html` pode ser, na verdade, saída de `tree` ou código-fonte.
 
     Dois arquivos assim foram commitados com extensão `.html` e servidos
