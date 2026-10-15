@@ -100,58 +100,130 @@
     MedIA Health • Plataforma em conformidade com o Conselho Federal de Medicina (CFM)
   </footer>
 
-  <script>
+  <script type="module">
+    import { WebRTCManager } from '/static/js/webrtc_manager.js';
+
     const urlParams = new URLSearchParams(window.location.search);
     const codigoSala = urlParams.get('sala') || 'sala_padrao';
+    const cnsPaciente = urlParams.get('cns') || '000000000000000';
+    const cpfPaciente = urlParams.get('cpf') || '00000000000';
 
     const chk = document.getElementById('chk-concordo');
     const btnEntrar = document.getElementById('btn-entrar');
-    chk.addEventListener('change', () => {
-      btnEntrar.disabled = !chk.checked;
-    });
+    if (chk && btnEntrar) {
+      chk.addEventListener('change', () => {
+        btnEntrar.disabled = !chk.checked;
+      });
+    }
 
-    let localStream = null;
+    let rtc = null;
+    let ws = null;
 
     async function conectarSala() {
       document.getElementById('etapa-tcle').classList.add('hidden');
       document.getElementById('etapa-video').classList.remove('hidden');
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        rtc = new WebRTCManager();
+        await rtc.registrarConsentimento({ cns: cnsPaciente, cpf: cpfPaciente, aceite: true });
+
+        const stream = await rtc.iniciarCaptura();
         const videoLocal = document.getElementById('video-paciente');
-        videoLocal.srcObject = localStream;
+        if (videoLocal) videoLocal.srcObject = stream;
+
+        await rtc.criarPeerConnection();
+
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${proto}//${window.location.host}/api/v1/ws/telemedicina/sala/${encodeURIComponent(codigoSala)}?papel=paciente`;
+        ws = new WebSocket(wsUrl);
+
+        rtc.addEventListener('icecandidate', (e) => {
+          if (e.detail && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ tipo: 'ice_candidate', payload: e.detail }));
+          }
+        });
+
+        rtc.addEventListener('track', (e) => {
+          const videoMedico = document.getElementById('video-medico');
+          if (videoMedico) videoMedico.srcObject = e.detail;
+          const aviso = document.getElementById('aviso-esperando');
+          if (aviso) aviso.classList.add('hidden');
+        });
+
+        rtc.addEventListener('mute-audio', (e) => {
+          const icon = document.querySelector('#btn-audio i');
+          if (icon) {
+            icon.className = e.detail.mute ? 'fa-solid fa-microphone-slash text-sm text-rose-400' : 'fa-solid fa-microphone text-sm';
+          }
+        });
+
+        rtc.addEventListener('mute-video', (e) => {
+          const icon = document.querySelector('#btn-video i');
+          if (icon) {
+            icon.className = e.detail.mute ? 'fa-solid fa-video-slash text-sm text-rose-400' : 'fa-solid fa-video text-sm';
+          }
+        });
+
+        ws.onmessage = async (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.tipo === 'offer') {
+              const answer = await rtc.criarResposta(msg.payload);
+              await rtc.definirDescricaoLocal(answer);
+              ws.send(JSON.stringify({ tipo: 'answer', payload: answer }));
+            } else if (msg.tipo === 'ice_candidate') {
+              await rtc.adicionarCandidatoRemota(msg.payload);
+            } else if (msg.tipo === 'peer_left') {
+              const aviso = document.getElementById('aviso-esperando');
+              if (aviso) {
+                aviso.classList.remove('hidden');
+                const txt = aviso.querySelector('.text-sm');
+                if (txt) txt.textContent = 'O médico encerrou ou desconectou da chamada.';
+              }
+            }
+          } catch (err) {
+            console.error('Erro ao processar sinalização WebRTC:', err);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('Conexão de sinalização encerrada');
+        };
       } catch (e) {
-        console.warn('Dispositivo de mídia não autorizado:', e);
+        console.warn('Erro ao inicializar WebRTC no paciente:', e);
+        alert('Não foi possível inicializar sua câmera ou microfone: ' + e.message);
       }
     }
 
     function alternarAudio() {
-      if (!localStream) return;
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        const icon = document.querySelector('#btn-audio i');
-        icon.className = audioTrack.enabled ? 'fa-solid fa-microphone text-sm' : 'fa-solid fa-microphone-slash text-sm text-rose-400';
+      if (rtc) {
+        rtc.alternarMuteAudio();
       }
     }
 
     function alternarVideo() {
-      if (!localStream) return;
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        const icon = document.querySelector('#btn-video i');
-        icon.className = videoTrack.enabled ? 'fa-solid fa-video text-sm' : 'fa-solid fa-video-slash text-sm text-rose-400';
+      if (rtc) {
+        rtc.alternarMuteVideo();
       }
     }
 
     function encerrarChamada() {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+      if (rtc) {
+        rtc.fechar();
+        rtc = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
       }
       alert('Sua teleconsulta foi finalizada. Obrigado!');
       window.location.href = '/';
     }
+
+    window.conectarSala = conectarSala;
+    window.alternarAudio = alternarAudio;
+    window.alternarVideo = alternarVideo;
+    window.encerrarChamada = encerrarChamada;
   </script>
 </body>
 </html>
