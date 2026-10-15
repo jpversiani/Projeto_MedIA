@@ -11,7 +11,7 @@ Projeto MedIA — SUS/APS (Python 3.12, Pydantic v2).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,7 +45,7 @@ class ReceitaDigital(BaseModel):
     cpf_paciente: str = Field(min_length=11, max_length=11)
     cid10: str = Field(pattern=REGEX_CID10)
     ciap2: str = Field(pattern=REGEX_CIAP2)
-    data_emissao: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    data_emissao: datetime = Field(default_factory=lambda: datetime.now(UTC))
     medicamentos: list[Medicamento] = Field(default_factory=list)
     observacoes: str = ""
     hash_assinatura: str | None = None
