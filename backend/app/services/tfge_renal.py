@@ -38,10 +38,11 @@ A equação CKD-EPI 2021 é validada para adultos (≥ 18 anos).
 
 from __future__ import annotations
 
-import math
+from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
 from enum import StrEnum
-from typing import Callable, Final, Literal
+import math
+from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -543,8 +544,8 @@ class CalculadoraRenal:
 
 
 __all__ = [
-    "AlertaNefrotoxicidade",
     "AjusteMedicamento",
+    "AlertaNefrotoxicidade",
     "CalculadoraRenal",
     "EntradaTFGe",
     "EstagioDRC",
