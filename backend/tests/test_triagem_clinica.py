@@ -18,19 +18,18 @@ Padrões de arquitetura:
 """
 
 import pytest
-from decimal import Decimal
 
 from app.services.triagem_clinica import (
-    NivelRisco,
-    QueixaSentinela,
-    CaracteristicasDorToracica,
-    CaracteristicasDispneia,
-    SinaisVitais,
-    PacienteTriagem,
-    ResultadoTriagem,
+    assign_priority_level,
     evaluate_extreme_vitals,
     evaluate_sentinel_complaints,
-    assign_priority_level,
+    CaracteristicasDispneia,
+    CaracteristicasDorToracica,
+    NivelRisco,
+    PacienteTriagem,
+    QueixaSentinela,
+    ResultadoTriagem,
+    SinaisVitais,
 )
 
 
