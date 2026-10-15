@@ -13,13 +13,13 @@ de arquitetura (sem SUS, sem IoT, apenas atendimento particular/convênios).
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+
+from typing import Any
 
 import pytest
-from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # -----------------------------------------------------------------------------
 # Modelos de exemplo (simulam a estrutura real do backend)
@@ -33,7 +33,7 @@ class OutboxItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     payload = Column(String, nullable=False)  # JSON serializado
     status = Column(String, default="pending")  # pending, processed, failed
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     processed_at = Column(DateTime, nullable=True)
 
 class MedicalRecord(Base):
@@ -44,7 +44,7 @@ class MedicalRecord(Base):
     patient_id = Column(String, nullable=False)
     content = Column(String, nullable=False)  # Conteúdo do prontuário
     version = Column(Integer, default=1)      # Controle de versão para conflitos
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 class SyncBatch(Base):
     """Lote de sincronização com hash criptográfico."""
@@ -53,7 +53,7 @@ class SyncBatch(Base):
     id = Column(Integer, primary_key=True, index=True)
     batch_hash = Column(String, nullable=False)  # SHA-256 do payload
     payload = Column(String, nullable=False)     # JSON com dados sincronizados
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 # -----------------------------------------------------------------------------
 # Serviços simulados (para testes)
@@ -61,7 +61,7 @@ class SyncBatch(Base):
 class SyncService:
     """Serviço de sincronização offline (simulado)."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session) -> None:
         self.session = session
 
     def process_outbox(self) -> int:
@@ -80,7 +80,7 @@ class SyncService:
                 # Se falhar, marca como 'failed' para retry posterior
                 if self._process_item(item):
                     item.status = "processed"
-                    item.processed_at = datetime.now(timezone.utc)
+                    item.processed_at = datetime.now(UTC)
                     processed += 1
                 else:
                     item.status = "failed"
@@ -106,17 +106,17 @@ class SyncService:
         if new_version > record.version:
             record.content = new_content
             record.version = new_version
-            record.updated_at = datetime.now(timezone.utc)
+            record.updated_at = datetime.now(UTC)
             self.session.commit()
         # Se versão menor, mantém o atual (não faz nada)
         return record
 
-    def compute_batch_hash(self, payload: Dict[str, Any]) -> str:
+    def compute_batch_hash(self, payload: dict[str, Any]) -> str:
         """Calcula o hash SHA-256 do payload JSON serializado."""
         serialized = json.dumps(payload, sort_keys=True, default=str).encode()
         return hashlib.sha256(serialized).hexdigest()
 
-    def sync_batch(self, payload: Dict[str, Any]) -> SyncBatch:
+    def sync_batch(self, payload: dict[str, Any]) -> SyncBatch:
         """
         Sincroniza um lote de dados, verificando a integridade criptográfica.
         Cria um registro SyncBatch com o hash calculado.
