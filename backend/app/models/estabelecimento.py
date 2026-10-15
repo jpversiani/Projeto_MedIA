@@ -1,22 +1,25 @@
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from datetime import datetime
+
 from app.core.database import Base
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
 
 class Estabelecimento(Base):
     __tablename__ = "estabelecimentos"
 
     id = Column(Integer, primary_key=True, index=True)
-    cnes = Column(String(7), unique=True, index=True, nullable=False) # Código Nacional de Estabelecimentos de Saúde
+    cnes = Column(String(7), unique=True, index=True, nullable=False)  # Código Nacional de Estabelecimentos de Saúde
     nome_fantasia = Column(String(200), nullable=False)
     razao_social = Column(String(200), nullable=True)
     municipio_ibge = Column(String(7), nullable=False)
     logradouro = Column(String(200), nullable=True)
     numero = Column(String(20), nullable=True)
     bairro = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     equipes = relationship("Equipe", back_populates="estabelecimento")
+
 
 class Equipe(Base):
     __tablename__ = "equipes"
