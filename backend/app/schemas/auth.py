@@ -1,9 +1,9 @@
 """
 Schemas Pydantic v2 para Autenticação, SSO (Google/Microsoft), MFA e Multi-Tenancy.
 """
-from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, model_validator, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class LoginRequest(BaseModel):
@@ -17,10 +17,10 @@ class LoginRequest(BaseModel):
     Regra de negócio: é obrigatório informar ``email`` OU ``demo_role``.
     O e-mail, quando presente, continua validado como EmailStr (422 se malformado).
     """
-    email: Optional[EmailStr] = None
-    password: Optional[str] = None
-    mfa_code: Optional[str] = None
-    demo_role: Optional[str] = None # Para login rápido de teste de MVP
+    email: EmailStr | None = None
+    password: str | None = None
+    mfa_code: str | None = None
+    demo_role: str | None = None  # Para login rápido de teste de MVP
 
     @model_validator(mode="after")
     def _exigir_email_ou_demo_role(self) -> "LoginRequest":
@@ -40,13 +40,13 @@ class SSOLoginRequest(BaseModel):
     endpoint resolve o provider default. Quando informado, é aceito como
     metadado (compatibilidade com clientes que enviam o campo).
     """
-    provider: Optional[str] = Field(
+    provider: str | None = Field(
         None,
         description="'google' ou 'microsoft' (opcional; inferido da rota de callback)",
     )
-    id_token: Optional[str] = None
-    access_token: Optional[str] = None
-    code: Optional[str] = None
+    id_token: str | None = None
+    access_token: str | None = None
+    code: str | None = None
 
 
 class VinculoClinicaOut(BaseModel):
@@ -55,8 +55,8 @@ class VinculoClinicaOut(BaseModel):
     estabelecimento_nome: str
     cnes: str
     papel: str
-    profissional_id: Optional[int] = None
-    crm: Optional[str] = None
+    profissional_id: int | None = None
+    crm: str | None = None
     is_default: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -67,12 +67,12 @@ class UsuarioOut(BaseModel):
     email: str
     nome: str
     sso_provider: str
-    foto_url: Optional[str] = None
+    foto_url: str | None = None
     is_active: bool
     is_superuser: bool
     mfa_enabled: bool
-    clinica_ativa: Optional[VinculoClinicaOut] = None
-    vinculos: List[VinculoClinicaOut] = []
+    clinica_ativa: VinculoClinicaOut | None = None
+    vinculos: list[VinculoClinicaOut] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -100,13 +100,13 @@ class MfaVerifyRequest(BaseModel):
 
 class AuditTrailOut(BaseModel):
     id: int
-    usuario_id: Optional[int] = None
-    usuario_email: Optional[str] = None
-    estabelecimento_id: Optional[int] = None
+    usuario_id: int | None = None
+    usuario_email: str | None = None
+    estabelecimento_id: int | None = None
     acao: str
     recurso_tipo: str
     recurso_id: str
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
     timestamp: datetime
     hash_integridade: str
 
