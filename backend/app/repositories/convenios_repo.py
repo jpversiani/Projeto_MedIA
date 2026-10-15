@@ -1,20 +1,20 @@
 """
 Repositório de Convênios, Guias TISS e Lançamentos Financeiros.
 """
-from datetime import datetime, timezone
-from typing import List, Optional
-from sqlalchemy.orm import Session
+from datetime import datetime
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.models.convenios import (
-    Operadora,
-    Plano,
+    GuiaStatus,
     GuiaTISS,
     LancamentoFinanceiro,
-    GuiaStatus,
-    TipoGuia,
-    LancamentoTipo,
     LancamentoStatus,
+    LancamentoTipo,
+    Operadora,
+    Plano,
+    TipoGuia,
 )
 from app.services.tiss_generator import TISSGenerator, gerar_numero_guia
 
@@ -27,7 +27,7 @@ class ConveniosRepository:
         nome: str,
         registro_ans: str,
         cnpj: str,
-        contato_email: Optional[str] = None,
+        contato_email: str | None = None,
     ) -> Operadora:
         operadora = Operadora(
             nome=nome,
@@ -42,11 +42,11 @@ class ConveniosRepository:
         return operadora
 
     @staticmethod
-    def obter_operadora(db: Session, operadora_id: int) -> Optional[Operadora]:
+    def obter_operadora(db: Session, operadora_id: int) -> Operadora | None:
         return db.scalar(select(Operadora).where(Operadora.id == operadora_id))
 
     @staticmethod
-    def listar_operadoras(db: Session, apenas_ativas: bool = True) -> List[Operadora]:
+    def listar_operadoras(db: Session, apenas_ativas: bool = True) -> list[Operadora]:
         query = select(Operadora)
         if apenas_ativas:
             query = query.where(Operadora.ativo.is_(True))
@@ -73,7 +73,7 @@ class ConveniosRepository:
         return plano
 
     @staticmethod
-    def listar_planos(db: Session, operadora_id: Optional[int] = None) -> List[Plano]:
+    def listar_planos(db: Session, operadora_id: int | None = None) -> list[Plano]:
         query = select(Plano)
         if operadora_id:
             query = query.where(Plano.operadora_id == operadora_id)
@@ -85,13 +85,13 @@ class ConveniosRepository:
         plano_id: int,
         paciente_nome: str,
         numero_carteira: str,
-        paciente_cpf: Optional[str] = None,
-        paciente_cns: Optional[str] = None,
-        ciap2: Optional[str] = None,
-        cid10: Optional[str] = None,
+        paciente_cpf: str | None = None,
+        paciente_cns: str | None = None,
+        ciap2: str | None = None,
+        cid10: str | None = None,
         procedimento_tuss: str = "10101012",
         valor: float = 150.0,
-        atendimento_id: Optional[int] = None,
+        atendimento_id: int | None = None,
     ) -> GuiaTISS:
         plano = db.scalar(select(Plano).where(Plano.id == plano_id))
         registro_ans = plano.operadora.registro_ans if plano and plano.operadora else "000000"
@@ -147,7 +147,7 @@ class ConveniosRepository:
         return guia
 
     @staticmethod
-    def obter_guia(db: Session, guia_id: int) -> Optional[GuiaTISS]:
+    def obter_guia(db: Session, guia_id: int) -> GuiaTISS | None:
         return db.scalar(select(GuiaTISS).where(GuiaTISS.id == guia_id))
 
     @staticmethod
@@ -155,7 +155,7 @@ class ConveniosRepository:
         db: Session,
         guia_id: int,
         novo_status: GuiaStatus,
-    ) -> Optional[GuiaTISS]:
+    ) -> GuiaTISS | None:
         guia = db.scalar(select(GuiaTISS).where(GuiaTISS.id == guia_id))
         if guia:
             guia.status = novo_status
@@ -176,9 +176,9 @@ class ConveniosRepository:
         paciente_cpf: str,
         valor: float,
         descricao: str = "Consulta Médica Particular",
-        atendimento_id: Optional[int] = None,
+        atendimento_id: int | None = None,
     ) -> LancamentoFinanceiro:
-        recibo_num = f"REC-{datetime.now(timezone.utc).strftime('%Y%m')}-{gerar_numero_guia()[-6:]}"
+        recibo_num = f"REC-{datetime.now(datetime.UTC).strftime('%Y%m')}-{gerar_numero_guia()[-6:]}"
         lancamento = LancamentoFinanceiro(
             atendimento_id=atendimento_id,
             paciente_cpf=paciente_cpf,
@@ -199,8 +199,8 @@ class ConveniosRepository:
     @staticmethod
     def listar_lancamentos(
         db: Session,
-        status: Optional[LancamentoStatus] = None,
-    ) -> List[LancamentoFinanceiro]:
+        status: LancamentoStatus | None = None,
+    ) -> list[LancamentoFinanceiro]:
         query = select(LancamentoFinanceiro)
         if status:
             query = query.where(LancamentoFinanceiro.status == status)
