@@ -7,11 +7,13 @@ Em conformidade com:
 - Padrão PAdES (PDF Advanced Electronic Signatures) com Carimbo do Tempo (Timestamping)
 """
 from __future__ import annotations
-import os
+
 import hashlib
+import os
 import uuid
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from datetime import UTC, datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -26,8 +28,8 @@ class VidaasConfig(BaseModel):
 class AssinaturaDocumentoRequest(BaseModel):
     documento_id: str
     tipo_documento: str = "RECEITA_SIMPLES"  # RECEITA_SIMPLES, CONTROLE_ESPECIAL, ATESTADO, RELATORIO
-    conteudo_bytes: Optional[bytes] = None
-    hash_sha256: Optional[str] = None
+    conteudo_bytes: bytes | None = None
+    hash_sha256: str | None = None
     cpf_medico: str
     crm_medico: str
     uf_crm: str = "MG"
@@ -48,7 +50,7 @@ class ReciboAssinaturaVidaas(BaseModel):
 class VidaasSignatureService:
     """Motor de integração com a API de Assinatura em Nuvem do VIDAAS."""
 
-    def __init__(self, config: Optional[VidaasConfig] = None):
+    def __init__(self, config: VidaasConfig | None = None):
         self.config = config or VidaasConfig()
 
     @staticmethod
@@ -58,7 +60,7 @@ class VidaasSignatureService:
             conteudo = conteudo.encode("utf-8")
         return hashlib.sha256(conteudo).hexdigest()
 
-    def solicitar_assinatura_em_nuvem(self, req: AssinaturaDocumentoRequest) -> Dict[str, Any]:
+    def solicitar_assinatura_em_nuvem(self, req: AssinaturaDocumentoRequest) -> dict[str, Any]:
         """
         Envia a solicitação de assinatura para o provedor de nuvem VIDAAS.
         Gera notificação push no smartphone do médico com biometria ou PIN.
@@ -67,9 +69,11 @@ class VidaasSignatureService:
         if not doc_hash and req.conteudo_bytes:
             doc_hash = self.calcular_hash_documento(req.conteudo_bytes)
         elif not doc_hash:
-            doc_hash = self.calcular_hash_documento(f"{req.documento_id}-{req.tipo_documento}-{datetime.now(timezone.utc)}")
+            doc_hash = self.calcular_hash_documento(
+                f"{req.documento_id}-{req.tipo_documento}-{datetime.now(UTC)}"
+            )
 
-        solicitacao_id = f"VIDAAS-{datetime.now(timezone.utc).year}-{uuid.uuid4().hex[:12].upper()}"
+        solicitacao_id = f"VIDAAS-{datetime.now(UTC).year}-{uuid.uuid4().hex[:12].upper()}"
 
         return {
             "sucesso": True,
@@ -94,7 +98,7 @@ class VidaasSignatureService:
         """
         Confirma a assinatura realizada no app VIDAAS e retorna o recibo probatório PAdES.
         """
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         doc_hash = self.calcular_hash_documento(f"{solicitacao_id}-{documento_id}")
         carimbo = f"ACT-VALID-ICP-BRASIL-{agora.strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
         validador_url = f"https://validador.iti.gov.br/validar?hash={doc_hash}&origem=media_health"
