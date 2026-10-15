@@ -1,15 +1,12 @@
-from datetime import date, datetime, timezone
-from typing import List, Optional
 import xml.etree.ElementTree as ET
 
-from fastapi import APIRouter, HTTPException, Response
+from datetime import date, datetime
+
+from app.services.tiss_generator import GuiaConsultaTISS, MotorFaturamentoTISS
+from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 
-from app.services.tiss_generator import (
-    GuiaConsultaTISS,
-    MotorFaturamentoTISS,
-    RelatorioAuditoriaTISS,
-)
+from app.services.tiss_generator import GuiaConsultaTISS, MotorFaturamentoTISS
 
 router = APIRouter(prefix="/tiss", tags=["Faturamento TISS ANS 4.01"])
 
@@ -20,8 +17,8 @@ class GuiaConsultaRequest(BaseModel):
     nome_operadora: str = Field("Unimed / Bradesco Saúde", json_schema_extra={"example": "Bradesco Saúde"})
     numero_carteira: str = Field(..., json_schema_extra={"example": "9876543210123"})
     nome_beneficiario: str = Field(..., json_schema_extra={"example": "Maria Silva Santos"})
-    cpf_beneficiario: Optional[str] = Field(None, json_schema_extra={"example": "12345678901"})
-    cns_beneficiario: Optional[str] = Field(None, json_schema_extra={"example": "700000000000001"})
+    cpf_beneficiario: str | None = Field(None, json_schema_extra={"example": "12345678901"})
+    cns_beneficiario: str | None = Field(None, json_schema_extra={"example": "700000000000001"})
     codigo_cnes: str = Field(..., json_schema_extra={"example": "3180115"}, min_length=7, max_length=7)
     nome_contratado: str = Field("Consultório Particular MedIA", json_schema_extra={"example": "Consultório Particular MedIA"})
     crm_medico: str = Field("78421", json_schema_extra={"example": "78421"})
@@ -31,13 +28,13 @@ class GuiaConsultaRequest(BaseModel):
     codigo_tuss_procedimento: str = Field("10101012", json_schema_extra={"example": "10101012"})
     descricao_procedimento: str = Field("Consulta médica em atenção primária/especializada")
     valor_procedimento: float = Field(150.00, json_schema_extra={"example": 150.00})
-    cid10_principal: Optional[str] = Field(None, json_schema_extra={"example": "I10"})
+    cid10_principal: str | None = Field(None, json_schema_extra={"example": "I10"})
     tipo_consulta: str = Field("1", json_schema_extra={"example": "1"})
 
 
 class LoteTISSRequest(BaseModel):
     numero_lote: str = Field("1", json_schema_extra={"example": "1"})
-    guias: Optional[List[GuiaConsultaRequest]] = None
+    guias: list[GuiaConsultaRequest] | None = None
 
 
 @router.post("/gerar-guia-xml")
@@ -69,7 +66,7 @@ def validar_glosas(dados: GuiaConsultaRequest):
 
 
 @router.post("/exportar-lote-xml")
-def exportar_lote_xml(dados: Optional[LoteTISSRequest] = None):
+def exportar_lote_xml(dados: LoteTISSRequest | None = None):
     """Gera e exporta arquivo consolidado XML de Lote TISS ANS 4.01.00 pronto para transmissão."""
     ns = "http://www.ans.gov.br/padroes/tiss/schemas"
     ET.register_namespace("ans", ns)
