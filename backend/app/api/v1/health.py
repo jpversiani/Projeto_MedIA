@@ -2,8 +2,10 @@
 Endpoint de Healthcheck e Liveness/Readiness Probe para Kubernetes e Docker.
 """
 
-from datetime import datetime, timezone
 import time
+
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -24,7 +26,7 @@ def healthcheck(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
         db_ok = True
-    except Exception as e:
+    except Exception:
         db_ok = False
 
     uptime_segundos = int(time.time() - _START_TIME)
