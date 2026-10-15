@@ -3,8 +3,8 @@ Catálogo de Especialidades Médicas e Templates Clínicos Estruturados
 Suporte a atendimento presencial e telemedicina para diversas especialidades médicas.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -13,14 +13,14 @@ class EspecialidadeTemplate:
     nome: str
     icone: str
     descricao: str
-    queixa_sugestoes: List[str]
+    queixa_sugestoes: list[str]
     anamnese_guia: str
     exame_fisico_template: str
-    principais_ciap2_cid10: List[Dict[str, str]]
-    alertas_seguranca_telemedicina: List[str]
+    principais_ciap2_cid10: list[dict[str, str]]
+    alertas_seguranca_telemedicina: list[str]
 
 
-CATALOGO_ESPECIALIDADES: Dict[str, EspecialidadeTemplate] = {
+CATALOGO_ESPECIALIDADES: dict[str, EspecialidadeTemplate] = {
     "clinica_medica": EspecialidadeTemplate(
         codigo="clinica_medica",
         nome="Clínica Médica / Geral",
@@ -180,7 +180,7 @@ def obter_especialidade(codigo: str) -> EspecialidadeTemplate:
     return CATALOGO_ESPECIALIDADES.get(codigo, CATALOGO_ESPECIALIDADES["clinica_medica"])
 
 
-def listar_todas_especialidades() -> List[Dict[str, Any]]:
+def listar_todas_especialidades() -> list[dict[str, Any]]:
     """Lista as especialidades disponíveis com seus metadados."""
     return [
         {
