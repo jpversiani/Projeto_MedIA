@@ -30,7 +30,8 @@ router = APIRouter(prefix="/sincronizacao", tags=["Sincronização Offline (C29)
     summary="Upload do lote de atendimentos aguardando sincronização",
 )
 def sincronizar_atendimentos_offline(
-    lote: LoteSincronizacaoRequest, db: Session = Depends(get_db)
+    lote: LoteSincronizacaoRequest,
+    db: Session = Depends(get_db),
 ) -> LoteSincronizacaoResponse:
     """Recebe os atendimentos registrados em contingência offline na UBS.
 
@@ -46,6 +47,8 @@ def sincronizar_atendimentos_offline(
     status_code=200,
     summary="Painel de auditoria da sincronização offline",
 )
-def status_sincronizacao_offline(db: Session = Depends(get_db)) -> StatusSincronizacaoOut:
+def status_sincronizacao_offline(
+    db: Session = Depends(get_db),
+) -> StatusSincronizacaoOut:
     """Retorna o total de atendimentos de contingência já recebidos pelo servidor."""
     return ServicoSincronizacaoOffline(db).status_geral()
