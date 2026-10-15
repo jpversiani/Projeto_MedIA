@@ -43,7 +43,7 @@ def test_atendimento_soap_com_ciap2_e_cid10(client):
     atend = response.json()
     assert atend["id"] is not None
     assert len(atend["problemas"]) == 2
-    assert atend["problemas"][0]["codigo"] in ["K86", "I10"]
+    assert {p["codigo"] for p in atend["problemas"]} == {"K86", "I10"}
 
     # Verificar se a fila foi atualizada para FINALIZADO
     resp_fila_check = client.get(f"/api/v1/fila/{fila_id}")
