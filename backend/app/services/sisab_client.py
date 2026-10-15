@@ -1,31 +1,36 @@
 from __future__ import annotations
 
 import asyncio
-import logging
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+import logging
+from typing import Any, Self
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.services.validadores import normalizar_cns, normalizar_cpf, normalizar_ciap2, normalizar_cid10, normalizar_cnes
+from app.services.validadores import (
+    normalizar_ciap2,
+    normalizar_cid10,
+    normalizar_cnes,
+    normalizar_cns,
+    normalizar_cpf,
+)
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "TipoFicha",
-    "StatusRecibo",
     "FichaSISAB",
+    "LoteInvalidoError",
     "LoteSISAB",
     "ReciboItem",
+    "ReciboRejeitadoError",
     "ReciboSISAB",
     "SISABClient",
     "SISABError",
-    "LoteInvalidoError",
+    "StatusRecibo",
     "TimeoutSISABError",
-    "ReciboRejeitadoError",
+    "TipoFicha",
 ]
 
 
@@ -108,13 +113,13 @@ class FichaSISAB(BaseModel):
     @classmethod
     def validate_data(cls, v: str) -> str:
         try:
-            datetime.fromisoformat(v.replace("Z", "+00:00"))
+            datetime.fromisoformat(v)
         except ValueError:
             raise ValueError(f"data_atendimento inválida: '{v}'. Esperado formato ISO 8601.")
         return v
 
     @model_validator(mode="after")
-    def validate_codigo_clinico(self) -> "FichaSISAB":
+    def validate_codigo_clinico(self) -> FichaSISAB:
         if not self.ciap2 and not self.cid10:
             raise ValueError("Ficha deve conter CIAP-2 ou CID-10")
         return self
@@ -128,7 +133,7 @@ class LoteSISAB(BaseModel):
     lote_id: str = Field(..., min_length=1, max_length=50, description="Identificador único do lote")
     cnes_origem: str = Field(..., min_length=7, max_length=7, description="CNES do estabelecimento de origem")
     fichas: list[FichaSISAB] = Field(..., min_length=1, description="Lista de fichas no lote")
-    data_hora_envio: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    data_hora_envio: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @field_validator("cnes_origem", mode="before")
     @classmethod
@@ -201,7 +206,7 @@ class SISABClient:
         self.headers = headers or {}
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self) -> SISABClient:
+    async def __aenter__(self) -> Self:
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(self.timeout_seg, connect=10.0, read=self.timeout_seg),
@@ -374,8 +379,6 @@ class SISABClient:
         if not lote.fichas:
             errors.append("Lote deve conter pelo menos uma ficha")
         for i, ficha in enumerate(lote.fichas):
-            if ficha.cid10 and ficha.ciap2:
-                pass
             if not ficha.cid10 and not ficha.ciap2:
                 errors.append(f"Ficha [{i}]: deve conter CIAP-2 ou CID-10")
         if errors:
