@@ -10,11 +10,12 @@ Projeto MedIA (Python 3.12, Pydantic v2, SQLAlchemy 2.0).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from enum import StrEnum
 from typing import Final
 
 from fastapi import APIRouter, Depends, HTTPException, status
+
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -27,7 +28,6 @@ from app.models.farmacia import (
     Dispensacao,
     DispensacaoItem,
     Receita,
-    ReceitaItem,
 )
 
 router = APIRouter(prefix="/farmacia", tags=["Farmácia"])
@@ -229,7 +229,7 @@ def confirmar_dispensacao(request: ConfirmarRequest, db: Session = Depends(get_d
         unidade_cnes=request.unidade_cnes,
         observacoes=request.observacoes,
         chave_idempotencia=request.chave_idempotencia,
-        data_dispensacao=datetime.now(timezone.utc),
+        data_dispensacao=datetime.now(UTC),
     )
     db.add(dispensacao)
     db.flush()
