@@ -19,13 +19,20 @@ armazenados em UTC sem fuso (``datetime.utcnow``) por convenção do projeto.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.core.database import Base
+
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column
 
 if TYPE_CHECKING:  # pragma: no cover - apenas tipagem estática
     from datetime import datetime as _Datetime
@@ -33,7 +40,7 @@ if TYPE_CHECKING:  # pragma: no cover - apenas tipagem estática
 
 def _utc_naive() -> _Datetime:
     """Retorna o instante atual em UTC, sem informação de fuso (SQLite)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(datetime.UTC).replace(tzinfo=None)
 
 
 class MensagemPreventiva(Base):
