@@ -1,22 +1,22 @@
 """
 Serviço de Autenticação Central, Single Sign-On (Google & Microsoft), JWT, MFA (TOTP) e Multi-Tenancy.
 """
-import os
-import time
-import hmac
-import struct
 import base64
 import hashlib
+import hmac
 import secrets
+import struct
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, Tuple
+from typing import Any
+
 import jwt
 from sqlalchemy.orm import Session
 
-from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
-from app.models.estabelecimento import Estabelecimento
-from app.schemas.auth import UsuarioOut, VinculoClinicaOut, TokenResponse
 from app.core.config import settings
+from app.models.estabelecimento import Estabelecimento
+from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
+from app.schemas.auth import UsuarioOut, VinculoClinicaOut
 
 # Resolve a chave via settings. Em produção a ausência de JWT_SECRET_KEY gera
 # RuntimeError em tempo de import — falha rápida e explícita, em vez de subir
@@ -85,7 +85,7 @@ def verify_totp_token(secret: str, token: str, window: int = 1) -> bool:
 # ------------------------------------------------------------------
 # 3. Emissão e Validação de Tokens JWT com Claims de Tenancy
 # ------------------------------------------------------------------
-def create_access_token(usuario: Usuario, clinica_ativa: Optional[VinculoClinica] = None) -> str:
+def create_access_token(usuario: Usuario, clinica_ativa: VinculoClinica | None = None) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
@@ -103,10 +103,10 @@ def create_access_token(usuario: Usuario, clinica_ativa: Optional[VinculoClinica
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except Exception:
+    except jwt.exceptions.PyJWTError:
         return None
 
 
@@ -121,7 +121,7 @@ class AuthService:
         sso_id: str,
         email: str,
         nome: str,
-        foto_url: Optional[str] = None
+        foto_url: str | None = None
     ) -> Usuario:
         """
         Provisiona ou sincroniza um usuário via SSO Google ou Microsoft.
@@ -163,27 +163,26 @@ class AuthService:
         return user
 
     @staticmethod
-    def get_usuario_out(db: Session, usuario: Usuario, clinica_ativa_id: Optional[int] = None) -> UsuarioOut:
+    def get_usuario_out(db: Session, usuario: Usuario, clinica_ativa_id: int | None = None) -> UsuarioOut:
         """Monta o schema completo do usuário com seus vínculos a clínicas."""
-        if usuario.email == "dr.versiani@media-saude.com.br" or "João Paulo" in (usuario.nome or ""):
-            usuario.email = "dra.francelli@media-saude.com.br"
-            usuario.nome = "Dra. Francelli Neves Versiani"
-            db.commit()
-            db.refresh(usuario)
-
-        vinculos = db.query(VinculoClinica).filter(VinculoClinica.usuario_id == usuario.id).all()
+        # Observação: Não alteramos os atributos do objeto 'usuario' para evitar
+        # side-effects de mutação em memória que afetam outras requisições.
+        # Os valores "hardcoded" de demonstração são passados para o output.
         
-        vinculos_out = []
-        clinica_ativa_out = None
-        
-        # Mapeamento de CRM/RQE para perfis médicos de demonstração
+        # Mapeamento de CRM/RQE e dados de demonstração
         crm_demo = None
         rqe_demo = None
+        output_email = usuario.email
+        output_nome = usuario.nome
+        
         user_email_lower = (usuario.email or "").lower()
         user_nome_lower = (usuario.nome or "").lower()
+        
         if "francelli" in user_email_lower or "francelli" in user_nome_lower:
             crm_demo = "78421-MG"
             rqe_demo = "39412"
+            output_email = "dra.francelli@media-saude.com.br"
+            output_nome = "Dra. Francelli Neves Versiani"
         elif "carlos" in user_email_lower or "carlos" in user_nome_lower:
             crm_demo = "65123-MG"
         elif "mariana" in user_email_lower or "mariana" in user_nome_lower:
@@ -191,6 +190,11 @@ class AuthService:
         elif "leticia" in user_email_lower or "leticia" in user_nome_lower:
             crm_demo = "54321-MG"
 
+        vinculos = db.query(VinculoClinica).filter(VinculoClinica.usuario_id == usuario.id).all()
+        
+        vinculos_out = []
+        clinica_ativa_out = None
+        
         for v in vinculos:
             est = db.query(Estabelecimento).filter(Estabelecimento.id == v.estabelecimento_id).first()
             
@@ -212,13 +216,14 @@ class AuthService:
             elif not clinica_ativa_id and v.is_default:
                 clinica_ativa_out = vout
 
+        # Seleciona a primeira clínica se nenhuma for default e nenhuma for ativa
         if not clinica_ativa_out and vinculos_out:
             clinica_ativa_out = vinculos_out[0]
 
         return UsuarioOut(
             id=usuario.id,
-            email=usuario.email,
-            nome=usuario.nome,
+            email=output_email,
+            nome=output_nome,
             sso_provider=usuario.sso_provider,
             foto_url=usuario.foto_url,
             is_active=usuario.is_active,
