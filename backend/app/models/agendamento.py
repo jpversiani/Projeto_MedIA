@@ -19,7 +19,8 @@ o prontuário de quem está na sala de espera.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone as _tz
 from enum import Enum
 
 from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, Time
@@ -80,11 +81,11 @@ class Agendamento(Base):
 
     observacoes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(_tz.utc))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(_tz.utc),
+        onupdate=lambda: datetime.now(_tz.utc),
     )
 
     cidadao = relationship("Cidadao", backref="agendamentos")
