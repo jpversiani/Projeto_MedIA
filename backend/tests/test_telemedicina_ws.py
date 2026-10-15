@@ -207,5 +207,122 @@ def test_hub_telemedicina_adicionar_remover_participante():
     assert len(sala.participantes) == 0
 
 
+def test_hub_publicar_com_exclusao_de_fila():
+    """Garante que publicar com excluir_fila não replica a mensagem para o remetente."""
+    hub = HubTelemedicinaWS()
+    hub.criar_sala("SALA-ECHO-TEST")
+
+    fila_medico = Mock()
+    fila_paciente = Mock()
+
+    hub.registrar_fila("SALA-ECHO-TEST", PapelParticipante.MEDICO, fila_medico)
+    hub.registrar_fila("SALA-ECHO-TEST", PapelParticipante.PACIENTE, fila_paciente)
+
+    evento = {"tipo": "offer", "sdp": "v=0..."}
+    entregues = hub.publicar("SALA-ECHO-TEST", evento, excluir_fila=fila_medico)
+
+    assert entregues == 1
+    fila_medico.put_nowait.assert_not_called()
+    fila_paciente.put_nowait.assert_called_once_with(evento)
+
+
+def test_hub_listar_participantes():
+    """Testa listagem dos papéis conectados em uma sala."""
+    hub = HubTelemedicinaWS()
+    hub.criar_sala("SALA-LIST-TEST")
+
+    assert hub.listar_participantes("SALA-LIST-TEST") == []
+
+    hub.registrar_fila("SALA-LIST-TEST", PapelParticipante.MEDICO, Mock())
+    assert hub.listar_participantes("SALA-LIST-TEST") == ["medico"]
+
+    hub.registrar_fila("SALA-LIST-TEST", PapelParticipante.PACIENTE, Mock())
+    assert hub.listar_participantes("SALA-LIST-TEST") == ["medico", "paciente"]
+
+
+def test_websocket_papel_invalido(client):
+    """Garante que conectar com papel desconhecido rejeita com código 4400."""
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/api/v1/ws/telemedicina/sala/SALA-INV?papel=alienigena"):
+            pass
+    assert exc_info.value.code == 4400
+
+
+def test_websocket_signaling_bidirecional_webrtc(client):
+    """Valida o ciclo completo de signaling WebRTC entre Médico e Paciente."""
+    codigo_sala = "SALA-WEBRTC-SUITE-1"
+
+    with client.websocket_connect(f"/api/v1/ws/telemedicina/sala/{codigo_sala}?papel=medico") as ws_medico:
+        # Médico recebe confirmação de conexão
+        msg_init_medico = ws_medico.receive_json()
+        assert msg_init_medico["tipo"] == "ok"
+        assert msg_init_medico["payload"]["evento"] == "conectado"
+        assert msg_init_medico["payload"]["papel"] == "medico"
+
+        # Médico testa ping/pong
+        ws_medico.send_json({"tipo": "ping", "payload": {}})
+        msg_pong = ws_medico.receive_json()
+        assert msg_pong["tipo"] == "pong"
+
+        with client.websocket_connect(f"/api/v1/ws/telemedicina/sala/{codigo_sala}?papel=paciente") as ws_paciente:
+            # Paciente recebe confirmação
+            msg_init_paciente = ws_paciente.receive_json()
+            assert msg_init_paciente["tipo"] == "ok"
+            assert msg_init_paciente["payload"]["evento"] == "conectado"
+            assert msg_init_paciente["payload"]["papel"] == "paciente"
+
+            # Médico recebe aviso de que o paciente entrou
+            msg_peer_joined = ws_medico.receive_json()
+            assert msg_peer_joined["tipo"] == "peer_joined"
+            assert msg_peer_joined["payload"]["papel"] == "paciente"
+
+            # Médico envia Offer WebRTC
+            sdp_offer = {"sdp": "v=0\r\no=- 1 1 IN IP4 127.0.0.1", "type": "offer"}
+            ws_medico.send_json({"tipo": "offer", "payload": sdp_offer})
+
+            # Paciente recebe Offer
+            msg_offer_recebida = ws_paciente.receive_json()
+            assert msg_offer_recebida["tipo"] == "offer"
+            assert msg_offer_recebida["de_papel"] == "medico"
+            assert msg_offer_recebida["payload"]["sdp"] == sdp_offer["sdp"]
+
+            # Paciente envia Answer WebRTC
+            sdp_answer = {"sdp": "v=0\r\no=- 2 2 IN IP4 127.0.0.1", "type": "answer"}
+            ws_paciente.send_json({"tipo": "answer", "payload": sdp_answer})
+
+            # Médico recebe Answer
+            msg_answer_recebida = ws_medico.receive_json()
+            assert msg_answer_recebida["tipo"] == "answer"
+            assert msg_answer_recebida["de_papel"] == "paciente"
+            assert msg_answer_recebida["payload"]["sdp"] == sdp_answer["sdp"]
+
+            # Médico envia ICE candidate
+            ice_medico = {"candidate": "candidate:1 1 UDP 2130706431 192.168.1.100 50000 typ host", "sdpMid": "0"}
+            ws_medico.send_json({"tipo": "ice_candidate", "payload": ice_medico})
+
+            # Paciente recebe ICE candidate do médico
+            msg_ice_paciente = ws_paciente.receive_json()
+            assert msg_ice_paciente["tipo"] == "ice_candidate"
+            assert msg_ice_paciente["payload"]["candidate"] == ice_medico["candidate"]
+
+            # Paciente envia ICE candidate
+            ice_paciente = {"candidate": "candidate:2 1 UDP 2130706431 192.168.1.101 50001 typ host", "sdpMid": "0"}
+            ws_paciente.send_json({"tipo": "ice_candidate", "payload": ice_paciente})
+
+            # Médico recebe ICE candidate do paciente
+            msg_ice_medico = ws_medico.receive_json()
+            assert msg_ice_medico["tipo"] == "ice_candidate"
+            assert msg_ice_medico["payload"]["candidate"] == ice_paciente["candidate"]
+
+        # Ao sair do bloco do paciente (desconexão), o médico recebe peer_left
+        msg_peer_left = ws_medico.receive_json()
+        assert msg_peer_left["tipo"] == "peer_left"
+        assert msg_peer_left["payload"]["papel"] == "paciente"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

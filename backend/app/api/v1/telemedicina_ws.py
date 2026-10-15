@@ -21,12 +21,16 @@ class TipoMensagemWS(str, Enum):
     JOIN = "join"
     JOIN_SALA = "join_sala"
     LEAVE_SALA = "leave_sala"
+    PEER_JOINED = "peer_joined"
+    PEER_LEFT = "peer_left"
     OFFER = "offer"
     ANSWER = "answer"
     ICE_CANDIDATE = "ice_candidate"
     ESTADO_MEDICO = "estado_medico"
     ESTADO_PACIENTE = "estado_paciente"
     CONSENTIMENTO = "consentimento"
+    PING = "ping"
+    PONG = "pong"
     ERRO = "erro"
     OK = "ok"
 
@@ -173,20 +177,34 @@ class HubTelemedicinaWS:
         if stats and stats.get("conexoes", 0) > 0:
             stats["conexoes"] -= 1
 
+    def listar_participantes(self, codigo: str) -> list[str]:
+        filas = self._filas.get(codigo, [])
+        papeis: list[str] = []
+        for item in filas:
+            p = getattr(item, "papel", None)
+            if p:
+                val = p.value if isinstance(p, PapelParticipante) else str(p)
+                papeis.append(val)
+        return papeis
+
     def publicar(
         self,
         codigo: str,
         evento: dict[str, Any],
         papeis: set[str] | None = None,
+        excluir_fila: Any = None,
     ) -> int:
         entregues = 0
         for item in self._filas.get(codigo, []):
-            papel = getattr(item, "papel", None)
             alvo = getattr(item, "fila", item)
+            if excluir_fila is not None and alvo is excluir_fila:
+                continue
+            papel = getattr(item, "papel", None)
+            papel_str = papel.value if isinstance(papel, PapelParticipante) else str(papel) if papel else None
             if (
                 papeis is not None
-                and isinstance(papel, (PapelParticipante, str))
-                and papel not in papeis
+                and papel_str is not None
+                and papel_str not in papeis
             ):
                 continue
             try:
@@ -227,16 +245,50 @@ async def telemedicina_sala_ws(
 
     remetente = asyncio.create_task(_enviador())
     try:
+        participantes_existentes = hub.listar_participantes(codigo_sala)
         await websocket.send_json(
             EnvelopeSaida(
                 tipo=TipoMensagemWS.OK.value,
                 de_papel=papel_enum.value,
-                payload={"evento": "conectado", "sala_codigo": codigo_sala},
+                payload={
+                    "evento": "conectado",
+                    "sala_codigo": codigo_sala,
+                    "papel": papel_enum.value,
+                    "participantes": participantes_existentes,
+                },
             ).model_dump(mode="json")
         )
+
+        # Notificar outros participantes que um novo peer conectou
+        hub.publicar(
+            codigo_sala,
+            {
+                "tipo": TipoMensagemWS.PEER_JOINED.value,
+                "de_papel": papel_enum.value,
+                "payload": {
+                    "papel": papel_enum.value,
+                    "sala_codigo": codigo_sala,
+                    "participantes": participantes_existentes,
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            excluir_fila=fila,
+        )
+
         while True:
             bruto = await websocket.receive_json()
             envelope = EnvelopeEntrada.model_validate(bruto)
+
+            if envelope.tipo == TipoMensagemWS.PING.value:
+                await websocket.send_json(
+                    EnvelopeSaida(
+                        tipo=TipoMensagemWS.PONG.value,
+                        de_papel=papel_enum.value,
+                        payload={"timestamp": datetime.now(timezone.utc).isoformat()},
+                    ).model_dump(mode="json")
+                )
+                continue
+
             if envelope.tipo == TipoMensagemWS.JOIN_SALA.value:
                 await websocket.send_json(
                     EnvelopeSaida(
@@ -250,13 +302,33 @@ async def telemedicina_sala_ws(
                     ).model_dump(mode="json")
                 )
                 continue
+
+            # Roteamento WebRTC e eventos clínicos
             evento = {
                 "tipo": envelope.tipo,
                 "de_papel": papel_enum.value,
                 "payload": envelope.payload,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-            hub.publicar(codigo_sala, evento, _papeis_alvo(envelope.tipo))
+
+            if envelope.tipo in (
+                TipoMensagemWS.OFFER.value,
+                TipoMensagemWS.ANSWER.value,
+                TipoMensagemWS.ICE_CANDIDATE.value,
+            ):
+                papel_oposto = (
+                    PapelParticipante.PACIENTE.value
+                    if papel_enum == PapelParticipante.MEDICO
+                    else PapelParticipante.MEDICO.value
+                )
+                hub.publicar(codigo_sala, evento, papeis={papel_oposto}, excluir_fila=fila)
+            else:
+                hub.publicar(
+                    codigo_sala,
+                    evento,
+                    papeis=_papeis_alvo(envelope.tipo),
+                    excluir_fila=fila,
+                )
     except WebSocketDisconnect:
         pass
     except Exception as exc:  # noqa: BLE001
@@ -267,3 +339,17 @@ async def telemedicina_sala_ws(
     finally:
         remetente.cancel()
         hub.remover_fila(codigo_sala, fila)
+        # Notificar outros participantes que o peer desconectou
+        hub.publicar(
+            codigo_sala,
+            {
+                "tipo": TipoMensagemWS.PEER_LEFT.value,
+                "de_papel": papel_enum.value,
+                "payload": {
+                    "papel": papel_enum.value,
+                    "sala_codigo": codigo_sala,
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            excluir_fila=fila,
+        )

@@ -472,20 +472,11 @@
               
               <div id="medico-aviso-esperando" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-center p-6 space-y-3">
                 <div class="w-12 h-12 rounded-full border-2 border-slate-600 border-t-transparent animate-spin"></div>
-                <div class="text-sm font-semibold text-slate-200">Aguardando conexão do paciente</div>
+                <div class="text-sm font-semibold text-slate-200" id="medico-status-conexao-texto">Aguardando conexão do paciente</div>
                 <div class="text-xs text-slate-400 font-mono" id="label-codigo-sala-atual">—</div>
-                <!--
-                  Aqui existia o botão "Conectar Transmissão Paciente", que chamava
-                  simularEntradaPaciente() e injetava a PRÓPRIA webcam do médico no
-                  elemento de vídeo remoto. O médico via a si mesmo e o painel
-                  anunciava "Aceite Confirmado" sem que nada tivesse sido confirmado.
-                  O aviso abaixo diz o estado real até o cliente WebRTC existir.
-                -->
-                <div class="mt-2 max-w-sm text-[11px] leading-relaxed text-amber-300/90 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
-                  <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                  A transmissão de vídeo bidirecional ainda não está implementada.
-                  Enquanto isso, use o link abaixo para falar com o paciente por
-                  outro canal.
+                <div id="medico-aviso-webrtc" class="mt-2 max-w-sm text-[11px] leading-relaxed text-blue-300/90 bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-2">
+                  <i class="fa-solid fa-signal mr-1 text-emerald-400"></i>
+                  Sinalização WebRTC ativa. Envie o link ou WhatsApp para o paciente ingressar na sala criptografada.
                 </div>
               </div>
 

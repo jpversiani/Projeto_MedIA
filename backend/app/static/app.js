@@ -676,6 +676,9 @@ function abrirAtendimentoAgenda(consulta) {
 // SALA DE TELEMEDICINA CFM 2.314/2022
 // =========================================================================
 
+let rtcMedico = null;
+let wsMedico = null;
+
 async function iniciarSessaoTelemedicina(consulta) {
   const codigoSala = consulta.codigo_sala_telemedicina || `sala_${consulta.id.toLowerCase()}`;
   document.getElementById("label-codigo-sala-atual").textContent = codigoSala;
@@ -692,30 +695,111 @@ async function iniciarSessaoTelemedicina(consulta) {
     if (el) el.textContent = `${h}:${m}:${s}`;
   }, 1000);
 
-  // Inicia câmera local do médico se disponível
+  // Limpa conexões prévias se houver
+  if (rtcMedico) {
+    rtcMedico.fechar();
+    rtcMedico = null;
+  }
+  if (wsMedico) {
+    wsMedico.close();
+    wsMedico = null;
+  }
+
+  const avisoEsperando = document.getElementById("medico-aviso-esperando");
+  if (avisoEsperando) avisoEsperando.classList.remove("hidden");
+  const videoRemoto = document.getElementById("medico-video-remoto");
+  if (videoRemoto) videoRemoto.srcObject = null;
+
   try {
-    if (!localMediaStream) {
-      localMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      const videoLocal = document.getElementById("medico-video-local");
-      if (videoLocal) videoLocal.srcObject = localMediaStream;
+    const { WebRTCManager } = await import("/static/js/webrtc_manager.js");
+    rtcMedico = new WebRTCManager();
+
+    const u = usuarioLogado || {};
+    await rtcMedico.registrarConsentimento({
+      cns: u.cns || "000000000000000",
+      cpf: u.cpf || "00000000000",
+      aceite: true
+    });
+
+    localMediaStream = await rtcMedico.iniciarCaptura();
+    const videoLocal = document.getElementById("medico-video-local");
+    if (videoLocal) videoLocal.srcObject = localMediaStream;
+
+    await rtcMedico.criarPeerConnection();
+
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${proto}//${window.location.host}/api/v1/ws/telemedicina/sala/${encodeURIComponent(codigoSala)}?papel=medico`;
+    wsMedico = new WebSocket(wsUrl);
+
+    rtcMedico.addEventListener("icecandidate", (e) => {
+      if (e.detail && wsMedico && wsMedico.readyState === WebSocket.OPEN) {
+        wsMedico.send(JSON.stringify({ tipo: "ice_candidate", payload: e.detail }));
+      }
+    });
+
+    rtcMedico.addEventListener("track", (e) => {
+      if (videoRemoto) videoRemoto.srcObject = e.detail;
+      if (avisoEsperando) avisoEsperando.classList.add("hidden");
+    });
+
+    rtcMedico.addEventListener("mute-audio", (e) => {
+      const icon = document.querySelector("#btn-medico-audio i");
+      if (icon) {
+        icon.className = e.detail.mute ? "fa-solid fa-microphone-slash text-xs text-rose-500" : "fa-solid fa-microphone text-xs";
+      }
+    });
+
+    rtcMedico.addEventListener("mute-video", (e) => {
+      const icon = document.querySelector("#btn-medico-video i");
+      if (icon) {
+        icon.className = e.detail.mute ? "fa-solid fa-video-slash text-xs text-rose-500" : "fa-solid fa-video text-xs";
+      }
+    });
+
+    async function dispararOfertaWebRTC() {
+      if (!rtcMedico || !wsMedico || wsMedico.readyState !== WebSocket.OPEN) return;
+      try {
+        const offer = await rtcMedico.criarOferta();
+        await rtcMedico.definirDescricaoLocal(offer);
+        wsMedico.send(JSON.stringify({ tipo: "offer", payload: offer }));
+      } catch (err) {
+        console.warn("Erro ao criar oferta WebRTC:", err);
+      }
     }
+
+    wsMedico.onmessage = async (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.tipo === "ok") {
+          const participantes = msg.payload?.participantes || [];
+          if (participantes.includes("paciente")) {
+            await dispararOfertaWebRTC();
+          }
+        } else if (msg.tipo === "peer_joined") {
+          if (msg.payload?.papel === "paciente") {
+            await dispararOfertaWebRTC();
+          }
+        } else if (msg.tipo === "answer") {
+          await rtcMedico.definirDescricaoRemota(msg.payload);
+        } else if (msg.tipo === "ice_candidate") {
+          await rtcMedico.adicionarCandidatoRemota(msg.payload);
+        } else if (msg.tipo === "peer_left") {
+          if (avisoEsperando) {
+            avisoEsperando.classList.remove("hidden");
+            const txt = avisoEsperando.querySelector(".text-sm");
+            if (txt) txt.textContent = "Paciente desconectou da teleconsulta.";
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao processar mensagem WebSocket médico:", err);
+      }
+    };
   } catch (e) {
-    console.warn("Dispositivos de câmera/mic não acessíveis localmente:", e);
+    console.warn("Erro ao inicializar WebRTC no médico:", e);
   }
 }
 
 // A função `simularEntradaPaciente()` foi REMOVIDA.
-//
-// Ela atribuía a própria webcam do médico (`localMediaStream`) ao elemento de
-// vídeo remoto do paciente, de modo que o médico via a si mesmo, e escrevia
-// "Aceite Confirmado" no painel de conformidade sem que nenhum consentimento
-// tivesse sido registrado. Era um mock de interface apresentado como teleconsulta.
-//
-// O que existe hoje: o backend tem o hub WebSocket de signaling em
-// `api/v1/telemedicina_ws.py`, e `js/webrtc_manager.js` implementa
-// offer/answer/ICE corretamente — mas nenhum dos dois está ligado a esta tela.
-// Até a Etapa 2 do plano (docs/REVISAO_E_PLANO_DE_EVOLUCAO.md), a sala informa
-// o estado real e o médico usa o link para falar com o paciente por outro canal.
 
 /**
  * Atualiza o painel de conformidade com os dados REAIS da sessão.
@@ -781,30 +865,34 @@ function enviarWhatsAppPaciente() {
   }
   const sala = document.getElementById("label-codigo-sala-atual").textContent.trim();
   const url = `${window.location.origin}/static/telemedicina_paciente.html?sala=${sala}`;
-  // O nome do médico vem da sessão, não de um literal. Antes toda mensagem saía
-  // assinada por "Dr. João Paulo Versiani", qualquer que fosse o usuário logado.
   const nomeMedico = (usuarioLogado && usuarioLogado.nome) || "sua médica ou seu médico";
   const msg = `Olá ${consultaAtiva ? consultaAtiva.paciente_nome : 'Paciente'}! Segue o link da sua teleconsulta com ${nomeMedico}: ${url}`;
   window.open(`https://api.whatsapp.com/send?phone=55${consultaAtiva ? consultaAtiva.telefone_whatsapp : ''}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function alternarAudioMedico() {
-  if (!localMediaStream) return;
-  const audioTrack = localMediaStream.getAudioTracks()[0];
-  if (audioTrack) {
-    audioTrack.enabled = !audioTrack.enabled;
-    const icon = document.querySelector("#btn-medico-audio i");
-    icon.className = audioTrack.enabled ? "fa-solid fa-microphone text-xs" : "fa-solid fa-microphone-slash text-xs text-rose-500";
+  if (rtcMedico) {
+    rtcMedico.alternarMuteAudio();
+  } else if (localMediaStream) {
+    const audioTrack = localMediaStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      const icon = document.querySelector("#btn-medico-audio i");
+      if (icon) icon.className = audioTrack.enabled ? "fa-solid fa-microphone text-xs" : "fa-solid fa-microphone-slash text-xs text-rose-500";
+    }
   }
 }
 
 function alternarVideoMedico() {
-  if (!localMediaStream) return;
-  const videoTrack = localMediaStream.getVideoTracks()[0];
-  if (videoTrack) {
-    videoTrack.enabled = !videoTrack.enabled;
-    const icon = document.querySelector("#btn-medico-video i");
-    icon.className = videoTrack.enabled ? "fa-solid fa-video text-xs" : "fa-solid fa-video-slash text-xs text-rose-500";
+  if (rtcMedico) {
+    rtcMedico.alternarMuteVideo();
+  } else if (localMediaStream) {
+    const videoTrack = localMediaStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      const icon = document.querySelector("#btn-medico-video i");
+      if (icon) icon.className = videoTrack.enabled ? "fa-solid fa-video text-xs" : "fa-solid fa-video-slash text-xs text-rose-500";
+    }
   }
 }
 
@@ -846,6 +934,15 @@ async function acionarConversaoPresencial() {
 
 function finalizarTeleconsulta() {
   if (timerTelemedicinaInterval) clearInterval(timerTelemedicinaInterval);
+  if (rtcMedico) {
+    rtcMedico.fechar();
+    rtcMedico = null;
+  }
+  if (wsMedico) {
+    wsMedico.close();
+    wsMedico = null;
+  }
+  localMediaStream = null;
   transferirParaProntuario();
 }
 
