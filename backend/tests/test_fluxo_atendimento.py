@@ -3,10 +3,8 @@ Testes automatizados da máquina de estados do Fluxo Clínico e Perfis de Usuár
 MedIA Practice & Telemedicina OS.
 """
 
-import pytest
-from fastapi.testclient import TestClient
 from app.main import app
-from app.schemas.fluxo_atendimento import EtapaFluxoEnum, ModalidadeAtendimentoEnum
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
