@@ -11,22 +11,23 @@ Conformidade:
 """
 
 import uuid
+from typing import Any
+
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
+
 from app.schemas.fluxo_atendimento import (
-    EtapaFluxoEnum,
-    ModalidadeAtendimentoEnum,
     ChecklistPreConsulta,
-    PreAnamneseInput,
+    EtapaFluxoEnum,
     IntraConsultaPayload,
-    PosConsultaPayload,
-    PacotePosConsultaOut,
     JornadaAtendimentoOut,
+    ModalidadeAtendimentoEnum,
+    PacotePosConsultaOut,
+    PosConsultaPayload,
+    PreAnamneseInput,
 )
 from app.services.cid11_service import cid11_service
+from app.services.livro_caixa import LancamentoReceita, livro_caixa_service
 from app.services.prescricao_digital_cfm import prescricao_service
-from app.services.livro_caixa import livro_caixa_service, LancamentoReceita
-from app.services.pix_cobranca import pix_service
 
 
 
@@ -40,10 +41,10 @@ class FluxoAtendimentoService:
 
     def __init__(self):
         # Repositório em memória para estado de alta performance
-        self._jornadas: Dict[str, Dict[str, Any]] = {}
+        self._jornadas: dict[str, dict[str, Any]] = {}
         self._inicializar_dados_demonstracao()
 
-    def _inicializar_dados_demonstracao(self):
+    def _inicializar_dados_demonstracao(self) -> None:
         """Cria uma jornada de referência completa para testes e demonstração imediata."""
         consulta_id = "CONS-2026-9812"
         self._jornadas[consulta_id] = {
@@ -120,8 +121,8 @@ class FluxoAtendimentoService:
         especialidade: str,
         modalidade: ModalidadeAtendimentoEnum,
         valor_honorarios: float = 350.00,
-        data_hora: Optional[str] = None
-    ) -> Dict[str, Any]:
+        data_hora: str | None = None
+    ) -> dict[str, Any]:
         """Cria um novo ciclo de atendimento na etapa AGENDADA."""
         consulta_id = f"CONS-{datetime.now(timezone.utc).year}-{str(uuid.uuid4())[:8].upper()}"
         agendamento = {
@@ -160,7 +161,7 @@ class FluxoAtendimentoService:
         pre_anamnese: PreAnamneseInput,
         tcle_aceito: bool = True,
         pagamento_confirmado: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Registra a conclusão do checklist pré-consulta pelo paciente ou recepção."""
         jornada = self._obter_ou_erro(consulta_id)
         jornada["pre_anamnese"] = pre_anamnese
@@ -178,7 +179,7 @@ class FluxoAtendimentoService:
         jornada["etapa_atual"] = EtapaFluxoEnum.PRE_CONSULTA
         return jornada
 
-    def iniciar_atendimento_medico(self, consulta_id: str) -> Dict[str, Any]:
+    def iniciar_atendimento_medico(self, consulta_id: str) -> dict[str, Any]:
         """Inicia oficialmente o atendimento intra-consulta, registrando o timestamp (CFM Art. 6º)."""
         jornada = self._obter_ou_erro(consulta_id)
         jornada["etapa_atual"] = EtapaFluxoEnum.EM_ATENDIMENTO
@@ -188,7 +189,7 @@ class FluxoAtendimentoService:
     def salvar_evolucao_intra_consulta(
         self,
         payload: IntraConsultaPayload
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Atualiza prontuário SOAP, hipóteses diagnósticas Dual-Coding e prescrições em tempo real."""
         jornada = self._obter_ou_erro(payload.consulta_id)
         jornada["soap"] = {
@@ -245,9 +246,9 @@ class FluxoAtendimentoService:
         duracao = 30
         if jornada.get("data_hora_inicio"):
             try:
-                ini = datetime.strptime(jornada["data_hora_inicio"], "%Y-%m-%d %H:%M:%S")
+                ini = datetime.strptime(jornada["data_hora_inicio"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 duracao = max(1, int((agora - ini).total_seconds() / 60))
-            except Exception:
+            except ValueError:
                 duracao = 30
         jornada["duracao_minutos"] = duracao
         jornada["etapa_atual"] = EtapaFluxoEnum.FINALIZADA
@@ -309,16 +310,8 @@ class FluxoAtendimentoService:
         darf_prevista = 0.0
         if payload.lancar_livro_caixa:
             tipo_consulta = "TELEMEDICINA" if jornada["modalidade"] == ModalidadeAtendimentoEnum.TELEMEDICINA else "PRESENCIAL"
-            lanc = LancamentoReceita(
-                data=agora.strftime("%Y-%m-%d"),
-                paciente_nome=jornada["paciente_nome"],
-                paciente_cpf=jornada["paciente_cpf"],
-                tipo_consulta=tipo_consulta,
-                valor=jornada["valor_honorarios"],
-                numero_recibo=recibo_dmed_numero,
-                metodo_pagamento="PIX"
-            )
             livro_caixa_id = f"LC-{agora.strftime('%Y%m')}-{str(uuid.uuid4())[:6].upper()}"
+            # Lançamento no Livro Caixa / Carnê-Leão (DARF 0190)
             calc_irpf = livro_caixa_service.calcular_irpf_carne_leao(jornada["valor_honorarios"])
             # Estima DARF proporcional mensal da consulta
             darf_prevista = calc_irpf.get("imposto_devido", 0.0)
@@ -367,11 +360,11 @@ class FluxoAtendimentoService:
         dados = self._obter_ou_erro(consulta_id)
         return JornadaAtendimentoOut(**dados)
 
-    def listar_jornadas_ativas(self) -> List[JornadaAtendimentoOut]:
+    def listar_jornadas_ativas(self) -> list[JornadaAtendimentoOut]:
         """Lista todas as consultas ativas ou recentes na agenda."""
         return [JornadaAtendimentoOut(**d) for d in self._jornadas.values()]
 
-    def obter_matriz_perfis(self) -> Dict[str, Any]:
+    def obter_matriz_perfis(self) -> dict[str, Any]:
         """Retorna as permissões e fluxos de cada perfil de usuário."""
         return {
             "plataforma": "MedIA Practice & Telemedicina OS",
@@ -409,7 +402,7 @@ class FluxoAtendimentoService:
             }
         }
 
-    def _obter_ou_erro(self, consulta_id: str) -> Dict[str, Any]:
+    def _obter_ou_erro(self, consulta_id: str) -> dict[str, Any]:
         jornada = self._jornadas.get(consulta_id)
         if not jornada:
             raise KeyError(f"Consulta '{consulta_id}' não encontrada no motor de fluxo clínico.")
