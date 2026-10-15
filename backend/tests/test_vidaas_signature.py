@@ -1,11 +1,10 @@
 """
 Testes unitários para o conector de assinatura digital ICP-Brasil VIDAAS (Valid PSC).
 """
-import pytest
 from app.services.vidaas_signature_service import (
-    VidaasSignatureService,
-    VidaasConfig,
     AssinaturaDocumentoRequest,
+    VidaasConfig,
+    VidaasSignatureService,
 )
 
 
