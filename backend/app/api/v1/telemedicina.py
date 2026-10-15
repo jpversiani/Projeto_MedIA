@@ -1,12 +1,19 @@
 from datetime import datetime, timezone
+import hashlib
+import re
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.models.telemedicina import Teleconsulta as TeleconsultaModel, SalaVirtual as SalaVirtualModel, StatusTeleconsulta
+from app.models.telemedicina import (
+    Teleconsulta as TeleconsultaModel,
+    SalaVirtual as SalaVirtualModel,
+    StatusTeleconsulta,
+    ConsentimentoTCLE,
+)
 from app.schemas.telemedicina import TeleconsultaCreate
 from app.services.cfm_telemedicina import (
     MotorCFMTelemedicina,
@@ -45,7 +52,10 @@ class TCLERegistrarRequest(BaseModel):
     paciente_nome: str
     paciente_cpf: str
     metodo: str = "ELETRONICO_WEB"
-    ip_origem: Optional[str] = "127.0.0.1"
+    ip_origem: Optional[str] = None
+    teleconsulta_id: Optional[int] = None
+    cidadao_id: Optional[int] = None
+    texto_integral: Optional[str] = None
 
 
 class ConverterPresencialRequest(BaseModel):
@@ -161,25 +171,99 @@ def gerar_termo_consentimento(payload: TCLEGerarRequest):
 
 
 @router.post("/tcle/registrar")
-def registrar_aceite_consentimento(payload: TCLERegistrarRequest):
-    """Registra auditadamente o consentimento do paciente antes da teleconsulta."""
-    paciente = PacienteIdentificacaoCFM(
-        nome_completo=payload.paciente_nome,
-        cpf=payload.paciente_cpf
+def registrar_aceite_consentimento(
+    payload: TCLERegistrarRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Registra auditadamente e PERSISTE o consentimento do paciente no banco (CFM 2.314/2022 e LGPD)."""
+    # IP real capturado no servidor (não falsificável pelo body do cliente)
+    ip_real = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else None)
+        or payload.ip_origem
+        or "127.0.0.1"
     )
-    registro = MotorCFMTelemedicina.registrar_aceite_tcle(
-        paciente=paciente,
-        metodo=payload.metodo,
-        ip_origem=payload.ip_origem
+    user_agent = request.headers.get("user-agent", "")
+
+    texto = payload.texto_integral
+    if not texto:
+        paciente_info = PacienteIdentificacaoCFM(
+            nome_completo=payload.paciente_nome,
+            cpf=payload.paciente_cpf,
+        )
+        medico_info = MedicoIdentificacaoCFM(
+            nome_completo="Médico Assistente",
+            crm="CRM",
+            uf_crm="BR",
+        )
+        termo = MotorCFMTelemedicina.gerar_termo_consentimento_tcle(paciente_info, medico_info)
+        texto = termo["texto_integral"]
+
+    hash_sha256 = hashlib.sha256(texto.encode("utf-8")).hexdigest()
+    cpf_limpo = re.sub(r"\D", "", payload.paciente_cpf)
+    data_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    codigo_tcle = f"TCLE-{data_str}-{uuid.uuid4().hex[:8].upper()}"
+
+    novo_consentimento = ConsentimentoTCLE(
+        codigo_tcle=codigo_tcle,
+        teleconsulta_id=payload.teleconsulta_id,
+        cidadao_id=payload.cidadao_id,
+        paciente_cpf=cpf_limpo,
+        paciente_nome=payload.paciente_nome,
+        versao_termo="CFM_2314_2022_V1",
+        texto_integral=texto,
+        hash_sha256=hash_sha256,
+        ip_origem=ip_real,
+        user_agent=user_agent,
+        metodo_aceite=payload.metodo or "ELETRONICO_WEB",
+        aceito_em=datetime.now(timezone.utc),
     )
+    db.add(novo_consentimento)
+    db.commit()
+    db.refresh(novo_consentimento)
+
     return {
-        "consentimento_id": registro.consentimento_id,
-        "paciente_cpf": registro.paciente_cpf,
-        "paciente_nome": registro.paciente_nome,
-        "data_hora_aceite": registro.data_hora_aceite,
-        "metodo_aceite": registro.metodo_aceite,
-        "hash_tcle": registro.hash_tcle,
-        "status": "VALIDADO_CFM_2314"
+        "consentimento_id": novo_consentimento.codigo_tcle,
+        "paciente_cpf": novo_consentimento.paciente_cpf,
+        "paciente_nome": novo_consentimento.paciente_nome,
+        "data_hora_aceite": novo_consentimento.aceito_em.isoformat(),
+        "metodo_aceite": novo_consentimento.metodo_aceite,
+        "hash_tcle": novo_consentimento.hash_sha256,
+        "ip_origem": novo_consentimento.ip_origem,
+        "status": "VALIDADO_CFM_2314",
+    }
+
+
+@router.get("/tcle/status/{paciente_cpf}")
+def verificar_status_tcle_paciente(
+    paciente_cpf: str,
+    db: Session = Depends(get_db),
+):
+    """Consulta se o paciente possui consentimento TCLE válido persistido no banco."""
+    cpf_limpo = re.sub(r"\D", "", paciente_cpf)
+    ultimo_tcle = (
+        db.query(ConsentimentoTCLE)
+        .filter(ConsentimentoTCLE.paciente_cpf == cpf_limpo)
+        .order_by(ConsentimentoTCLE.aceito_em.desc())
+        .first()
+    )
+    if not ultimo_tcle:
+        return {
+            "tem_consentimento": False,
+            "paciente_cpf": cpf_limpo,
+            "status": "NAO_REGISTRADO",
+        }
+    return {
+        "tem_consentimento": True,
+        "consentimento_id": str(ultimo_tcle.id),
+        "paciente_cpf": ultimo_tcle.paciente_cpf,
+        "paciente_nome": ultimo_tcle.paciente_nome,
+        "data_hora_aceite": ultimo_tcle.aceito_em.isoformat(),
+        "hash_tcle": ultimo_tcle.hash_sha256,
+        "versao_termo": ultimo_tcle.versao_termo,
+        "ip_origem": ultimo_tcle.ip_origem,
+        "status": "VALIDADO_CFM_2314",
     }
 
 
