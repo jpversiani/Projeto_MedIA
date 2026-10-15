@@ -2,9 +2,9 @@
 
 import asyncio
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, field_validator
@@ -39,7 +39,7 @@ class EstadoSessao(str, Enum):
     CANCELADO = "cancelado"
 
 
-def _normalizar_cns(valor: Optional[str]) -> str:
+def _normalizar_cns(valor: str | None) -> str:
     return re.sub(r"\D", "", valor or "")
 
 
@@ -67,7 +67,7 @@ class AtualizacaoEstadoMedico(BaseModel):
 class AtualizacaoEstadoPaciente(BaseModel):
     cns_paciente: str
     status: str
-    queixa_principal: Optional[str] = None
+    queixa_principal: str | None = None
 
     @field_validator("cns_paciente")
     @classmethod
@@ -79,40 +79,40 @@ class MensagemSDPSignal(BaseModel):
     tipo: str
     sala_codigo: str
     sdp: str
-    paciente_id: Optional[str] = None
-    prestador_id: Optional[str] = None
+    paciente_id: str | None = None
+    prestador_id: str | None = None
 
 
 class EnvelopeEntrada(BaseModel):
     tipo: str
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class EnvelopeSaida(BaseModel):
     tipo: str
     de_papel: str
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    payload: dict[str, Any] = Field(default_factory=dict)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class SalaVirtual:
     def __init__(self, codigo: str, db: Any = None):
         self.codigo = codigo
         self.db = db
-        self.participantes: List[Any] = []
+        self.participantes: list[Any] = []
         self.status = EstadoSessao.AGUARDANDO_MEDICO
-        self.criada_em = datetime.now(timezone.utc)
+        self.criada_em = datetime.now(UTC)
 
 
 class FilaParticipante:
-    __slots__ = ("papel", "fila")
+    __slots__ = ("fila", "papel")
 
     def __init__(self, papel: PapelParticipante, fila: Any):
         self.papel = papel
         self.fila = fila
 
 
-def _papeis_alvo(tipo: str) -> Optional[Set[str]]:
+def _papeis_alvo(tipo: str) -> set[str] | None:
     if tipo == TipoMensagemWS.ESTADO_MEDICO.value:
         return {PapelParticipante.PACIENTE.value}
     if tipo == TipoMensagemWS.ESTADO_PACIENTE.value:
@@ -122,9 +122,9 @@ def _papeis_alvo(tipo: str) -> Optional[Set[str]]:
 
 class HubTelemedicinaWS:
     def __init__(self):
-        self._salas: Dict[str, SalaVirtual] = {}
-        self._filas: Dict[str, List[Any]] = {}
-        self._stats: Dict[str, Dict[str, Any]] = {}
+        self._salas: dict[str, SalaVirtual] = {}
+        self._filas: dict[str, list[Any]] = {}
+        self._stats: dict[str, dict[str, Any]] = {}
 
     def criar_sala(self, codigo: str, db: Any = None) -> SalaVirtual:
         sala = SalaVirtual(codigo, db)
@@ -148,7 +148,7 @@ class HubTelemedicinaWS:
             p for p in sala.participantes if getattr(p, "papel", None) != papel
         ]
 
-    def obter_estatisticas(self, codigo: str) -> Dict[str, Any]:
+    def obter_estatisticas(self, codigo: str) -> dict[str, Any]:
         sala = self._salas.get(codigo)
         stats = self._stats.get(codigo, {"conexoes": 0, "eventos": 0})
         return {
@@ -176,20 +176,23 @@ class HubTelemedicinaWS:
     def publicar(
         self,
         codigo: str,
-        evento: Dict[str, Any],
-        papeis: Optional[Set[Any]] = None,
+        evento: dict[str, Any],
+        papeis: set[str] | None = None,
     ) -> int:
         entregues = 0
         for item in self._filas.get(codigo, []):
             papel = getattr(item, "papel", None)
-            if papeis and isinstance(papel, (PapelParticipante, str)):
-                if papel not in papeis:
-                    continue
             alvo = getattr(item, "fila", item)
+            if (
+                papeis is not None
+                and isinstance(papel, (PapelParticipante, str))
+                and papel not in papeis
+            ):
+                continue
             try:
                 alvo.put_nowait(evento)
                 entregues += 1
-            except Exception:
+            except Exception as exc:  # noqa: BLE001, S112
                 continue
         stats = self._stats.setdefault(codigo, {"conexoes": 0, "eventos": 0})
         stats["eventos"] += 1
@@ -256,10 +259,10 @@ async def telemedicina_sala_ws(
             hub.publicar(codigo_sala, evento, _papeis_alvo(envelope.tipo))
     except WebSocketDisconnect:
         pass
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         try:
             await websocket.close(code=4410, reason="erro interno")
-        except Exception:
+        except Exception as close_exc:  # noqa: BLE001, S110
             pass
     finally:
         remetente.cancel()
