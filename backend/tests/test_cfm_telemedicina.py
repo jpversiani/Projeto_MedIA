@@ -1,7 +1,6 @@
-import pytest
 from app.services.cfm_telemedicina import (
-    MotorCFMTelemedicina,
     MedicoIdentificacaoCFM,
+    MotorCFMTelemedicina,
     PacienteIdentificacaoCFM,
 )
 
