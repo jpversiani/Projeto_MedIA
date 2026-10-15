@@ -15,14 +15,12 @@ Perfil demográfico epidemiológico:
 - Alergias comuns na prática médica ambulatorial (Penicilina, Dipirona, AINEs, Sulfa)
 """
 
-import random
 from datetime import date, timedelta
+import random
 from sqlalchemy.orm import Session
 
-from app.models.cidadao import Cidadao
 from app.core.database import SessionLocal
-
-# Listas de Nomes Reais Brasileiros
+from app.models.cidadao import Cidadao
 NOMES_MASCULINOS = [
     "João", "José", "Antônio", "Francisco", "Carlos", "Paulo", "Pedro", "Lucas", "Luiz", "Marcos",
     "Gabriel", "Rafael", "Daniel", "Marcelo", "Bruno", "Eduardo", "Felipe", "Raimundo", "Rodrigo", "Manoel",
