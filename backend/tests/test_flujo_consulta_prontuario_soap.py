@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import itertools
 
-import pytest
-
 CNS_INEXISTENTE: str = "998450013720001"
 
 # Generadores de identificadores únicos por test (evitan colisiones en la BD
