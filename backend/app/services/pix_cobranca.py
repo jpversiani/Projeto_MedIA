@@ -4,10 +4,12 @@ Permite ao médico gerar QR Code dinâmico/estático e código 'Pix Copia e Cola
 para consultas particulares presenciais ou de telemedicina em home office.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
+
 import hashlib
-from typing import Dict, Optional
 import uuid
 
 
@@ -36,8 +38,8 @@ class DadosCobrancaPix:
     nome_beneficiario: str  # Nome do médico ou clínica (máx 25 carac)
     cidade_beneficiario: str  # Cidade do consultório (máx 15 carac)
     valor: float  # Valor da consulta em reais
-    identificador_transacao: Optional[str] = None  # TxID (máx 25 carac alfanuméricos)
-    descricao_consulta: Optional[str] = "Consulta Medica Particular"
+    identificador_transacao: str | None = None  # TxID (máx 25 carac alfanuméricos)
+    descricao_consulta: str | None = "Consulta Medica Particular"
 
 
 class MotorPixCobranca:
@@ -47,7 +49,7 @@ class MotorPixCobranca:
     MOEDA_BRL = "986"
 
     @classmethod
-    def gerar_pix_copia_e_cola(cls, dados: DadosCobrancaPix) -> Dict[str, str]:
+    def gerar_pix_copia_e_cola(cls, dados: DadosCobrancaPix) -> dict[str, str]:
         """
         Gera a string oficial Pix Copia e Cola conforme especificação do Banco Central.
         """
@@ -90,8 +92,8 @@ class MotorPixCobranca:
         txid_campo = _formatar_campo_emv("05", txid)
         add_data = _formatar_campo_emv("62", txid_campo)
 
-        # 63: CRC16 prefixo
-        payload_sem_crc = pfi + mai + mcc + moeda + valor_campo + pais + nome + cidade + add_data + "6304"
+        # 63: CRC16
+        payload_sem_crc = pfi + mai + mcc + moeda + valor_campo + pais + nome + cidade + add_data + '6304'
         crc = calcular_crc16(payload_sem_crc)
         pix_completo = payload_sem_crc + crc
 
@@ -106,7 +108,7 @@ class MotorPixCobranca:
             "pix_copia_e_cola": pix_completo,
             "crc16": crc,
             "hash_seguranca": hash_id,
-            "data_geracao": datetime.now(timezone.utc).isoformat(),
+            "data_geracao": datetime.now(UTC).isoformat(),
         }
 
 
