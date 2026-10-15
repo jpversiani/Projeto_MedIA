@@ -2,23 +2,24 @@
 Testes automatizados com Pytest para o Hub WebSocket de Teleconsulta do MedIA.
 Valida signaling WebRTC, troca de mensagens SDP, ICE candidates e sincronização de estado.
 """
-import pytest
+
 from datetime import datetime, timezone
 from unittest.mock import Mock
+
+import pytest
 
 from app.api.v1.telemedicina_ws import (
     PapelParticipante,
     TipoMensagemWS,
     EstadoSessao,
-    HubTelemedicinaWS,
     ConsentimentoBase,
     AtualizacaoEstadoMedico,
     AtualizacaoEstadoPaciente,
-    MensagemSDPSignal,
     EnvelopeEntrada,
     EnvelopeSaida,
+    HubTelemedicinaWS,
+    MensagemSDPSignal,
 )
-from app.models.telemedicina import StatusTeleconsulta
 
 
 def test_papel_participante_enum():
@@ -27,7 +28,7 @@ def test_papel_participante_enum():
     assert PapelParticipante.PACIENTE.value == "paciente"
 
 
-def test_tipomessage_ws_enum():
+def test_tipo_mensagem_ws_enum():
     """Testa enum TipoMensagemWS."""
     tipos_importantes = {
         "offer", "answer", "ice_candidate",
@@ -52,7 +53,7 @@ def test_status_teleconsulta_enum():
     from app.models.telemedicina import StatusTeleconsulta
 
     valores_validos = {"AGENDADA", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA", "SUSPENSA"}
-    valores_reais = {s.value for s in StatusTeleconsulta}
+    valores_reais = {status.value for status in StatusTeleconsulta}
     assert valores_validos == valores_reais
 
 
@@ -141,7 +142,7 @@ def test_hub_telemedicina_estatisticas():
     mock_db = Mock()
 
     hub = HubTelemedicinaWS()
-    sala = hub.criar_sala("TEST-SALA-STATS", mock_db)
+    hub.criar_sala("TEST-SALA-STATS", mock_db)
 
     stats = hub.obter_estatisticas("TEST-SALA-STATS")
     assert stats["sala_codigo"] == "TEST-SALA-STATS"
@@ -156,10 +157,10 @@ def test_hub_telemedicina_encerrar_sala():
 
     hub = HubTelemedicinaWS()
     sala = hub.criar_sala("TEST-SALA-CLOSE", mock_db)
+    assert sala.status.value == "aguardando_medico"
 
     # Adicionar uma conexão mock
-    fila = Mock()
-    hub._filas["TEST-SALA-CLOSE"].append(fila)
+    hub._filas["TEST-SALA-CLOSE"].append(Mock())
 
     hub.encerrar_sala("TEST-SALA-CLOSE")
 
@@ -172,7 +173,7 @@ def test_hub_telemedicina_pub_evento():
     mock_db = Mock()
 
     hub = HubTelemedicinaWS()
-    sala = hub.criar_sala("TEST-SALA-EVENTO", mock_db)
+    hub.criar_sala("TEST-SALA-EVENTO", mock_db)
 
     evento = {
         "tipo": "estado_medico",
@@ -189,12 +190,11 @@ def test_hub_telemedicina_pub_evento():
 
 def test_hub_telemedicina_adicionar_remover_participante():
     """Testa adicionar e remover participante no HubTelemedicinaWS."""
-    from unittest.mock import Mock
-
     hub = HubTelemedicinaWS()
     mock_db = Mock()
 
     sala = hub.criar_sala("TEST-SALA-PART", mock_db)
+    assert sala.status.value == "aguardando_medico"
 
     # Criar participante mock
     participante = Mock()
