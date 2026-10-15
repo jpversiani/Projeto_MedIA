@@ -70,6 +70,33 @@ class Teleconsulta(database.Base):
         back_populates="teleconsulta",
         cascade="all, delete-orphan",
     )
+    consentimentos = relationship(
+        "ConsentimentoTCLE",
+        back_populates="teleconsulta",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConsentimentoTCLE(database.Base):
+    """Registro legal de consentimento livre e esclarecido (CFM 2.314/2022 e LGPD)."""
+    __tablename__ = "consentimentos_tcle"
+
+    id = Column(Integer, primary_key=True, index=True)
+    codigo_tcle = Column(String(32), unique=True, nullable=False, index=True)
+    teleconsulta_id = Column(Integer, ForeignKey("teleconsultas.id"), nullable=True, index=True)
+    cidadao_id = Column(Integer, ForeignKey("cidadaos.id"), nullable=True, index=True)
+    paciente_cpf = Column(String(11), nullable=False, index=True)
+    paciente_nome = Column(String(255), nullable=True)
+    versao_termo = Column(String(32), default="CFM_2314_2022_V1", nullable=False)
+    texto_integral = Column(Text, nullable=False)
+    hash_sha256 = Column(String(64), nullable=False, index=True)
+    ip_origem = Column(String(45), nullable=False)
+    user_agent = Column(String(512), nullable=True)
+    metodo_aceite = Column(String(64), default="ELETRONICO_WEB", nullable=False)
+    aceito_em = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+
+    teleconsulta = relationship("Teleconsulta", back_populates="consentimentos")
+    cidadao = relationship("Cidadao", backref="consentimentos_tcle", foreign_keys=[cidadao_id])
 
 
 class DocumentoEmitido(database.Base):
@@ -84,3 +111,4 @@ class DocumentoEmitido(database.Base):
     data_emissao = Column(DateTime, default=lambda: datetime.now(UTC))
 
     teleconsulta = relationship("Teleconsulta", back_populates="documentos")
+

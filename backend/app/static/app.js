@@ -824,10 +824,32 @@ function atualizarPainelConformidade() {
 
   const badgeTcle = document.getElementById("badge-tcle-status");
   if (badgeTcle) {
-    // Sem tabela de consentimento não há aceite a exibir. Não inventamos um.
-    badgeTcle.innerHTML =
-      '<i class="fa-solid fa-circle-minus text-[10px]"></i> Não registrado';
-    badgeTcle.className = "font-semibold text-amber-600 flex items-center gap-1";
+    const cpf = consultaAtiva ? consultaAtiva.paciente_cpf : null;
+    if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
+      fetch(`/api/v1/telemedicina/tcle/status/${cpfLimpo}`)
+        .then((res) => res.json())
+        .then((dados) => {
+          if (dados && dados.tem_consentimento) {
+            badgeTcle.innerHTML =
+              '<i class="fa-solid fa-circle-check text-[10px] text-emerald-500"></i> Aceite Confirmado (CFM 2.314)';
+            badgeTcle.className = "font-semibold text-emerald-600 flex items-center gap-1";
+          } else {
+            badgeTcle.innerHTML =
+              '<i class="fa-solid fa-circle-minus text-[10px]"></i> Não registrado';
+            badgeTcle.className = "font-semibold text-amber-600 flex items-center gap-1";
+          }
+        })
+        .catch(() => {
+          badgeTcle.innerHTML =
+            '<i class="fa-solid fa-circle-minus text-[10px]"></i> Não registrado';
+          badgeTcle.className = "font-semibold text-amber-600 flex items-center gap-1";
+        });
+    } else {
+      badgeTcle.innerHTML =
+        '<i class="fa-solid fa-circle-minus text-[10px]"></i> Não registrado';
+      badgeTcle.className = "font-semibold text-amber-600 flex items-center gap-1";
+    }
   }
 }
 

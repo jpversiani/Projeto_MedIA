@@ -124,6 +124,21 @@
       document.getElementById('etapa-video').classList.remove('hidden');
 
       try {
+        // Registra o consentimento TCLE de forma persistente no servidor (CFM 2.314/2022 e LGPD)
+        try {
+          await fetch('/api/v1/telemedicina/tcle/registrar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paciente_nome: urlParams.get('paciente') || 'Paciente',
+              paciente_cpf: cpfPaciente,
+              metodo: 'ELETRONICO_WEB'
+            })
+          });
+        } catch (tcleErr) {
+          console.warn('Registro de TCLE remoto:', tcleErr);
+        }
+
         rtc = new WebRTCManager();
         await rtc.registrarConsentimento({ cns: cnsPaciente, cpf: cpfPaciente, aceite: true });
 
