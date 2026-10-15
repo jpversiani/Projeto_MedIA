@@ -9,13 +9,12 @@ estrutura clínica pelo método SOAP.
 from __future__ import annotations
 
 import enum
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+
+from app.core.database import Base
 
 from sqlalchemy import DateTime, Enum as SAEnum, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.core.database import Base
 
 
 class StatusSincronizacao(str, enum.Enum):
@@ -27,7 +26,7 @@ class StatusSincronizacao(str, enum.Enum):
 
 
 def _agora_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class AtendimentoOffline(Base):
@@ -45,11 +44,11 @@ class AtendimentoOffline(Base):
 
     # Identificação do cidadão conforme padrões SUS (CNS obrigatório; CPF opcional).
     cns_cidadao: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
-    cpf_cidadao: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+    cpf_cidadao: Mapped[str | None] = mapped_column(String(11), nullable=True)
 
     # Identificação do profissional (CNS) e do estabelecimento (CNES, 7 dígitos).
-    profissional_cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
-    cnes_estabelecimento: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    profissional_cns: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    cnes_estabelecimento: Mapped[str | None] = mapped_column(String(7), nullable=True)
 
     # Momento em que o atendimento ocorreu na UBS (gerado no cliente).
     data_hora_atendimento: Mapped[datetime] = mapped_column(
@@ -57,14 +56,14 @@ class AtendimentoOffline(Base):
     )
 
     # Método SOAP (padrão APS).
-    subjetivo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    objetivo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    avaliacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    plano: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    subjetivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    objetivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avaliacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plano: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Terminologias SUS/APS: CIAP-2 (motivo de contato/problema) e CID-10 (diagnóstico).
-    ciap2: Mapped[Optional[str]] = mapped_column(String(3), nullable=True, index=True)
-    cid10: Mapped[Optional[str]] = mapped_column(String(8), nullable=True, index=True)
+    ciap2: Mapped[str | None] = mapped_column(String(3), nullable=True, index=True)
+    cid10: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
 
     # Controle da sincronização.
     status: Mapped[StatusSincronizacao] = mapped_column(
