@@ -1,18 +1,19 @@
 """Testes para o cliente SISAB (C4) - envio de lotes com retry e parsing de recibos."""
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from __future__ import annotations
+
+import asyncio
+import time
+from datetime import UTC, datetime
 
 import httpx
 import pytest
-import asyncio
-import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from pydantic import ValidationError
 
 from app.services.sisab_client import (
     FichaSISAB,
-    LoteInvalidoError,
     LoteSISAB,
     ReciboItem,
     ReciboSISAB,
@@ -31,24 +32,24 @@ CID10_VALIDO = "I10"
 
 
 def _ficha_valida(**overrides) -> FichaSISAB:
-    defaults = dict(
-        cns=CNS_VALIDO,
-        cpf=None,
-        cnes=CNES_VALIDO,
-        ciap2=CIAP2_VALIDO,
-        cid10=CID10_VALIDO,
-        data_atendimento="2024-01-01T00:00:00+00:00",
-    )
+    defaults = {
+        "cns": CNS_VALIDO,
+        "cpf": None,
+        "cnes": CNES_VALIDO,
+        "ciap2": CIAP2_VALIDO,
+        "cid10": CID10_VALIDO,
+        "data_atendimento": "2024-01-01T00:00:00+00:00",
+    }
     defaults.update(overrides)
     return FichaSISAB(**defaults)
 
 
 def _lote_valido(**overrides) -> LoteSISAB:
-    defaults = dict(
-        lote_id="LOTE-001",
-        cnes_origem=CNES_VALIDO,
-        fichas=[_ficha_valida()],
-    )
+    defaults = {
+        "lote_id": "LOTE-001",
+        "cnes_origem": CNES_VALIDO,
+        "fichas": [_ficha_valida()],
+    }
     defaults.update(overrides)
     return LoteSISAB(**defaults)
 
@@ -199,7 +200,7 @@ class TestReciboSISAB:
         assert recibo.sucesso_total is False
 
     def test_recibo_data_processamento(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         recibo = ReciboSISAB(
             lote_id="LOTE-004",
             status_geral=StatusRecibo.SUCCESS,
