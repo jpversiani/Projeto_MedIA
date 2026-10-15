@@ -10,13 +10,12 @@ Projeto MedIA — SUS/APS (Python 3.12, SQLAlchemy 2.0 tipado).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING
 
+from app.core.database import Base
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.cidadao import Cidadao
@@ -46,7 +45,7 @@ class ProntuarioProblema(Base):
     situacao: Mapped[str] = mapped_column(String(30), default="ATIVO", nullable=False)
 
     data_registro: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
 
-    cidadao: Mapped["Cidadao"] = relationship("Cidadao")
+    cidadao: Mapped[Cidadao] = relationship("Cidadao")
