@@ -1,5 +1,4 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # NOTA DE ISOLAMENTO: este módulo usava o `engine` real de `app.core.database`
 # com um `TestClient(app)` próprio, sem os `dependency_overrides` do conftest.
@@ -13,7 +12,7 @@ def test_criar_agendamento_sucesso(client):
     payload = {
         "paciente_cpf": "12345678901",
         "medico_crm": "123456",
-        "data_hora": datetime.now(timezone.utc).isoformat(),
+        "data_hora": datetime.now(UTC).isoformat(),
         "ciap2": "R74",
         "cid10": "J00"
     }
@@ -30,7 +29,7 @@ def test_consultar_sala_virtual(client):
     payload = {
         "paciente_cpf": "98765432100",
         "medico_crm": "654321",
-        "data_hora": datetime.now(timezone.utc).isoformat(),
+        "data_hora": datetime.now(UTC).isoformat(),
     }
     create_res = client.post("/api/v1/telemedicina/agendamentos", json=payload)
     assert create_res.status_code == 201
@@ -47,7 +46,7 @@ def test_transicao_fluxo_chamada(client):
     payload = {
         "paciente_cpf": "11122233344",
         "medico_crm": "112233",
-        "data_hora": datetime.now(timezone.utc).isoformat(),
+        "data_hora": datetime.now(UTC).isoformat(),
     }
     create_res = client.post("/api/v1/telemedicina/agendamentos", json=payload)
     consulta_id = create_res.json()["id"]
@@ -76,7 +75,7 @@ def test_validacao_cpf_invalido(client):
     payload = {
         "paciente_cpf": "123",  # Inválido (< 11 dígitos)
         "medico_crm": "123456",
-        "data_hora": datetime.now(timezone.utc).isoformat(),
+        "data_hora": datetime.now(UTC).isoformat(),
     }
     response = client.post("/api/v1/telemedicina/agendamentos", json=payload)
     assert response.status_code == 422
