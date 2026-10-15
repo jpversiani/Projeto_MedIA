@@ -1,18 +1,17 @@
 """
 Seed de Multi-Clínica, Multi-Médico e Usuários de Demonstração para Teste do MVP.
 """
-from app.core.database import SessionLocal, Base, engine
-from app.models.estabelecimento import Estabelecimento, Equipe
+import logging
+from app.core.database import SessionLocal
+from app.models.estabelecimento import Estabelecimento
 from app.models.profissional import Profissional
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
 from app.services.auth_service import hash_password
 
-import logging
-
 logger = logging.getLogger("media.seed")
 
 
-def seed_multiclinica():
+def seed_multiclinica() -> None:
     # Sem `create_all`: o schema é responsabilidade do Alembic (ver
     # `app.core.bootstrap.run_migrations`). Manter as duas trilhas permite que
     # uma base_created por `create_all` e outra criada por migração divirjam.
@@ -78,6 +77,9 @@ def seed_multiclinica():
             db.add(med2)
             db.commit()
             db.refresh(med2)
+        else:
+            med2.nome = "Dra. Letícia Mendes"
+            db.commit()
 
         # 3. Usuários e Vínculos Multi-Clínica
         users_data = [
@@ -126,7 +128,7 @@ def seed_multiclinica():
         # `print()` com "✔" derrubava o startup inteiro no Windows: o console
         # cp1252 não consegue codificar o caractere e levanta UnicodeEncodeError
         # dentro do lifespan do FastAPI, matando o processo no boot.
-        logger.info("Seed de Multi-Clínica, Médicos e Usuários concluído com sucesso!")
+        logger.info("Seed de Multi-Clínica, Médicos e Usuários concluído com sucesso.")
     finally:
         db.close()
 
