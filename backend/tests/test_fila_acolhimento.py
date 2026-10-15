@@ -1,4 +1,4 @@
-def test_acolhimento_e_calculo_imc(client):
+def test_acolhimento_e_calculo_imc(client) -> None:
     # Cidadão ID 1 já foi inserido pelo seed
     payload = {
         "cidadao_id": 1,
@@ -22,7 +22,7 @@ def test_acolhimento_e_calculo_imc(client):
     assert item["imc"] is not None
     assert round(item["imc"], 1) == 26.1
 
-def test_listar_fila_aguardando(client):
+def test_listar_fila_aguardando(client) -> None:
     response = client.get("/api/v1/fila/?status=AGUARDANDO_ATENDIMENTO")
     assert response.status_code == 200
     lista = response.json()
