@@ -1,9 +1,13 @@
-import pytest
 from datetime import date
-from app.services.dmed_generator import MotorFiscalDMED, DeclaracaoDMED, LancamentoDespesaMedica
+
+from app.services.dmed_generator import (
+    DeclaracaoDMED,
+    LancamentoDespesaMedica,
+    MotorFiscalDMED,
+)
 
 
-def test_gerar_arquivo_magnetico_dmed():
+def test_gerar_arquivo_magnetico_dmed() -> None:
     lancamentos = [
         LancamentoDespesaMedica(
             cpf_responsavel_pagamento="12345678909",
@@ -43,7 +47,7 @@ def test_gerar_arquivo_magnetico_dmed():
     assert "000000000060050" in linhas[3]  # R$ 600.50 em centavos (15 digitos)
 
 
-def test_validar_cpf_algoritmo():
-    assert MotorFiscalDMED.validar_cpf("11111111111") is False  # Sequência
-    assert MotorFiscalDMED.validar_cpf("123") is False
-    assert MotorFiscalDMED.validar_cpf("00000000000") is False
+def test_validar_cpf_algoritmo() -> None:
+    assert not MotorFiscalDMED.validar_cpf("11111111111")  # Sequência
+    assert not MotorFiscalDMED.validar_cpf("123")
+    assert not MotorFiscalDMED.validar_cpf("00000000000")
