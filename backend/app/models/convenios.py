@@ -1,8 +1,22 @@
+from datetime import UTC, datetime
+
 import enum
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Float, Boolean
-from sqlalchemy.orm import relationship
+
 from app.core.database import Base
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import relationship
+
 
 class GuiaStatus(str, enum.Enum):
     GERADA = "GERADA"
@@ -12,20 +26,24 @@ class GuiaStatus(str, enum.Enum):
     PAGA = "PAGA"
     CANCELADA = "CANCELADA"
 
+
 class TipoGuia(str, enum.Enum):
     CONSULTA = "CONSULTA"
     SP_SADT = "SP_SADT"
+
 
 class LancamentoTipo(str, enum.Enum):
     PARTICULAR = "PARTICULAR"
     CONVENIO = "CONVENIO"
     REEMBOLSO = "REEMBOLSO"
 
+
 class LancamentoStatus(str, enum.Enum):
     PENDENTE = "PENDENTE"
     PAGO = "PAGO"
     GLOSADO = "GLOSADO"
     CANCELADO = "CANCELADO"
+
 
 class Operadora(Base):
     __tablename__ = "operadoras"
@@ -36,9 +54,10 @@ class Operadora(Base):
     cnpj = Column(String(14), unique=True, nullable=False)
     contato_email = Column(String(255), nullable=True)
     ativo = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     planos = relationship("Plano", back_populates="operadora", cascade="all, delete-orphan")
+
 
 class Plano(Base):
     __tablename__ = "planos"
@@ -53,6 +72,7 @@ class Plano(Base):
     operadora = relationship("Operadora", back_populates="planos")
     guias = relationship("GuiaTISS", back_populates="plano", cascade="all, delete-orphan")
 
+
 class GuiaTISS(Base):
     __tablename__ = "guias_tiss"
 
@@ -65,20 +85,21 @@ class GuiaTISS(Base):
     paciente_cpf = Column(String(14), nullable=True)
     paciente_nome = Column(String(200), nullable=True)
     numero_carteira = Column(String(50), nullable=True)
-    
-    data_emissao = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    data_emissao = Column(DateTime, default=lambda: datetime.now(UTC))
     status = Column(Enum(GuiaStatus), default=GuiaStatus.GERADA, nullable=False)
-    
+
     ciap2_codigo = Column(String(10), nullable=True)
     cid10_codigo = Column(String(10), nullable=True)
     procedimento_tuss = Column(String(20), default="10101012")  # Consulta médica em consultório (TUSS)
     valor_total = Column(Float, default=0.0)
-    
+
     xml_tiss = Column(Text, nullable=True)
     observacoes = Column(Text, nullable=True)
 
     plano = relationship("Plano", back_populates="guias")
     lancamentos = relationship("LancamentoFinanceiro", back_populates="guia", cascade="all, delete-orphan")
+
 
 class LancamentoFinanceiro(Base):
     __tablename__ = "lancamentos_financeiros"
@@ -86,16 +107,16 @@ class LancamentoFinanceiro(Base):
     id = Column(Integer, primary_key=True, index=True)
     guia_id = Column(Integer, ForeignKey("guias_tiss.id"), nullable=True)
     atendimento_id = Column(Integer, ForeignKey("atendimentos_soap.id"), nullable=True)
-    
+
     paciente_cpf = Column(String(14), nullable=False)
     paciente_nome = Column(String(200), nullable=False)
     tipo = Column(Enum(LancamentoTipo), default=LancamentoTipo.CONVENIO, nullable=False)
     valor = Column(Float, nullable=False)
     descricao = Column(String(255), nullable=True)
     status = Column(Enum(LancamentoStatus), default=LancamentoStatus.PENDENTE, nullable=False)
-    data_lancamento = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    data_lancamento = Column(DateTime, default=lambda: datetime.now(UTC))
     data_pagamento = Column(DateTime, nullable=True)
-    
+
     # DMED / Comprovante Fiscal
     recibo_numero = Column(String(50), nullable=True)
     cpf_cnpj_pagador = Column(String(14), nullable=True)
