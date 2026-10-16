@@ -170,28 +170,62 @@ def _resolver_cidadao(
 # ---------------------------------------------------------------------------
 @router.get("/")
 def listar_consultas_agenda(
-    data: Optional[str] = Query(None, description="Data no formato AAAA-MM-DD"),
+    data: Optional[str] = Query(None, description="Data no formato AAAA-MM-DD ou 'TODAS'"),
     tipo: Optional[str] = Query(None, description="PRESENCIAL, TELEMEDICINA ou vazio para todas"),
     status_consulta: Optional[str] = Query(None, description="Filtrar por status"),
     db: Session = Depends(get_db),
 ):
-    """Lista as consultas da agenda médica com suporte a filtros híbridos."""
-    data_filtro = data or date.today().isoformat()
-    try:
-        dia = date.fromisoformat(data_filtro)
-    except ValueError:
-        raise HTTPException(
-            status_code=422, detail=f"Data inválida: {data_filtro!r}. Use AAAA-MM-DD."
-        )
+    """Lista as consultas da agenda médica com suporte a filtros híbridos e alertas de proximidade."""
+    query = db.query(Agendamento)
+    if data and data.upper() in ("TODAS", "ALL"):
+        data_filtro = "TODAS"
+    else:
+        data_filtro = data or date.today().isoformat()
+        try:
+            dia = date.fromisoformat(data_filtro)
+            query = query.filter(Agendamento.data_consulta == dia)
+        except ValueError:
+            raise HTTPException(
+                status_code=422, detail=f"Data inválida: {data_filtro!r}. Use AAAA-MM-DD ou 'TODAS'."
+            )
 
-    query = db.query(Agendamento).filter(Agendamento.data_consulta == dia)
     if tipo:
         query = query.filter(Agendamento.tipo == tipo)
     if status_consulta:
         query = query.filter(Agendamento.status == status_consulta)
 
-    consultas = query.order_by(Agendamento.horario.asc()).all()
+    consultas = query.order_by(Agendamento.data_consulta.asc(), Agendamento.horario.asc()).all()
     itens = [_serializar(a) for a in consultas]
+
+    # Alertas para o médico (consultas de hoje com proximidade de horário ou em espera)
+    agora = datetime.now()
+    hoje = agora.date()
+    hora_atual = agora.time()
+
+    alertas = []
+    consultas_hoje = (
+        db.query(Agendamento)
+        .filter(
+            Agendamento.data_consulta == hoje,
+            Agendamento.status.in_([StatusAgendamento.AGENDADO.value, StatusAgendamento.SALA_DE_ESPERA.value]),
+        )
+        .order_by(Agendamento.horario.asc())
+        .all()
+    )
+
+    for c in consultas_hoje:
+        if c.horario:
+            diff_min = (c.horario.hour * 60 + c.horario.minute) - (hora_atual.hour * 60 + hora_atual.minute)
+            if -30 <= diff_min <= 60:
+                alertas.append({
+                    "agendamento_id": c.id,
+                    "paciente_nome": c.cidadao.nome_completo if c.cidadao else "Paciente",
+                    "horario": c.horario.strftime("%H:%M"),
+                    "tipo": c.tipo,
+                    "status": c.status,
+                    "minutos_restantes": diff_min,
+                    "mensagem": f"Consulta com {c.cidadao.nome_completo if c.cidadao else 'Paciente'} às {c.horario.strftime('%H:%M')} ({'Telemedicina' if c.tipo == TipoAtendimento.TELEMEDICINA.value else 'Presencial'})",
+                })
 
     return {
         "data_referencia": data_filtro,
@@ -199,6 +233,7 @@ def listar_consultas_agenda(
         "total_presencial": sum(1 for x in itens if x.tipo == TipoAtendimento.PRESENCIAL.value),
         "total_telemedicina": sum(1 for x in itens if x.tipo == TipoAtendimento.TELEMEDICINA.value),
         "consultas": itens,
+        "alertas_medico": alertas,
     }
 
 

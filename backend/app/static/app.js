@@ -514,15 +514,87 @@ async function selecionarEspecialidade(codigo) {
 // AGENDA DO DIA (PRESENCIAL & TELEMEDICINA)
 // =========================================================================
 
+let dataAgendaSelecionada = new Date().toISOString().slice(0, 10);
+let consultasAgendaCache = [];
+
+function alterarDataAgenda(novaData) {
+  if (!novaData) return;
+  dataAgendaSelecionada = novaData;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const lbl = document.getElementById("label-data-hoje");
+  if (lbl) {
+    if (novaData === hoje) {
+      lbl.textContent = "Hoje";
+      lbl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200";
+    } else {
+      lbl.textContent = novaData.split("-").reverse().join("/");
+      lbl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200";
+    }
+  }
+  carregarAgenda();
+}
+
+function voltarParaHojeAgenda() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  dataAgendaSelecionada = hoje;
+  const inputData = document.getElementById("filtro-agenda-data");
+  if (inputData) inputData.value = hoje;
+  const lbl = document.getElementById("label-data-hoje");
+  if (lbl) {
+    lbl.textContent = "Hoje";
+    lbl.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200";
+  }
+  carregarAgenda();
+}
+
+function iniciarAtendimentoAlerta() {
+  if (window.proximoAgendamentoAlerta && window.proximoAgendamentoAlerta.agendamento_id) {
+    const c = (consultasAgendaCache || []).find(x => x.id === window.proximoAgendamentoAlerta.agendamento_id);
+    if (c) {
+      abrirAtendimentoAgenda(c);
+      return;
+    }
+  }
+  trocarAba("agenda");
+}
+
 async function carregarAgenda() {
   try {
-    let url = "/api/v1/agenda/";
+    const dataAlvo = dataAgendaSelecionada || new Date().toISOString().slice(0, 10);
+    let url = `/api/v1/agenda/?data=${dataAlvo}`;
     if (filtroAgendaTipo && filtroAgendaTipo !== "TODAS") {
-      url += `?tipo=${filtroAgendaTipo}`;
+      url += `&tipo=${filtroAgendaTipo}`;
     }
     const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json();
+    consultasAgendaCache = data.consultas || [];
+
+    const inputData = document.getElementById("filtro-agenda-data");
+    if (inputData && !inputData.value) {
+      inputData.value = dataAlvo;
+    }
+
+    // Renderiza banner de lembrete do médico para consultas iminentes de hoje
+    const bannerAlerta = document.getElementById("alerta-proxima-consulta");
+    if (bannerAlerta) {
+      if (data.alertas_medico && data.alertas_medico.length > 0) {
+        const al = data.alertas_medico[0];
+        window.proximoAgendamentoAlerta = al;
+        const tempoEl = document.getElementById("alerta-tempo-restante");
+        const msgEl = document.getElementById("alerta-consulta-msg");
+        if (tempoEl) {
+          tempoEl.textContent = al.minutos_restantes <= 0 ? "Agora / Em andamento" : `Em ${al.minutos_restantes} min`;
+        }
+        if (msgEl) {
+          msgEl.textContent = al.mensagem;
+        }
+        bannerAlerta.classList.remove("hidden");
+      } else {
+        bannerAlerta.classList.add("hidden");
+        window.proximoAgendamentoAlerta = null;
+      }
+    }
 
     document.getElementById("stat-total-consultas").innerHTML = `${data.total} <span class="text-xs text-slate-500 font-normal font-sans">agendados</span>`;
     document.getElementById("stat-total-tele").innerHTML = `${data.total_telemedicina} <span class="text-xs text-emerald-600 font-normal font-sans">remotas</span>`;
@@ -553,23 +625,18 @@ async function carregarAgenda() {
       const tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50/80 transition-colors group";
 
-      // XSS: antes, `paciente_nome`, `motivo_queixa` e `especialidade` eram
-      // interpolados em `tr.innerHTML`, e o `onclick` usava um atributo com
-      // aspas simples contendo `JSON.stringify(c)` — que NÃO escapa `'`. Um
-      // nome de paciente com `<img src=x onerror=...>` executava no navegador
-      // do médico, de onde o `media_token` era exfiltrável. A estrutura HTML
-      // fica abaixo, mas TODO dado da API entra por `textContent`.
       const celula = (classe) => {
         const td = document.createElement("td");
         td.className = classe;
         return td;
       };
 
-      const tdHorario = celula("px-5 py-4 font-mono font-bold text-slate-800");
-      tdHorario.textContent = c.horario ?? "";
+      const tdHorario = celula("px-5 py-4 font-mono font-bold text-slate-800 text-xs");
+      const dataFormatada = c.data_consulta ? c.data_consulta.split("-").reverse().join("/") : "";
+      tdHorario.innerHTML = `<div class="text-slate-900 font-bold">${c.horario ?? ""}</div><div class="text-[10px] text-slate-400 font-normal font-sans">${dataFormatada}</div>`;
 
       const tdModalidade = celula("px-5 py-4");
-      tdModalidade.innerHTML = badgeModalidade; // HTML estático, sem dado do usuário
+      tdModalidade.innerHTML = badgeModalidade;
 
       const tdPaciente = celula("px-5 py-4");
       const divNome = document.createElement("div");
@@ -592,24 +659,26 @@ async function carregarAgenda() {
       }
 
       const tdValor = celula("px-5 py-4 font-mono text-xs font-semibold text-slate-700");
-      // `valor_consulta` vinha do backend sem garantia: um `null` fazia
-      // `.toFixed` lançar TypeError e abortar o carregamento da agenda.
       const valor = Number(c.valor_consulta);
       tdValor.textContent = `R$ ${(Number.isFinite(valor) ? valor : 0).toFixed(2)}`;
 
       const tdAcoes = celula("px-5 py-4 text-right space-x-1.5");
-      if (isTele && c.telefone_whatsapp) {
+      if (c.telefone_whatsapp) {
+        const dataFmtZap = c.data_consulta ? c.data_consulta.split("-").reverse().join("/") : "hoje";
+        const msgZap = `Olá ${c.paciente_nome ?? ""}! Lembramos de sua consulta (${isTele ? "Telemedicina" : "Presencial"}) agendada para ${dataFmtZap} às ${c.horario}.`;
+        const linkSala = isTele && c.codigo_sala_telemedicina ? ` Link de acesso à sala: ${window.location.origin}/static/telemedicina_paciente.html?sala=${c.codigo_sala_telemedicina}` : "";
+
         const linkZap = document.createElement("a");
         linkZap.href =
           "https://api.whatsapp.com/send?phone=55" +
           encodeURIComponent(String(c.telefone_whatsapp)) +
           "&text=" +
-          encodeURIComponent(`Olá ${c.paciente_nome ?? ""}! Sua teleconsulta está preparada.`);
+          encodeURIComponent(msgZap + linkSala);
         linkZap.target = "_blank";
         linkZap.rel = "noopener noreferrer";
         linkZap.className =
           "inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition";
-        linkZap.title = "Enviar link por WhatsApp";
+        linkZap.title = "Enviar lembrete e link por WhatsApp";
         linkZap.innerHTML = '<i class="fa-brands fa-whatsapp text-sm"></i>';
         tdAcoes.appendChild(linkZap);
       }
@@ -621,7 +690,6 @@ async function carregarAgenda() {
       const rotuloBotao = document.createElement("span");
       rotuloBotao.textContent = isTele ? "Iniciar Teleconsulta" : "Atender no Consultório";
       btnAtender.appendChild(rotuloBotao);
-      // Listeners reais em vez de `onclick='...(${JSON.stringify(c)})'`.
       btnAtender.addEventListener("click", () => abrirAtendimentoAgenda(c));
       tdAcoes.appendChild(btnAtender);
 
@@ -1487,12 +1555,31 @@ function avisarDadosDeDemonstracao(containerId, oQue) {
   alvo.dataset.avisoDemo = "1";
 }
 
+function limparFormularioNovoPaciente() {
+  if (document.getElementById("cad-paciente-nome")) document.getElementById("cad-paciente-nome").value = "";
+  if (document.getElementById("cad-paciente-cpf")) document.getElementById("cad-paciente-cpf").value = "";
+  if (document.getElementById("cad-paciente-cns")) document.getElementById("cad-paciente-cns").value = "";
+  if (document.getElementById("cad-paciente-nasc")) document.getElementById("cad-paciente-nasc").value = "1990-01-01";
+  if (document.getElementById("cad-paciente-sexo")) document.getElementById("cad-paciente-sexo").value = "M";
+  if (document.getElementById("cad-paciente-tel")) document.getElementById("cad-paciente-tel").value = "";
+  if (document.getElementById("cad-paciente-mae")) document.getElementById("cad-paciente-mae").value = "";
+  if (document.getElementById("cad-paciente-logradouro")) document.getElementById("cad-paciente-logradouro").value = "";
+  if (document.getElementById("cad-paciente-num")) document.getElementById("cad-paciente-num").value = "";
+  if (document.getElementById("cad-paciente-bairro")) document.getElementById("cad-paciente-bairro").value = "";
+  if (document.getElementById("cad-paciente-alergias")) document.getElementById("cad-paciente-alergias").value = "";
+  if (document.getElementById("cad-paciente-hipertenso")) document.getElementById("cad-paciente-hipertenso").checked = false;
+  if (document.getElementById("cad-paciente-diabetico")) document.getElementById("cad-paciente-diabetico").checked = false;
+  if (document.getElementById("cad-paciente-fumante")) document.getElementById("cad-paciente-fumante").checked = false;
+}
+
 function abrirModalNovoPaciente() {
+  limparFormularioNovoPaciente();
   const m = document.getElementById("modal-novo-paciente");
   if (m) m.classList.remove("hidden");
 }
 
 function fecharModalNovoPaciente() {
+  limparFormularioNovoPaciente();
   const m = document.getElementById("modal-novo-paciente");
   if (m) m.classList.add("hidden");
 }
@@ -1545,15 +1632,6 @@ async function salvarNovoPaciente() {
 
     if (res.status === 201) {
       fecharModalNovoPaciente();
-      if (document.getElementById("cad-paciente-nome")) document.getElementById("cad-paciente-nome").value = "";
-      if (document.getElementById("cad-paciente-cpf")) document.getElementById("cad-paciente-cpf").value = "";
-      if (document.getElementById("cad-paciente-cns")) document.getElementById("cad-paciente-cns").value = "";
-      if (document.getElementById("cad-paciente-tel")) document.getElementById("cad-paciente-tel").value = "";
-      if (document.getElementById("cad-paciente-mae")) document.getElementById("cad-paciente-mae").value = "";
-      if (document.getElementById("cad-paciente-logradouro")) document.getElementById("cad-paciente-logradouro").value = "";
-      if (document.getElementById("cad-paciente-num")) document.getElementById("cad-paciente-num").value = "";
-      if (document.getElementById("cad-paciente-bairro")) document.getElementById("cad-paciente-bairro").value = "";
-      if (document.getElementById("cad-paciente-alergias")) document.getElementById("cad-paciente-alergias").value = "";
       await carregarPacientes();
       alert(`Paciente ${nome} cadastrado com sucesso no banco de dados!`);
     } else {
@@ -1754,22 +1832,49 @@ async function gerarLoteDMED() {
 // MODAL NOVO AGENDAMENTO
 // =========================================================================
 
+function limparFormularioNovoAgendamento() {
+  const nome = document.getElementById("novo-paciente-nome");
+  if (nome) nome.value = "";
+  const cpf = document.getElementById("novo-paciente-cpf");
+  if (cpf) cpf.value = "";
+  const tel = document.getElementById("novo-paciente-tel");
+  if (tel) tel.value = "";
+  const data = document.getElementById("novo-data");
+  if (data) {
+    const filtroData = document.getElementById("filtro-agenda-data")?.value;
+    data.value = filtroData || new Date().toISOString().slice(0, 10);
+  }
+  const horario = document.getElementById("novo-horario");
+  if (horario) horario.value = "15:30";
+  const tipo = document.getElementById("novo-tipo");
+  if (tipo) tipo.value = "TELEMEDICINA";
+  const valor = document.getElementById("novo-valor");
+  if (valor) valor.value = "350";
+  const motivo = document.getElementById("novo-motivo");
+  if (motivo) motivo.value = "";
+}
+
 function abrirModalNovoAgendamento() {
-  document.getElementById("modal-novo-agendamento").classList.remove("hidden");
+  limparFormularioNovoAgendamento();
+  const m = document.getElementById("modal-novo-agendamento");
+  if (m) m.classList.remove("hidden");
 }
 
 function fecharModalNovoAgendamento() {
-  document.getElementById("modal-novo-agendamento").classList.add("hidden");
+  limparFormularioNovoAgendamento();
+  const m = document.getElementById("modal-novo-agendamento");
+  if (m) m.classList.add("hidden");
 }
 
 async function salvarNovoAgendamento() {
-  const nome = document.getElementById("novo-paciente-nome").value.trim();
-  const cpf = document.getElementById("novo-paciente-cpf").value.trim();
-  const tel = document.getElementById("novo-paciente-tel").value.trim();
-  const tipo = document.getElementById("novo-tipo").value;
-  const horario = document.getElementById("novo-horario").value.trim();
-  const valor = parseFloat(document.getElementById("novo-valor").value) || 300;
-  const motivo = document.getElementById("novo-motivo").value.trim();
+  const nome = document.getElementById("novo-paciente-nome")?.value.trim();
+  const cpf = document.getElementById("novo-paciente-cpf")?.value.trim();
+  const tel = document.getElementById("novo-paciente-tel")?.value.trim();
+  const dataConsulta = document.getElementById("novo-data")?.value.trim() || new Date().toISOString().slice(0, 10);
+  const horario = document.getElementById("novo-horario")?.value.trim() || "15:30";
+  const tipo = document.getElementById("novo-tipo")?.value || "TELEMEDICINA";
+  const valor = parseFloat(document.getElementById("novo-valor")?.value) || 350;
+  const motivo = document.getElementById("novo-motivo")?.value.trim() || "";
 
   if (!nome || !cpf) {
     alert("Preencha ao menos o nome e CPF do paciente.");
@@ -1809,7 +1914,7 @@ async function salvarNovoAgendamento() {
       }
     }
 
-    // 3. Registra a consulta na agenda com o paciente do banco
+    // 3. Registra a consulta na agenda com o paciente do banco e a data da consulta
     const res = await fetch("/api/v1/agenda/novo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1818,6 +1923,7 @@ async function salvarNovoAgendamento() {
         paciente_cpf: cpfLimpo,
         tipo: tipo,
         horario: horario,
+        data_consulta: dataConsulta,
         valor_consulta: valor,
         motivo_queixa: motivo,
         especialidade: document.getElementById("dock-especialidade-nome")?.textContent || "Clínica Médica"
@@ -1826,12 +1932,26 @@ async function salvarNovoAgendamento() {
 
     if (res.ok) {
       fecharModalNovoAgendamento();
-      document.getElementById("novo-paciente-nome").value = "";
-      document.getElementById("novo-paciente-cpf").value = "";
-      document.getElementById("novo-paciente-tel").value = "";
-      document.getElementById("novo-motivo").value = "";
-      await carregarAgenda();
-      alert("Consulta agendada com sucesso no banco de dados!");
+      // Atualiza a visualização da agenda para a data agendada
+      alterarDataAgenda(dataConsulta);
+
+      // Notificação ao paciente via WhatsApp
+      const partesData = dataConsulta.split("-");
+      const dataBr = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}/${partesData[0]}` : dataConsulta;
+      const isTele = tipo === "TELEMEDICINA";
+      const linkTelemed = `${window.location.origin}/static/telemedicina.html?sala=consulta-${encodeURIComponent(cpfLimpo)}`;
+      const msgZap = `Olá, ${nome}! Sua consulta médica (${isTele ? "Telemedicina" : "Presencial"}) foi agendada para ${dataBr} às ${horario}.\n${isTele ? `\nLink da sua sala virtual de atendimento:\n${linkTelemed}\n` : "\nLocal: Consultório Clínica Versini\n"}\nPor favor, confirme o recebimento desta mensagem.`;
+
+      if (tel) {
+        const confirmarZap = confirm(`✅ Consulta agendada com sucesso no banco de dados!\n\n📅 Data: ${dataBr} às ${horario}\n👤 Paciente: ${nome}\n\nDeseja enviar a notificação e link de confirmação para o WhatsApp do paciente agora?`);
+        if (confirmarZap) {
+          const foneLimpo = tel.replace(/\D/g, "");
+          const foneCompleto = foneLimpo.startsWith("55") ? foneLimpo : `55${foneLimpo}`;
+          window.open(`https://api.whatsapp.com/send?phone=${foneCompleto}&text=${encodeURIComponent(msgZap)}`, "_blank");
+        }
+      } else {
+        alert(`✅ Consulta agendada com sucesso no banco de dados!\n\n📅 Data: ${dataBr} às ${horario}\n👤 Paciente: ${nome}`);
+      }
     } else {
       const err = await res.json().catch(() => ({}));
       alert("Erro ao agendar consulta: " + (err.detail || "Verifique os dados informados."));
