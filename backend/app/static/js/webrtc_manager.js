@@ -119,9 +119,14 @@ export class WebRTCManager extends EventTarget {
   }
 
   async #obterTrack(deviceId, kind) {
+    // `deviceId` é opcional: sem ele, usa o dispositivo padrão do sistema.
+    // Antes o código montava `deviceId: { exact: null }`, que o navegador
+    // recusa com OverconstrainedError — então "voltar para a câmera" após
+    // compartilhar tela nunca funcionava.
     const c = kind === MediaKind.AUDIO
-      ? { ...this.#config.audioConstraints, deviceId: { exact: deviceId } }
-      : { ...this.#config.videoConstraints, deviceId: { exact: deviceId } };
+      ? { ...this.#config.audioConstraints }
+      : { ...this.#config.videoConstraints };
+    if (deviceId) c.deviceId = { exact: deviceId };
     const s = await navigator.mediaDevices.getUserMedia({ [kind === MediaKind.AUDIO ? 'audio' : 'video']: c });
     return s.getTracks()[0];
   }
@@ -241,6 +246,26 @@ export class WebRTCManager extends EventTarget {
     if (sender) await sender.replaceTrack(track);
     return track;
   }
+
+  /**
+   * Substitui a faixa de vídeo por uma faixa arbitrária (ex.: tela
+   * compartilhada) sem renegociar o SDP. É o caminho que `getDisplayMedia`
+   * precisa — `trocarTrack` só sabe capturar câmera.
+   */
+  async substituirTrackVideo(track) {
+    if (!this.#pc) throw new WebRTCError(ErrorCodes.PEER_CONNECTION, 'PeerConnection não criada');
+    const sender = this.#pc.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) {
+      await sender.replaceTrack(track ?? null);
+    } else if (track) {
+      this.#pc.addTrack(track, new MediaStream([track]));
+    }
+    this.dispatchEvent(new CustomEvent('track-substituida', { detail: { kind: 'video', externa: true } }));
+    return track;
+  }
+
+  /** Expõe a conexão para casos avançados (estatísticas, tela, diagnóstico). */
+  get peerConnection() { return this.#pc; }
 
   // ---- Registro de consentimento via dispositivos ----
 

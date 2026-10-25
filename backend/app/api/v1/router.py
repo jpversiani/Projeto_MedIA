@@ -40,6 +40,14 @@ api_router.include_router(auth_router)
 # token. Ela devolve apenas a visão mascarada do documento.
 api_router.include_router(prescricao_publico_router)
 
+# Sinalização da teleconsulta (WebSocket). NÃO entra no bloco clínico porque
+# `Depends(get_current_user)` é uma dependência HTTP: aplicada a um WebSocket
+# ela levanta HTTPException no handshake e derruba a conexão antes de o
+# navegador conseguir autenticar. A autenticação acontece dentro do próprio
+# handler (`_autenticar`), que aceita o token por query string — o browser não
+# permite definir cabeçalhos em `new WebSocket()`.
+api_router.include_router(telemedicina_ws_router)
+
 # --------------------------------------------------------------------------
 # Rotas clínicas (prontuário, cidadão, agenda, prescrição, TISS, DMED,
 # telemedicina, farmácia, convênios, financeiro, sincronização...).
@@ -62,7 +70,6 @@ _ROUTERS_CLINICOS = (
     financeiro_medico_router,
     prontuario_router,
     copiloto_router,
-    telemedicina_ws_router,
     farmacia_router,
     convenios_router,
     tiss_router,

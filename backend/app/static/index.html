@@ -532,11 +532,23 @@
                   anunciava "Aceite Confirmado" sem que nada tivesse sido confirmado.
                   O aviso abaixo diz o estado real até o cliente WebRTC existir.
                 -->
-                <div class="mt-2 max-w-sm text-[11px] leading-relaxed text-amber-300/90 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
-                  <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-                  A transmissão de vídeo bidirecional ainda não está implementada.
-                  Enquanto isso, use o link abaixo para falar com o paciente por
-                  outro canal.
+                <button
+                  id="btn-conectar-teleconsulta"
+                  onclick="iniciarTeleconsultaWebRTC()"
+                  class="mt-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 flex items-center space-x-2 transition"
+                >
+                  <i class="fa-solid fa-video"></i>
+                  <span>Iniciar câmera e conectar</span>
+                </button>
+
+                <div id="teleconsulta-status" class="text-[11px] text-slate-300 font-medium">
+                  Pronto para conectar
+                </div>
+
+                <div class="max-w-sm text-[11px] leading-relaxed text-slate-400">
+                  Ao conectar você autoriza a transmissão de áudio e vídeo para o
+                  atendimento (LGPD Art. 11 / CFM 2.314). A chamada é ponto a
+                  ponto e não é gravada.
                 </div>
               </div>
 

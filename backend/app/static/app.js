@@ -780,8 +780,59 @@ function abrirAtendimentoAgenda(consulta) {
 // SALA DE TELEMEDICINA CFM 2.314/2022
 // =========================================================================
 
+/**
+ * Descobre (ou cria) a sala real desta teleconsulta.
+ *
+ * Antes o código era inventado no navegador (`sala_<id da agenda>`): a sala não
+ * existia no banco, o link enviado ao paciente apontava para um código
+ * inexistente e, com autenticação ligada, o WebSocket recusaria a conexão dos
+ * dois lados. Agora o código é o mesmo `sala_<uuid>` persistido em
+ * `salas_virtuais`, criado por `POST /telemedicina/agendamentos`.
+ */
+async function resolverSalaTeleconsulta(consulta) {
+  const existente = consulta.codigo_sala_telemedicina || consulta.sala_codigo;
+  if (existente) return existente;
+
+  const vinculo = (usuarioLogado && usuarioLogado.clinica_ativa) || {};
+  const crm = String(vinculo.crm || "").replace(/\D/g, "");
+  const cpf = String(consulta.paciente_cpf || "").replace(/\D/g, "");
+
+  if (cpf.length === 11 && crm.length === 6) {
+    try {
+      const resposta = await apiFetch("/api/v1/telemedicina/agendamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paciente_cpf: cpf,
+          medico_crm: crm,
+          data_hora: consulta.data_hora || new Date().toISOString(),
+          ciap2: consulta.ciap2 || null,
+          cid10: consulta.cid10 || null,
+        }),
+      });
+      // `apiFetch` devolve a Response crua (não o JSON).
+      if (resposta && resposta.ok) {
+        const criada = await resposta.json();
+        if (criada && criada.codigo_sala) {
+          consulta.codigo_sala_telemedicina = criada.codigo_sala;
+          return criada.codigo_sala;
+        }
+      } else {
+        console.warn("[teleconsulta] agendamento recusado:", resposta && resposta.status);
+      }
+    } catch (erro) {
+      console.warn("[teleconsulta] não foi possível registrar a sala no servidor:", erro);
+    }
+  }
+
+  // Modo demonstração/offline: código determinístico, sem sala no banco.
+  const alternativa = `sala_${String(consulta.id || Date.now()).toLowerCase()}`;
+  consulta.codigo_sala_telemedicina = alternativa;
+  return alternativa;
+}
+
 async function iniciarSessaoTelemedicina(consulta) {
-  const codigoSala = consulta.codigo_sala_telemedicina || `sala_${consulta.id.toLowerCase()}`;
+  const codigoSala = await resolverSalaTeleconsulta(consulta);
   document.getElementById("label-codigo-sala-atual").textContent = codigoSala;
 
   // Inicia temporizador da chamada
@@ -796,16 +847,149 @@ async function iniciarSessaoTelemedicina(consulta) {
     if (el) el.textContent = `${h}:${m}:${s}`;
   }, 1000);
 
-  // Inicia câmera local do médico se disponível
-  try {
-    if (!localMediaStream) {
-      localMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      const videoLocal = document.getElementById("medico-video-local");
-      if (videoLocal) videoLocal.srcObject = localMediaStream;
-    }
-  } catch (e) {
-    console.warn("Dispositivos de câmera/mic não acessíveis localmente:", e);
+  // A câmera NÃO é aberta automaticamente. Antes, trocar para esta aba ligava a
+  // webcam sem consentimento explícito e sem que houvesse qualquer transmissão
+  // do outro lado. Agora a captura começa quando o médico clica em
+  // "Iniciar câmera e conectar" (LGPD: consentimento antes da coleta).
+  atualizarStatusTeleconsulta("Pronto para conectar", "neutro");
+}
+
+// =========================================================================
+// TELECONSULTA WEBRTC — sessão real (T3)
+// =========================================================================
+
+let sessaoTeleconsultaAtual = null;
+
+function atualizarStatusTeleconsulta(texto, tom = "neutro") {
+  const el = document.getElementById("teleconsulta-status");
+  if (!el) return;
+  el.textContent = texto;
+  const cores = {
+    neutro: "text-slate-300",
+    ok: "text-emerald-400",
+    alerta: "text-amber-300",
+    erro: "text-rose-400",
+  };
+  el.className = `text-[11px] font-medium ${cores[tom] || cores.neutro}`;
+}
+
+function definirBotaoTeleconsulta(habilitado, rotulo) {
+  const botao = document.getElementById("btn-conectar-teleconsulta");
+  if (!botao) return;
+  botao.disabled = !habilitado;
+  botao.classList.toggle("opacity-50", !habilitado);
+  botao.classList.toggle("cursor-not-allowed", !habilitado);
+  const span = botao.querySelector("span");
+  if (span && rotulo) span.textContent = rotulo;
+}
+
+function mostrarVideoTeleconsulta(mostrar) {
+  const aviso = document.getElementById("medico-aviso-esperando");
+  if (aviso) aviso.style.display = mostrar ? "none" : "flex";
+}
+
+async function iniciarTeleconsultaWebRTC() {
+  const rotuloSala = document.getElementById("label-codigo-sala-atual");
+  const sala = rotuloSala ? rotuloSala.textContent.trim() : "";
+  if (!sala || sala === "—") {
+    alert("Abra uma teleconsulta pela agenda antes de conectar.");
+    return;
   }
+
+  if (sessaoTeleconsultaAtual) {
+    sessaoTeleconsultaAtual.encerrar();
+    sessaoTeleconsultaAtual = null;
+  }
+
+  const token = localStorage.getItem("media_token");
+  const vinculo = (usuarioLogado && usuarioLogado.clinica_ativa) || {};
+  const papel = String(vinculo.papel || "MEDICO").toUpperCase() === "PACIENTE" ? "paciente" : "medico";
+
+  definirBotaoTeleconsulta(false, "Conectando...");
+  atualizarStatusTeleconsulta("Obtendo permissão de câmera e microfone...", "alerta");
+
+  try {
+    const { SessaoTeleconsulta } = await import("/static/js/teleconsulta_sessao.js");
+
+    sessaoTeleconsultaAtual = new SessaoTeleconsulta({
+      sala,
+      papel,
+      token,
+      nome: (usuarioLogado && usuarioLogado.nome) || "Profissional",
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("stream-local", (evento) => {
+      const videoLocal = document.getElementById("medico-video-local");
+      if (videoLocal) videoLocal.srcObject = evento.detail.stream;
+      localMediaStream = evento.detail.stream;
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("stream-remoto", (evento) => {
+      const videoRemoto = document.getElementById("medico-video-remoto");
+      if (videoRemoto) videoRemoto.srcObject = evento.detail.stream;
+      mostrarVideoTeleconsulta(true);
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("estado", (evento) => {
+      const { estado, motivo } = evento.detail;
+      const textos = {
+        conectando: ["Conectando ao servidor de sinalização...", "alerta"],
+        aguardando: ["Sala aberta: aguardando o paciente entrar", "alerta"],
+        negociando: ["Negociando conexão de vídeo...", "alerta"],
+        conectado: ["Conectado — vídeo e áudio ativos", "ok"],
+        reconectando: ["Reconectando a chamada...", "alerta"],
+        encerrada: ["Teleconsulta encerrada", "neutro"],
+        erro: [motivo || "Falha na teleconsulta", "erro"],
+      };
+      const [texto, tom] = textos[estado] || [estado, "neutro"];
+      atualizarStatusTeleconsulta(texto, tom);
+
+      if (estado === "conectado") definirBotaoTeleconsulta(false, "Em atendimento");
+      if (estado === "encerrada" || estado === "erro") {
+        definirBotaoTeleconsulta(true, "Reconectar");
+        mostrarVideoTeleconsulta(false);
+      }
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("peer-entrou", (evento) => {
+      const nome = (evento.detail.participante && evento.detail.participante.nome) || "Paciente";
+      atualizarStatusTeleconsulta(`${nome} entrou na sala. Negociando vídeo...`, "alerta");
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("peer-saiu", () => {
+      mostrarVideoTeleconsulta(false);
+      atualizarStatusTeleconsulta("O outro participante saiu da sala", "alerta");
+    });
+
+    sessaoTeleconsultaAtual.addEventListener("erro", (evento) => {
+      console.warn("[teleconsulta]", evento.detail.motivo);
+    });
+
+    await sessaoTeleconsultaAtual.iniciar();
+  } catch (erro) {
+    console.error("[teleconsulta] falha ao iniciar:", erro);
+    const mensagem =
+      erro && erro.name === "NotAllowedError"
+        ? "Permissão de câmera/microfone negada. Autorize no navegador e tente novamente."
+        : `Não foi possível iniciar a teleconsulta: ${erro && erro.message ? erro.message : erro}`;
+    atualizarStatusTeleconsulta(mensagem, "erro");
+    definirBotaoTeleconsulta(true, "Tentar novamente");
+  }
+}
+
+function encerrarTeleconsultaWebRTC() {
+  if (sessaoTeleconsultaAtual) {
+    sessaoTeleconsultaAtual.encerrar();
+    sessaoTeleconsultaAtual = null;
+  }
+  const videoLocal = document.getElementById("medico-video-local");
+  const videoRemoto = document.getElementById("medico-video-remoto");
+  if (videoLocal) videoLocal.srcObject = null;
+  if (videoRemoto) videoRemoto.srcObject = null;
+  localMediaStream = null;
+  mostrarVideoTeleconsulta(false);
+  atualizarStatusTeleconsulta("Teleconsulta encerrada", "neutro");
+  definirBotaoTeleconsulta(true, "Iniciar câmera e conectar");
 }
 
 // A função `simularEntradaPaciente()` foi REMOVIDA.
@@ -893,30 +1077,65 @@ function enviarWhatsAppPaciente() {
 }
 
 function alternarAudioMedico() {
-  if (!localMediaStream) return;
-  const audioTrack = localMediaStream.getAudioTracks()[0];
-  if (audioTrack) {
-    audioTrack.enabled = !audioTrack.enabled;
-    const icon = document.querySelector("#btn-medico-audio i");
-    icon.className = audioTrack.enabled ? "fa-solid fa-microphone text-xs" : "fa-solid fa-microphone-slash text-xs text-rose-500";
+  let mudo;
+  if (sessaoTeleconsultaAtual) {
+    // Durante a chamada quem manda é a faixa que está sendo enviada ao peer.
+    mudo = sessaoTeleconsultaAtual.alternarAudio();
+  } else if (localMediaStream) {
+    const trilha = localMediaStream.getAudioTracks()[0];
+    if (!trilha) return;
+    trilha.enabled = !trilha.enabled;
+    mudo = !trilha.enabled;
+  } else {
+    return;
+  }
+
+  const icon = document.querySelector("#btn-medico-audio i");
+  if (icon) {
+    icon.className = mudo
+      ? "fa-solid fa-microphone-slash text-xs text-rose-500"
+      : "fa-solid fa-microphone text-xs";
   }
 }
 
 function alternarVideoMedico() {
-  if (!localMediaStream) return;
-  const videoTrack = localMediaStream.getVideoTracks()[0];
-  if (videoTrack) {
-    videoTrack.enabled = !videoTrack.enabled;
-    const icon = document.querySelector("#btn-medico-video i");
-    icon.className = videoTrack.enabled ? "fa-solid fa-video text-xs" : "fa-solid fa-video-slash text-xs text-rose-500";
+  let mudo;
+  if (sessaoTeleconsultaAtual) {
+    mudo = sessaoTeleconsultaAtual.alternarVideo();
+  } else if (localMediaStream) {
+    const trilha = localMediaStream.getVideoTracks()[0];
+    if (!trilha) return;
+    trilha.enabled = !trilha.enabled;
+    mudo = !trilha.enabled;
+  } else {
+    return;
+  }
+
+  const icon = document.querySelector("#btn-medico-video i");
+  if (icon) {
+    icon.className = mudo
+      ? "fa-solid fa-video-slash text-xs text-rose-500"
+      : "fa-solid fa-video text-xs";
   }
 }
 
 async function compartilharTela() {
   try {
+    if (sessaoTeleconsultaAtual) {
+      // Envia a tela ao paciente substituindo a faixa de vídeo (sem renegociar).
+      await sessaoTeleconsultaAtual.compartilharTela();
+      atualizarStatusTeleconsulta("Compartilhando a tela com o paciente", "ok");
+      return;
+    }
+
+    // Sem sessão ativa não há para quem transmitir: mostra a prévia local.
     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-    const videoRemoto = document.getElementById("medico-video-remoto");
-    if (videoRemoto) videoRemoto.srcObject = screenStream;
+    const videoLocal = document.getElementById("medico-video-local");
+    if (videoLocal) videoLocal.srcObject = screenStream;
+    alert(
+      "Prévia local da tela. Para o paciente ver, inicie a teleconsulta primeiro " +
+      "(\"Iniciar câmera e conectar\")."
+    );
   } catch (e) {
     console.warn("Compartilhamento cancelado:", e);
   }
@@ -950,6 +1169,10 @@ async function acionarConversaoPresencial() {
 
 function finalizarTeleconsulta() {
   if (timerTelemedicinaInterval) clearInterval(timerTelemedicinaInterval);
+  // Encerra a sessão WebRTC de verdade: revoga o par, fecha o WebSocket de
+  // sinalização e libera câmera/microfone. Antes "encerrar" só trocava de aba
+  // e a câmera continuava ligada.
+  encerrarTeleconsultaWebRTC();
   transferirParaProntuario();
 }
 

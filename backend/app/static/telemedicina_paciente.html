@@ -68,9 +68,9 @@
         <!-- Vídeo Remoto (Médico) -->
         <video id="video-medico" autoplay playsinline class="w-full h-full object-cover"></video>
         <div id="aviso-esperando" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-center p-6 space-y-3">
-          <div class="w-12 h-12 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
-          <div class="text-sm font-semibold text-slate-200">Aguardando o médico iniciar a transmissão...</div>
-          <div class="text-xs text-slate-400">Você já está conectado na sala segura. Permaneça na linha.</div>
+          <div id="aviso-spinner" class="w-12 h-12 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+          <div id="aviso-texto" class="text-sm font-semibold text-slate-200">Conectando à sala segura...</div>
+          <div id="aviso-detalhe" class="text-xs text-slate-400">Você já está conectado na sala segura. Permaneça na linha.</div>
         </div>
 
         <!-- Vídeo Local (Paciente - Picture in Picture) -->
@@ -100,58 +100,164 @@
     MedIA Health • Plataforma em conformidade com o Conselho Federal de Medicina (CFM)
   </footer>
 
-  <script>
+  <script type="module">
+    // Sessão real de teleconsulta (T3). Antes esta página só abria a webcam do
+    // paciente e nunca conectava ao médico: o vídeo remoto ficava preto e o
+    // texto "Aguardando o médico iniciar a transmissão" era permanente — não
+    // havia WebSocket nem WebRTC aqui.
+    import { SessaoTeleconsulta } from '/static/js/teleconsulta_sessao.js';
+
     const urlParams = new URLSearchParams(window.location.search);
-    const codigoSala = urlParams.get('sala') || 'sala_padrao';
+    const codigoSala = urlParams.get('sala') || '';
 
     const chk = document.getElementById('chk-concordo');
     const btnEntrar = document.getElementById('btn-entrar');
+    if (!codigoSala) {
+      document.getElementById('aviso-texto').textContent = 'Link inválido';
+      document.getElementById('aviso-detalhe').textContent =
+        'Este endereço não traz o código da sala. Peça um novo link à clínica.';
+      chk.disabled = true;
+    }
     chk.addEventListener('change', () => {
       btnEntrar.disabled = !chk.checked;
     });
 
-    let localStream = null;
+    let sessao = null;
+
+    function textoAviso(titulo, detalhe) {
+      document.getElementById('aviso-texto').textContent = titulo;
+      if (detalhe !== undefined) {
+        document.getElementById('aviso-detalhe').textContent = detalhe;
+      }
+    }
+
+    function esconderAviso() {
+      document.getElementById('aviso-esperando').style.display = 'none';
+    }
+
+    function mostrarAviso() {
+      document.getElementById('aviso-esperando').style.display = 'flex';
+    }
 
     async function conectarSala() {
+      if (!codigoSala) return;
+
       document.getElementById('etapa-tcle').classList.add('hidden');
       document.getElementById('etapa-video').classList.remove('hidden');
+      btnEntrar.disabled = true;
+      textoAviso('Conectando à sala segura...', 'Autorize o uso da câmera e do microfone.');
+
+      // Com autenticação ligada, o paciente precisa estar logado; o token fica
+      // no localStorage. Em desenvolvimento (auth desligada) a sala do link
+      // basta, então conecta sem token.
+      const token = localStorage.getItem('media_token') || '';
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        const videoLocal = document.getElementById('video-paciente');
-        videoLocal.srcObject = localStream;
-      } catch (e) {
-        console.warn('Dispositivo de mídia não autorizado:', e);
+        sessao = new SessaoTeleconsulta({
+          sala: codigoSala,
+          papel: 'paciente',
+          token,
+          nome: urlParams.get('nome') || 'Paciente',
+        });
+
+        sessao.addEventListener('stream-local', (evento) => {
+          const videoLocal = document.getElementById('video-paciente');
+          if (videoLocal) videoLocal.srcObject = evento.detail.stream;
+        });
+
+        sessao.addEventListener('stream-remoto', (evento) => {
+          const videoRemoto = document.getElementById('video-medico');
+          if (videoRemoto) videoRemoto.srcObject = evento.detail.stream;
+          esconderAviso();
+        });
+
+        sessao.addEventListener('sala', (evento) => {
+          const participantes = evento.detail.participantes || [];
+          const medico = participantes.find((p) => p.papel === 'medico');
+          if (medico && medico.nome) {
+            document.getElementById('doc-nome').textContent = medico.nome;
+          }
+        });
+
+        sessao.addEventListener('peer-entrou', (evento) => {
+          const nome = (evento.detail.participante && evento.detail.participante.nome) || '';
+          if (nome) document.getElementById('doc-nome').textContent = nome;
+          textoAviso('O médico entrou. Preparando o vídeo...');
+        });
+
+        sessao.addEventListener('peer-saiu', () => {
+          mostrarAviso();
+          textoAviso('O médico saiu da sala.', 'Aguarde alguns instantes ou entre em contato com a clínica.');
+        });
+
+        sessao.addEventListener('estado', (evento) => {
+          const { estado, motivo } = evento.detail;
+          if (estado === 'aguardando') {
+            mostrarAviso();
+            textoAviso('Aguardando o médico iniciar a transmissão...', 'Você já está na sala segura. Permaneça na linha.');
+          } else if (estado === 'negociando') {
+            mostrarAviso();
+            textoAviso('Conectando o vídeo...');
+          } else if (estado === 'conectado') {
+            esconderAviso();
+          } else if (estado === 'reconectando') {
+            mostrarAviso();
+            textoAviso('Reconectando...', 'Sua conexão oscilou. Tentando novamente.');
+          } else if (estado === 'erro') {
+            mostrarAviso();
+            textoAviso('Não foi possível conectar', motivo || 'Verifique sua internet e recarregue a página.');
+          }
+        });
+
+        sessao.addEventListener('erro', (evento) => {
+          console.warn('[teleconsulta]', evento.detail.motivo);
+        });
+
+        await sessao.iniciar();
+      } catch (erro) {
+        console.error('[teleconsulta] falha:', erro);
+        mostrarAviso();
+        const negada = erro && erro.name === 'NotAllowedError';
+        textoAviso(
+          negada ? 'Permissão negada' : 'Não foi possível conectar',
+          negada
+            ? 'Autorize o acesso à câmera e ao microfone no navegador e recarregue a página.'
+            : (erro && erro.message) || 'Tente novamente em instantes.'
+        );
       }
     }
 
     function alternarAudio() {
-      if (!localStream) return;
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        const icon = document.querySelector('#btn-audio i');
-        icon.className = audioTrack.enabled ? 'fa-solid fa-microphone text-sm' : 'fa-solid fa-microphone-slash text-sm text-rose-400';
-      }
+      if (!sessao) return;
+      const mudo = sessao.alternarAudio();
+      document.querySelector('#btn-audio i').className = mudo
+        ? 'fa-solid fa-microphone-slash text-sm text-rose-400'
+        : 'fa-solid fa-microphone text-sm';
     }
 
     function alternarVideo() {
-      if (!localStream) return;
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        const icon = document.querySelector('#btn-video i');
-        icon.className = videoTrack.enabled ? 'fa-solid fa-video text-sm' : 'fa-solid fa-video-slash text-sm text-rose-400';
-      }
+      if (!sessao) return;
+      const mudo = sessao.alternarVideo();
+      document.querySelector('#btn-video i').className = mudo
+        ? 'fa-solid fa-video-slash text-sm text-rose-400'
+        : 'fa-solid fa-video text-sm';
     }
 
     function encerrarChamada() {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+      if (sessao) {
+        sessao.encerrar();
+        sessao = null;
       }
       alert('Sua teleconsulta foi finalizada. Obrigado!');
       window.location.href = '/';
     }
+
+    // Os handlers precisam existir no escopo global porque os botões usam
+    // `onclick=` no HTML.
+    window.conectarSala = conectarSala;
+    window.alternarAudio = alternarAudio;
+    window.alternarVideo = alternarVideo;
+    window.encerrarChamada = encerrarChamada;
   </script>
 </body>
 </html>

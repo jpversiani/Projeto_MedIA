@@ -132,6 +132,21 @@ class Settings(BaseSettings):
     # desenvolvimento, mas NUNCA em produção (ver `_exigir_sso_habilitado`).
     SSO_ENABLED: bool = True
 
+    # -- WebRTC / Teleconsulta (T3) ---------------------------------------
+    # Sem STUN os navegadores não descobrem o IP público e a chamada só
+    # funciona na mesma rede local. Com TURN configurado, funciona também
+    # atrás de NAT simétrico/firewall corporativo (rede hospitalar típica).
+    STUN_URLS: str = "stun:stun.l.google.com:19302"
+    TURN_URL: Optional[str] = None
+    TURN_USERNAME: Optional[str] = None
+    TURN_CREDENTIAL: Optional[str] = None
+    # Teleconsulta é 1:1 (médico + paciente). Um terceiro participante na mesma
+    # sala é recusado — evita que o link do paciente vire uma sala pública.
+    WS_SALA_MAX_PARTICIPANTES: int = 2
+    # Fecha o WebSocket ocioso (sem ping) para não manter sessão clínica aberta
+    # indefinidamente em caso de queda do navegador.
+    WS_TIMEOUT_OCIOSO_SEGUNDOS: int = 900
+
     # -- Integrações -------------------------------------------------------
     GEMINI_API_KEY: Optional[str] = None
     TURN_SECRET: Optional[str] = None
@@ -160,6 +175,27 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT in ("production", "staging"):
             return True
         return self.REQUIRE_AUTH
+
+    @property
+    def ice_servers(self) -> List[dict]:
+        """Configuração ICE entregue ao navegador (STUN/TURN).
+
+        As credenciais do TURN ficam no servidor e nunca no JavaScript — o
+        navegador recebe a lista pronta por ``GET /telemedicina/ice-servers``.
+        """
+        servidores: List[dict] = []
+        for url in [u.strip() for u in (self.STUN_URLS or "").split(",") if u.strip()]:
+            servidores.append({"urls": url})
+
+        if self.TURN_URL:
+            turn: dict = {"urls": self.TURN_URL}
+            if self.TURN_USERNAME:
+                turn["username"] = self.TURN_USERNAME
+            if self.TURN_CREDENTIAL:
+                turn["credential"] = self.TURN_CREDENTIAL
+            servidores.append(turn)
+
+        return servidores
 
     def validar_ambiente(self) -> None:
         """Falha rápida em configurações que exponham dados de saúde."""

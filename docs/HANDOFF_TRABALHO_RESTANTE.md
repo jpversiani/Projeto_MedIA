@@ -75,9 +75,11 @@ em vez de apagar tabelas. Eu errei assim e quebrei `test_prontuario.py`.
 
 **Armadilha 3 — Documentação que descreve produto inexistente.**
 `docs/MANUAL_FLUXO_OPERACIONAL_MEDIA.md:124` afirma que "a chamada de vídeo
-WebRTC roda lado a lado com o prontuário". **Não há chamada de vídeo.** Isso
-permitiu que 1.617 commits acumulassem uma demo de telemedicina sem que
-ninguém notasse que o vídeo nunca conectou.
+WebRTC roda lado a lado com o prontuário". Isso permitiu que 1.617 commits
+acumulassem uma demo de telemedicina sem que ninguém notasse que o vídeo nunca
+conectou. **Atualização (T3):** a chamada de vídeo bidirecional **existe agora**
+— sinalização autenticada, presença e troca de SDP/ICE verificadas com dois
+clientes reais. A lição permanece: só afirme o que foi executado e observado.
 
 ### 1.4 Convenções do projeto
 
@@ -95,8 +97,8 @@ ninguém notasse que o vídeo nunca conectou.
 | Etapa | Status | O que foi feito |
 |---|---|---|
 | **0** Honestidade | ✅ Concluída | Simulação de vídeo removida; CRM hardcoded removido; 500→422; dados fictícios rotulados |
-| **1** Fluxo presencial | 🟡 5 de 7 | Agenda em banco, check-in, SOAP gravado, teste de fluxo completo |
-| **2** Teleconsulta real | ⬜ Não iniciada | — |
+| **1** Fluxo presencial | ✅ Concluída | Agenda em banco, check-in, SOAP gravado, teste de fluxo completo |
+| **2** Teleconsulta real | ✅ **Concluída (T3)** | `signaling_hub.py` + WS autenticado com presença e roteamento por destino; `js/teleconsulta_sessao.js`; UI do médico e do paciente; 19 testes + smoke com dois clientes reais. Ver `STATUS_ATUAL_CONSOLIDADO.md` §2 |
 | **3** Conformidade CFM/LGPD | ⬜ Não iniciada | — |
 | **4** Faturamento | ⬜ Não iniciada | — |
 | **5** Produto/operação | ⬜ Não iniciada | — |

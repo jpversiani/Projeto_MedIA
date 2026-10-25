@@ -1,8 +1,8 @@
 # 📋 Status Atual Consolidado — MedIA Practice SaaS (v1)
 
 > **Documento vivo e autoritário sobre o estado atual do repositório.**
-> Branch `main` · T1, P0.1 (RBAC/tenant), P0.2 (auditoria), T2 (receitas persistidas) e
-> P1 (sessão com refresh rotativo) **commitados**.
+> Branch `main` · T1, P0.1 (RBAC/tenant), P0.2 (auditoria), T2 (receitas persistidas),
+> P1 (sessão com refresh rotativo) e **T3 (teleconsulta WebRTC real)** **commitados**.
 > Gerado pela sessão de evolução do workspace `App_Media`.
 
 ---
@@ -11,21 +11,24 @@
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **563 passed, 0 failed** (~14 s) | Execução real na raiz (pós-P1) |
+| Testes (`pytest -q`) | **583 passed, 0 failed** (~14 s) | Execução real na raiz (pós-T3) |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
-| Testes novos desta sessão | **41** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão) | `test_rbac_tenant.py`, `test_auditoria_phi.py`, `test_t2_persistencia_documentos.py`, `test_p1_sessao_refresh.py` |
+| Testes novos desta sessão | **60** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + **19 teleconsulta**) | `test_rbac_tenant.py`, `test_auditoria_phi.py`, `test_t2_persistencia_documentos.py`, `test_p1_sessao_refresh.py`, `test_t3_teleconsulta_ws.py` |
 | Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
-| Tabelas SQLAlchemy (`Base.metadata.tables`) | **31** | Execução real |
-| Operações OpenAPI registradas | **93** (87 paths) sob `/api/v1` (+ health/docs/static/root) | `app.openapi()` |
-| Git | branch `main`, árvore limpa, 5 commits novos (`ad53e58` → `7a1ace6`) | `git status` |
-| HEAD | `7a1ace6` — `feat(auth): sessao revogavel com refresh rotativo (P1)` | `git log -1` |
+| Tabelas SQLAlchemy (`Base.metadata.tables`) | **33** | Execução real |
+| Operações OpenAPI registradas | **98** (92 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
+| Git | branch `main`, árvore limpa, 6 commits novos (`ad53e58` → `add4419`) | `git status` |
+| HEAD | `add4419` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log -1` |
 
 **Veredito:** o backend sobe, migra, semeia, autentica, **autoriza por papel**,
-**isola dados por clínica** e **audita leitura de PHI**, com **543 testes verdes**.
-Nesta sessão foram fechados o **T1 (Acolhimento)**, o **P0.1 (RBAC + tenant)** e o
-**P0.2 (auditoria verificável)**. O que resta para uso clínico é **ciclo de vida
-do dado (P0.3)**, **assinatura ICP-Brasil real (P0.4)**, **sessão/JWT (P1)** e os
-fluxos **T2 (receitas persistidas)** e **T3 (teleconsulta real)**.
+**isola dados por clínica**, **audita leitura de PHI** e **transmite teleconsulta
+de verdade** (áudio/vídeo ponto a ponto com sinalização autenticada), com
+**583 testes verdes**. Nesta sessão foram fechados o **T1 (Acolhimento)**, o
+**P0.1 (RBAC + tenant)**, o **P0.2 (auditoria verificável)**, o **T2 (receitas
+persistidas)**, o núcleo do **P1 (sessão revogável)** e o **T3 (teleconsulta real)**.
+O que resta para uso clínico com paciente real é **ciclo de vida do dado (P0.3)** e
+**assinatura ICP-Brasil real (P0.4)** — ambos exigem decisão de política e
+certificado, não apenas código.
 
 ---
 
@@ -81,6 +84,51 @@ parado ao sair dela** (`parar()` existe na classe, mas não é chamado) — cust
 mas convém ligar no `trocarAba`. Também não há botão de som na seção (opção
 `idBotaoSom` é opcional e fica inativa).
 
+### ✅ T3 — Teleconsulta real (WebRTC) — nesta sessão
+
+Antes: `js/webrtc_manager.js` estava **pronto e correto, mas morto** — nenhuma tela
+o importava, não havia cliente de sinalização e o hub WebSocket **republicava**
+cada mensagem para todos os participantes, inclusive para quem a enviou (o `offer`
+voltava ao ofertante e a negociação nunca fechava). O médico via a própria webcam
+no lugar do paciente e a tela exibia, em letras claras, "A transmissão de vídeo
+bidirecional ainda não está implementada".
+
+| Arquivo | Alteração |
+|---|---|
+| `backend/app/services/signaling_hub.py` | **Novo.** `SignalingHub` com presença por sala, `entrar`/`sair`, limite de participantes, roteamento `enviar_para_outros` (nunca devolve ao remetente) e `estatisticas`. |
+| `backend/app/api/v1/telemedicina_ws.py` | **Reescrito** (266 → 630 linhas). Autenticação por JWT (`?token=`), validação da sala em `salas_virtuais`, recusa de sala encerrada/expirada (4404), sala cheia (4409), conexão duplicada (4408), presença (`peer_joined`/`peer_left`), `deve_criar_oferta` apenas para o segundo, ping/pong, timeout ocioso e auditoria `ENTRAR_TELECONSULTA`/`SAIR_TELECONSULTA`. As classes legadas e o `HubTelemedicinaWS` foram preservados para os testes existentes. |
+| `backend/app/api/v1/router.py` | Rota WS movida para o bloco **público**: `Depends(get_current_user)` é uma dependência HTTP e derrubava o handshake do WebSocket. A autenticação acontece dentro do handler. |
+| `backend/app/api/v1/telemedicina.py` | +2 endpoints: `GET /telemedicina/ice-servers` (configuração STUN/TURN com aviso quando não há TURN) e `GET /telemedicina/salas/{codigo}/participantes` (presença em tempo real). |
+| `backend/app/core/config.py` | `STUN_URLS`, `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`, `WS_SALA_MAX_PARTICIPANTES`, `WS_TIMEOUT_OCIOSO_SEGUNDOS` e a propriedade `ice_servers` (credenciais TURN nunca vão ao JavaScript, só a lista montada). |
+| `backend/app/static/js/teleconsulta_sessao.js` | **Novo** (~400 linhas). Orquestrador: abre o WS autenticado, cria a oferta quando o servidor manda, troca SDP/ICE, enfileira candidatos que chegam antes do SDP remoto, ping de 25 s, reconexão com backoff (5 tentativas), eventos de estado reais para a UI, mute e compartilhamento de tela. |
+| `backend/app/static/js/webrtc_manager.js` | `substituirTrackVideo()` (tela sem renegociar SDP), getter `peerConnection` e correção de `#obterTrack` — sem `deviceId` o código montava `{exact: null}` e o navegador recusava voltar para a câmera. |
+| `backend/app/static/app.js` | `iniciarTeleconsultaWebRTC()` / `encerrarTeleconsultaWebRTC()`; `resolverSalaTeleconsulta()` cria a sala **real** no servidor (antes o código era inventado no navegador e não existia no banco); mute e "compartilhar tela" agora falam com a sessão; `finalizarTeleconsulta()` encerra o par e libera câmera/microfone. A webcam **deixou de abrir sozinha** ao trocar de aba (sem consentimento). |
+| `backend/app/static/index.html` | O aviso "não implementada" virou botão **"Iniciar câmera e conectar"** + status ao vivo + nota de consentimento (LGPD Art. 11 / CFM 2.314). |
+| `backend/app/static/telemedicina_paciente.html` | Script reescrito como módulo: entra na mesma sala, mostra o vídeo do médico, exibe o nome real do profissional e trata permissão negada/quedas. |
+| `backend/tests/test_t3_teleconsulta_ws.py` | **Novo**, 19 testes (ver §1). |
+
+**Validação executada:**
+- Suíte completa → **583 passed, 0 failed**.
+- `node --check` em `app.js`, `teleconsulta_sessao.js` e `webrtc_manager.js` → **exit 0**.
+- **Teste real com dois clientes**: `uvicorn` na porta 8011 + dois WebSockets
+  independentes negociando `offer`/`answer`/ICE e `peer_left` — **6/6 etapas OK**,
+  incluindo a prova de que o servidor **não** devolve a oferta ao remetente.
+- Trilha de auditoria conferida no banco: `ENTRAR_TELECONSULTA`/`SAIR_TELECONSULTA`
+  gravados com sala, papel e nº de participantes; todos os elos escritos pelo código
+  atual verificam pelo hash canônico.
+
+**Limitações conhecidas (honestas) do T3:**
+- O hub de sinalização vive **na memória do processo**: funciona em um único
+  worker/instância. Múltiplas instâncias exigem backplane (Redis pub/sub) — o código
+  está isolado no `SignalingHub` para permitir essa troca.
+- **Sem TURN** a chamada só conecta quando os dois lados conseguem se alcançar
+  (mesma rede ou NAT não simétrico). `GET /telemedicina/ice-servers` devolve o aviso
+  quando `TURN_URL` não está configurado; em rede hospitalar com firewall é obrigatório.
+- Com `require_auth` ligado, o **paciente precisa estar autenticado** para entrar na
+  sala (o token vem do `localStorage`). Um convite assinado de uso único para o
+  paciente ainda não existe.
+- A teleconsulta **não é gravada** (decisão de produto, não pendência técnica).
+
 ### ✅ CI
 - `.github/workflows/ci.yml` (testes Python 3.12/3.13 + migration check) e
   `codeql.yml` (análise de segurança) **existentes**.
@@ -117,7 +165,8 @@ entrega **hash de integridade SHA-256**, não assinatura jurídica. |
   **fictícios** (Pacientes, Honorários, TISS, Farmácia); 6 chamadas para endpoints inexistentes;
   XSS restante; acessibilidade ausente; service worker mentira; drafts em `localStorage`.
 - Backend: FKs sem `ondelete`, `PRAGMA foreign_keys` off, índice ausente em `atendimentos_soap.cidadao_id`;
-  sem tratamento global de exceção; WS de telemedicina **sem autenticação**; `start.sh` só Linux.
+  sem tratamento global de exceção; `start.sh` só Linux. ~~WS de telemedicina sem
+  autenticação~~ → **resolvido no T3**.
 - **Documentação conflitante** — ver §4.
 
 ---
@@ -130,7 +179,7 @@ Documento vivo: `docs/HANDOFF_TRABALHO_RESTANTE.md` (777 linhas, base `08d130a`)
 |---|---|---|
 | **T1** | Aba **Acolhimento** no Cockpit (`js/fila_espera.js` existe, nunca incluído) | ✅ **Concluída** (`ad53e58`) |
 | **T2** | **Persistir receitas/CTE em banco** — antes em dicionário em memória (`_REPOSITORIO_DOCUMENTOS_CFM`) → QR Code dava 404 após restart | ✅ **Concluída** (`d57a982`) — tabela `documentos_clinicos`, migração `b7c31d9e4a02`, validação pública sem login |
-| **T3** | **Teleconsulta real (WebRTC)** — `webrtc_manager.js` pronto e correto, mas **morto**; hub WS com roteamento/broadcast/join/quebra de estado | ⬜ Não iniciada |
+| **T3** | **Teleconsulta real (WebRTC)** — `webrtc_manager.js` pronto e correto, mas **morto**; hub WS com roteamento/broadcast/join/quebra de estado | ✅ **Concluída** — `signaling_hub.py`, WS autenticado com presença e roteamento por destino, `teleconsulta_sessao.js`, UI do médico e do paciente, 19 testes + smoke com dois clientes reais |
 | **T4** | Conformidade CFM/LGPD — persistir **TCLE**, auditar PHI, tenant, RBAC, lifecycle | ⬜ Não iniciada (partes P0) |
 | **T5** | Identificação de profissional (CRM/UF/RQE) — **parcialmente saneado** nos commits de identidade | 🟡 Parcial |
 | **T6** | TISS (XML inválido, hash fake, XSD) e DMED (leiaute errado) | ⬜ Não iniciada |
@@ -160,19 +209,22 @@ crítico Etapa 1 → Etapa 2 (fluxo presencial antes do vídeo).
 ## 6. Conclusão e próximo passo sugerido
 
 1. **Estado geral:** projeto funcional em desenvolvimento ativo; o núcleo (boot, migração,
-   seed, auth, autorização, sessão, fluxo presencial) está verde com **563 testes passando**.
-   Concluídos: **T1 (aba Acolhimento)**, **P0.1 (RBAC + isolamento entre clínicas)**,
-   **P0.2 (auditoria de PHI verificável)**, **T2 (receitas persistidas)** e o núcleo do
-   **P1 (sessão revogável com refresh rotativo)**.
+   seed, auth, autorização, sessão, fluxo presencial, teleconsulta) está verde com
+   **583 testes passando**. Concluídos: **T1 (aba Acolhimento)**, **P0.1 (RBAC +
+   isolamento entre clínicas)**, **P0.2 (auditoria de PHI verificável)**, **T2 (receitas
+   persistidas)**, o núcleo do **P1 (sessão revogável com refresh rotativo)** e o
+   **T3 (teleconsulta WebRTC real)**.
 2. **O que ainda impede piloto com paciente real:** **P0.3 (ciclo de vida do dado)** —
    CPF/CNS em claro, sem retenção/anonimização/backup — e **P0.4 (assinatura ICP-Brasil
    real: hoje é um UUID, não uma assinatura jurídica)**. Nenhum dos dois é resolvível só
    com código: exigem certificado ICP-Brasil e definição de política de retenção.
-3. **Sequência recomendada:** `P0.3` → `P0.4` → `T3` (teleconsulta WebRTC real) → `T6`
-   (TISS/DMED) → distribuição (`lockfile`, Docker com migração, `SECURITY.md`).
+3. **Sequência recomendada:** `P0.3` → `P0.4` → `T6` (TISS/DMED) → distribuição
+   (`lockfile`, Docker com migração, `SECURITY.md`) → `T8` (gravação, expiração de link,
+   acessibilidade).
 4. **Ajustes pequenos herdados:** ligar `parar()` do painel de fila ao trocar de aba;
    estender o RBAC de tenant para receitas/TISS/farmácia; auditar as demais leituras de PHI;
-   mover o access token de `localStorage` para cookie puro.
+   mover o access token de `localStorage` para cookie puro; backplane Redis para o hub de
+   sinalização quando houver mais de uma instância.
 
 ---
 

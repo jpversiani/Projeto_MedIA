@@ -222,6 +222,39 @@ def converter_para_presencial(payload: ConverterPresencialRequest, db: Session =
     return resultado
 
 
+@router.get("/ice-servers")
+def obter_ice_servers():
+    """Entrega a configuração STUN/TURN usada pelo navegador na teleconsulta.
+
+    As credenciais do TURN ficam na variável de ambiente do servidor e nunca
+    aparecem no JavaScript; o cliente recebe a lista pronta.
+    """
+    from app.core.config import settings
+
+    servidores = settings.ice_servers
+    return {
+        "ice_servers": servidores,
+        "stun_configurado": any("stun:" in s.get("urls", "") for s in servidores),
+        "turn_configurado": any("turn:" in s.get("urls", "") for s in servidores),
+        "aviso": None
+        if any("turn:" in s.get("urls", "") for s in servidores)
+        else (
+            "Sem TURN configurado a teleconsulta funciona apenas quando os dois "
+            "lados alcançam um ao outro (mesma rede ou NAT não simétrico). Em "
+            "rede hospitalar com firewall, configure TURN_URL/TURN_USERNAME/"
+            "TURN_CREDENTIAL."
+        ),
+    }
+
+
+@router.get("/salas/{codigo_sala}/participantes")
+async def listar_participantes_sala(codigo_sala: str):
+    """Quantos participantes estão conectados agora na sala (presença em tempo real)."""
+    from app.services.signaling_hub import hub_signaling
+
+    return await hub_signaling.estatisticas(codigo_sala)
+
+
 @router.get("/especialidades")
 def listar_especialidades():
     """Retorna todas as especialidades médicas com templates e anamneses personalizadas."""
