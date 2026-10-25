@@ -5,7 +5,8 @@ from typing import List, Optional
 from app.services.calculadoras_clinicas import CalculadorasClinicas
 from app.services.interacoes_medicamentosas import VerificadorFarmacologico
 
-router = APIRouter(prefix="/clinica", tags=["Inteligência Clínica & Farmacológica"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/clinica", tags=["Inteligência Clínica & Farmacológica"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 
 class FraminghamRequest(BaseModel):

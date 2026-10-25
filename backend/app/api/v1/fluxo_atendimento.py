@@ -17,7 +17,8 @@ from app.schemas.fluxo_atendimento import (
 )
 from app.services.fluxo_atendimento_service import fluxo_service
 
-router = APIRouter(prefix="/fluxo-atendimento", tags=["Orquestração do Fluxo Clínico & Perfis de Usuários"])
+from app.core.rbac import PAPEIS_ACOLHIMENTO, dependencias_rbac
+router = APIRouter(prefix="/fluxo-atendimento", tags=["Orquestração do Fluxo Clínico & Perfis de Usuários"], dependencies=dependencias_rbac(*PAPEIS_ACOLHIMENTO))
 
 
 class NovoAgendamentoRequest(BaseModel):

@@ -3,11 +3,23 @@ from sqlalchemy import case
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
+from app.core.rbac import (
+    PAPEIS_ACOLHIMENTO,
+    ContextoClinico,
+    dependencias_rbac,
+    exigir_mesmo_estabelecimento,
+    filtrar_tenant,
+    get_contexto_clinico,
+)
 from app.models.fila import FilaAcolhimento
 from app.models.cidadao import Cidadao
 from app.schemas.fila import FilaAcolhimentoCreate, FilaAcolhimentoUpdate, FilaAcolhimentoOut
 
-router = APIRouter(prefix="/fila", tags=["Fila de Atendimento & Acolhimento"])
+router = APIRouter(
+    prefix="/fila",
+    tags=["Fila de Atendimento & Acolhimento"],
+    dependencies=dependencias_rbac(*PAPEIS_ACOLHIMENTO),
+)
 
 # Ordem de prioridade clínica (triagem de risco). Vermelho é emergência e deve
 # ser atendido antes de qualquer caso menos grave, independentemente da ordem
@@ -24,9 +36,10 @@ _ORDEM_RISCO = case(
 @router.get("/", response_model=List[FilaAcolhimentoOut])
 def listar_fila(
     status: Optional[str] = Query("AGUARDANDO_ATENDIMENTO", description="Filtrar por status"),
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db)
 ):
-    query = db.query(FilaAcolhimento)
+    query = filtrar_tenant(db.query(FilaAcolhimento), FilaAcolhimento, contexto)
     if status and status != "TODOS":
         query = query.filter(FilaAcolhimento.status == status)
 
@@ -40,7 +53,20 @@ def listar_fila(
     ).all()
 
 @router.post("/", response_model=FilaAcolhimentoOut, status_code=201)
-def acolher_cidadao(payload: FilaAcolhimentoCreate, db: Session = Depends(get_db)):
+def acolher_cidadao(
+    payload: FilaAcolhimentoCreate,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
+    # Impede acolher um paciente "na unidade do vizinho": o estabelecimento do
+    # payload precisa ser a clínica ativa do token.
+    if contexto is not None and not contexto.is_superuser:
+        if payload.estabelecimento_id != contexto.estabelecimento_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Não é permitido acolher em unidade diferente da clínica ativa.",
+            )
+
     cidadao = db.query(Cidadao).filter(Cidadao.id == payload.cidadao_id).first()
     if not cidadao:
         raise HTTPException(status_code=404, detail="Cidadão não encontrado.")
@@ -52,17 +78,28 @@ def acolher_cidadao(payload: FilaAcolhimentoCreate, db: Session = Depends(get_db
     return item_fila
 
 @router.get("/{fila_id}", response_model=FilaAcolhimentoOut)
-def obter_item_fila(fila_id: int, db: Session = Depends(get_db)):
+def obter_item_fila(
+    fila_id: int,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
     item = db.query(FilaAcolhimento).filter(FilaAcolhimento.id == fila_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Registro da fila não encontrado.")
+    exigir_mesmo_estabelecimento(item.estabelecimento_id, contexto, acao="consultar")
     return item
 
 @router.put("/{fila_id}", response_model=FilaAcolhimentoOut)
-def atualizar_status_fila(fila_id: int, payload: FilaAcolhimentoUpdate, db: Session = Depends(get_db)):
+def atualizar_status_fila(
+    fila_id: int,
+    payload: FilaAcolhimentoUpdate,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
     item = db.query(FilaAcolhimento).filter(FilaAcolhimento.id == fila_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Registro da fila não encontrado.")
+    exigir_mesmo_estabelecimento(item.estabelecimento_id, contexto, acao="atualizar")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)

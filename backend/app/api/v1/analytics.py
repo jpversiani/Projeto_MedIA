@@ -12,7 +12,8 @@ from app.core.database import get_db
 from app.models.fila import FilaAcolhimento
 from app.models.atendimento import AtendimentoSOAP
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+router = APIRouter(prefix="/analytics", tags=["analytics"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 
 class HeatmapResponse(BaseModel):

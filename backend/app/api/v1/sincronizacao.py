@@ -20,7 +20,8 @@ from app.schemas.atendimento_offline import (
 )
 from app.services.sync_offline import ServicoSincronizacaoOffline
 
-router = APIRouter(prefix="/sincronizacao", tags=["Sincronização Offline (C29)"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/sincronizacao", tags=["Sincronização Offline (C29)"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 
 @router.post(

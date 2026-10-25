@@ -7,7 +7,8 @@ from app.models.profissional import Profissional
 from app.schemas.estabelecimento import EstabelecimentoOut
 from app.schemas.profissional import ProfissionalOut
 
-router = APIRouter(tags=["Configurações da Unidade & Profissionais"])
+from app.core.rbac import PAPEIS_CADASTRO, dependencias_rbac
+router = APIRouter(tags=["Configurações da Unidade & Profissionais"], dependencies=dependencias_rbac(*PAPEIS_CADASTRO))
 
 @router.get("/estabelecimentos", response_model=List[EstabelecimentoOut])
 def listar_estabelecimentos(db: Session = Depends(get_db)):

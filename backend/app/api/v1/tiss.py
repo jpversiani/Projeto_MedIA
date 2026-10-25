@@ -11,7 +11,8 @@ from app.services.tiss_generator import (
     RelatorioAuditoriaTISS,
 )
 
-router = APIRouter(prefix="/tiss", tags=["Faturamento TISS ANS 4.01"])
+from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+router = APIRouter(prefix="/tiss", tags=["Faturamento TISS ANS 4.01"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 
 class GuiaConsultaRequest(BaseModel):

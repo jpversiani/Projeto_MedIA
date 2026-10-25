@@ -42,7 +42,8 @@ from app.services.copiloto_sugestoes import MODELO_CDS, MotorSugestoesCopiloto
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/copiloto", tags=["Copiloto Clínico (IA)"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/copiloto", tags=["Copiloto Clínico (IA)"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 _motor = MotorSugestoesCopiloto()
 

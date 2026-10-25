@@ -7,7 +7,8 @@ from app.models.atendimento import AtendimentoSOAP
 from app.schemas.cidadao import CidadaoCreate, CidadaoUpdate, CidadaoOut
 from app.schemas.atendimento import AtendimentoSOAPOut
 
-router = APIRouter(prefix="/cidadaos", tags=["Cidadãos (Cadastros)"])
+from app.core.rbac import PAPEIS_CADASTRO, dependencias_rbac
+router = APIRouter(prefix="/cidadaos", tags=["Cidadãos (Cadastros)"], dependencies=dependencias_rbac(*PAPEIS_CADASTRO))
 
 @router.get("/", response_model=List[CidadaoOut])
 def listar_cidadaos(

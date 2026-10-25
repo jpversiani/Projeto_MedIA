@@ -39,7 +39,8 @@ from app.schemas.prontuario import (
     ProntuarioResumoOut,
 )
 
-router = APIRouter(prefix="/prontuario", tags=["Prontuário do Cidadão (PEC)"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/prontuario", tags=["Prontuário do Cidadão (PEC)"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 # CNS aceito no caminho: exatamente 15 dígitos numéricos (formato SUS)
 CNSPath = Annotated[

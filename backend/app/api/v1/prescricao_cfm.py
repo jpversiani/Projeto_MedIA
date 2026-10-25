@@ -15,7 +15,8 @@ from app.services.prescricao_digital_cfm import (
     TipoPrescricao,
 )
 
-router = APIRouter(prefix="/prescricao", tags=["Prescrição Digital CFM"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/prescricao", tags=["Prescrição Digital CFM"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 
 class ItemPrescricao(BaseModel):

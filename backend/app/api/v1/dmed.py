@@ -9,7 +9,8 @@ from app.services.dmed_generator import (
     LancamentoDespesaMedica
 )
 
-router = APIRouter(prefix="/dmed", tags=["Motor Fiscal DMED (Receita Federal)"])
+from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+router = APIRouter(prefix="/dmed", tags=["Motor Fiscal DMED (Receita Federal)"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 
 class ItemDespesaMedicaSchema(BaseModel):

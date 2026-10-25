@@ -32,7 +32,15 @@ from app.models.estabelecimento import Estabelecimento
 from app.models.fila import FilaAcolhimento
 from app.models.profissional import Profissional
 
-router = APIRouter(prefix="/agenda", tags=["Agenda Médica"])
+from app.core.rbac import (
+    PAPEIS_ACOLHIMENTO,
+    ContextoClinico,
+    dependencias_rbac,
+    exigir_mesmo_estabelecimento,
+    filtrar_tenant,
+    get_contexto_clinico,
+)
+router = APIRouter(prefix="/agenda", tags=["Agenda Médica"], dependencies=dependencias_rbac(*PAPEIS_ACOLHIMENTO))
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +175,7 @@ def listar_consultas_agenda(
     data: Optional[str] = Query(None, description="Data no formato AAAA-MM-DD"),
     tipo: Optional[str] = Query(None, description="PRESENCIAL, TELEMEDICINA ou vazio para todas"),
     status_consulta: Optional[str] = Query(None, description="Filtrar por status"),
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db),
 ):
     """Lista as consultas da agenda médica com suporte a filtros híbridos."""
@@ -178,7 +187,8 @@ def listar_consultas_agenda(
             status_code=422, detail=f"Data inválida: {data_filtro!r}. Use AAAA-MM-DD."
         )
 
-    query = db.query(Agendamento).filter(Agendamento.data_consulta == dia)
+    query = filtrar_tenant(db.query(Agendamento), Agendamento, contexto)
+    query = query.filter(Agendamento.data_consulta == dia)
     if tipo:
         query = query.filter(Agendamento.tipo == tipo)
     if status_consulta:
@@ -197,13 +207,28 @@ def listar_consultas_agenda(
 
 
 @router.post("/novo", status_code=status.HTTP_201_CREATED, response_model=AgendamentoOut)
-def criar_agendamento_consulta(payload: AgendamentoCreate, db: Session = Depends(get_db)):
+def criar_agendamento_consulta(
+    payload: AgendamentoCreate,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
     """Cria um novo agendamento de consulta presencial ou telemedicina."""
     cidadao = _resolver_cidadao(db, payload.cidadao_id, payload.paciente_cpf)
 
     # Estabelecimento é obrigatório no modelo da fila; usamos o informado ou o
     # primeiro cadastrado, para que o check-in sempre tenha destino.
     estabelecimento_id = payload.estabelecimento_id
+
+    # Com autorização ligada, o agendamento pertence à clínica ativa do token:
+    # não se agenda na unidade do vizinho nem se deixa o campo em aberto.
+    if contexto is not None and not contexto.is_superuser:
+        if estabelecimento_id is not None and estabelecimento_id != contexto.estabelecimento_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Não é permitido agendar em unidade diferente da clínica ativa.",
+            )
+        estabelecimento_id = contexto.estabelecimento_id
+
     if not estabelecimento_id:
         primeiro = db.query(Estabelecimento).order_by(Estabelecimento.id).first()
         estabelecimento_id = primeiro.id if primeiro else None
@@ -238,6 +263,7 @@ def criar_agendamento_consulta(payload: AgendamentoCreate, db: Session = Depends
 @router.patch("/{consulta_id}/status", response_model=AgendamentoOut)
 def atualizar_status_consulta(
     consulta_id: str, novo_status: str = Query(..., description="Novo status do agendamento"),
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db),
 ):
     """Atualiza o status de atendimento de uma consulta na agenda.
@@ -246,6 +272,7 @@ def atualizar_status_consulta(
     Cockpit historicamente trabalhava com o código.
     """
     agendamento = _buscar_agendamento(db, consulta_id)
+    exigir_mesmo_estabelecimento(agendamento.estabelecimento_id, contexto, acao="alterar status")
 
     try:
         status_enum = StatusAgendamento(novo_status)
@@ -280,6 +307,7 @@ def realizar_checkin(
     consulta_id: str,
     classificacao_risco: str = Query("VERDE", description="VERMELHO, AMARELO, VERDE ou AZUL"),
     motivo_acolhimento: Optional[str] = Query(None),
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db),
 ):
     """Coloca o paciente agendado na fila de acolhimento.
@@ -292,6 +320,7 @@ def realizar_checkin(
     a entrada de fila já criada em vez de duplicar o paciente na espera.
     """
     agendamento = _buscar_agendamento(db, consulta_id)
+    exigir_mesmo_estabelecimento(agendamento.estabelecimento_id, contexto, acao="fazer check-in")
 
     if agendamento.status == StatusAgendamento.CANCELADO.value:
         raise HTTPException(
@@ -351,6 +380,7 @@ def realizar_checkin(
 def listar_agendamentos_do_cidadao(
     cidadao_id: int,
     limite: int = Query(50, ge=1, le=200),
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db),
 ):
     """Histórico de agendamentos de um paciente.
@@ -363,7 +393,7 @@ def listar_agendamentos_do_cidadao(
         raise HTTPException(status_code=404, detail="Cidadão não encontrado.")
 
     agendamentos = (
-        db.query(Agendamento)
+        filtrar_tenant(db.query(Agendamento), Agendamento, contexto)
         .filter(Agendamento.cidadao_id == cidadao_id)
         .order_by(Agendamento.data_consulta.desc(), Agendamento.horario.desc())
         .limit(limite)

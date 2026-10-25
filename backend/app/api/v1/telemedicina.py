@@ -18,7 +18,8 @@ from app.services.templates_especialidades import (
     obter_especialidade,
 )
 
-router = APIRouter(prefix="/telemedicina", tags=["Telemedicina"])
+from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+router = APIRouter(prefix="/telemedicina", tags=["Telemedicina"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 
 class IniciarChamadaRequest(BaseModel):

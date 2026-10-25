@@ -30,7 +30,8 @@ from app.models.farmacia import (
     ReceitaItem,
 )
 
-router = APIRouter(prefix="/farmacia", tags=["Farmácia"])
+from app.core.rbac import PAPEIS_FARMACIA, dependencias_rbac
+router = APIRouter(prefix="/farmacia", tags=["Farmácia"], dependencies=dependencias_rbac(*PAPEIS_FARMACIA))
 
 _ERRO_RECEITA_NAO_ENCONTRADA: Final[str] = "QR Code inválido ou receita não encontrada"
 _ERRO_RECEITA_CANCELADA: Final[str] = "Receita cancelada — baixa não permitida"

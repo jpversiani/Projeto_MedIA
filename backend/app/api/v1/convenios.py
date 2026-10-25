@@ -11,7 +11,8 @@ from app.models.convenios import GuiaStatus, LancamentoTipo
 from app.repositories.convenios_repo import ConveniosRepository
 from app.services.tiss_generator import TISSGenerator
 
-router = APIRouter(prefix="/convenios", tags=["Convênios & TISS"])
+from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+router = APIRouter(prefix="/convenios", tags=["Convênios & TISS"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 # Schemas Pydantic
 class OperadoraCreate(BaseModel):

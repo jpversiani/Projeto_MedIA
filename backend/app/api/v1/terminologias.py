@@ -6,7 +6,8 @@ from app.models.terminologia import CIAP2, CID10
 from app.schemas.terminologia import CIAP2Out, CID10Out, CID11Out, CID11ConversaoOut
 from app.services.cid11_service import cid11_service
 
-router = APIRouter(prefix="/terminologias", tags=["Terminologias Médicas Oficiais (CIAP-2, CID-10 & CID-11 OMS)"])
+from app.core.rbac import PAPEIS_CADASTRO, dependencias_rbac
+router = APIRouter(prefix="/terminologias", tags=["Terminologias Médicas Oficiais (CIAP-2, CID-10 & CID-11 OMS)"], dependencies=dependencias_rbac(*PAPEIS_CADASTRO))
 
 @router.get("/ciap2", response_model=List[CIAP2Out])
 def buscar_ciap2(

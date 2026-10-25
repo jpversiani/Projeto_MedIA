@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from app.services.pix_cobranca import MotorPixCobranca, DadosCobrancaPix
 from app.services.livro_caixa import MotorLivroCaixaMedico, LancamentoReceita, LancamentoDespesa
 
-router = APIRouter(prefix="/financeiro-medico", tags=["Financeiro & Pix Médico"])
+from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+router = APIRouter(prefix="/financeiro-medico", tags=["Financeiro & Pix Médico"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 
 class GerarPixRequest(BaseModel):
