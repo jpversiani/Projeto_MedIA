@@ -348,8 +348,86 @@ function fazerLogout() {
 // NAVEGAÇÃO DE ABAS & MODOS DE TRABALHO
 // =========================================================================
 
+// =========================================================================
+// ABA: ACOLHIMENTO / FILA DE ESPERA
+// =========================================================================
+
+let filaEsperaInstancia = null;
+let filaEsperaPromise = null;
+
+function obterPainelFilaEspera() {
+  if (!filaEsperaPromise) {
+    filaEsperaPromise = import("/static/js/fila_espera.js").then((modulo) => {
+      const painel = new modulo.FilaEsperaPainel({
+        urlApi: "/api/v1/fila/?status=AGUARDANDO_ATENDIMENTO",
+        idLista: "fila-espera-lista",
+        idContador: "fila-espera-contador",
+        idChamada: "fila-espera-chamada",
+        idAtualizacao: "fila-espera-atualizacao",
+        idBotaoSom: "fila-espera-som",
+        intervaloAtivo: 2000,
+        intervaloOcioso: 10000,
+        aoChamar: (proximo) => { console.log("[Fila] Proximo chamado:", proximo && proximo.cidadao_id); },
+      });
+      return painel;
+    });
+  }
+  return filaEsperaPromise;
+}
+
+async function carregarAcolhimento() {
+  try {
+    const painel = await obterPainelFilaEspera();
+    filaEsperaInstancia = painel;
+    if (typeof painel.iniciar === "function") painel.iniciar();
+  } catch (erro) {
+    console.error("[Acolhimento] Falha ao iniciar o painel de fila:", erro);
+  }
+}
+
+async function carregarConsultasCheckin() {
+  const select = document.getElementById("select-checkin-consulta");
+  const statusEl = document.getElementById("status-checkin-acolhimento");
+  if (!select) return;
+  try {
+    const res = await fetch("/api/v1/agenda/");
+    if (!res.ok) throw new Error("agenda_list_failed");
+    const body = await res.json();
+    select.innerHTML = '<option value="">Selecionar consulta agendada...</option>';
+    const consultas = body && body.consultas ? body.consultas : [];
+    for (const c of consultas) {
+      const opt = document.createElement("option");
+      opt.value = c.codigo;
+      opt.textContent = c.data_consulta + " " + c.horario + " - " + (c.paciente_nome || "Paciente") + " (" + c.tipo + ")";
+      select.appendChild(opt);
+    }
+    if (statusEl) statusEl.textContent = "Consultas de hoje: " + (body.total !== undefined ? body.total : consultas.length);
+  } catch (erro) {
+    console.error("[Acolhimento] Falha ao carregar consultas para check-in:", erro);
+  }
+}
+
+async function realizarCheckinAcolhimento() {
+  const select = document.getElementById("select-checkin-consulta");
+  const risco = document.getElementById("select-checkin-risco");
+  const statusEl = document.getElementById("status-checkin-acolhimento");
+  const codigo = select ? select.value : null;
+  if (!codigo) { if (statusEl) statusEl.textContent = "Selecione uma consulta agendada para check-in."; return; }
+  const riscoValor = risco && risco.value ? risco.value : "AMARELO";
+  try {
+    const res = await fetch("/api/v1/agenda/" + codigo + "/checkin?classificacao_risco=" + riscoValor, { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) { if (statusEl) statusEl.textContent = "Falha no check-in: " + res.status + " " + JSON.stringify(data); return; }
+    if (statusEl) statusEl.textContent = (data && data.mensagem) ? data.mensagem : "Check-in realizado.";
+    if (filaEsperaInstancia && typeof filaEsperaInstancia.atualizar === "function") { try { await filaEsperaInstancia.atualizar(); } catch (e) { console.error(e); } }
+  } catch (erro) {
+    if (statusEl) statusEl.textContent = "Erro de rede no check-in.";
+    console.error("[Acolhimento] Erro no check-in:", erro);
+  }
+}
+
 function trocarAba(aba) {
-  const abas = ["agenda", "telemedicina", "prontuario", "pacientes", "convenios", "farmacia", "analytics", "honorarios"];
+  const abas = ["agenda", "acolhimento", "telemedicina", "prontuario", "pacientes", "convenios", "farmacia", "analytics", "honorarios"];
   abas.forEach(a => {
     const el = document.getElementById(`aba-${a}`);
     const btn = document.getElementById(`btn-menu-${a}`);
@@ -367,6 +445,7 @@ function trocarAba(aba) {
   }
 
   if (aba === "agenda") carregarAgenda();
+  if (aba === "acolhimento") { carregarAcolhimento(); carregarConsultasCheckin(); }
   if (aba === "pacientes") carregarPacientes();
   if (aba === "convenios") carregarConvenios();
   if (aba === "farmacia") carregarFarmacia();
