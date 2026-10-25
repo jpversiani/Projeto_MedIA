@@ -3,7 +3,17 @@ Rotas de Autenticação, SSO (Google e Microsoft), Multi-Tenancy e Auditoria de 
 """
 import os
 from typing import List, Optional, Tuple
-from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,6 +23,7 @@ from app.models.estabelecimento import Estabelecimento
 from app.models.profissional import Profissional
 from app.schemas.auth import (
     LoginRequest,
+    RefreshRequest,
     SSOLoginRequest,
     TokenResponse,
     UsuarioOut,
@@ -22,33 +33,87 @@ from app.schemas.auth import (
     AuditTrailOut,
 )
 from app.services.auth_service import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     AuthService,
     verify_password,
     hash_password,
     create_access_token,
+    create_refresh_token,
     decode_access_token,
+    decode_token,
     generate_totp_secret,
+    revogar_refresh_token,
+    revogar_sessoes_do_usuario,
+    validar_refresh_token,
     verify_totp_token,
 )
 from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/auth", tags=["Autenticação & SSO (Google/Microsoft)"])
 
+# Nomes dos cookies de sessão. O refresh token fica em cookie HttpOnly: o
+# JavaScript da página nunca o lê, então um XSS não consegue exfiltrá-lo.
+COOKIE_REFRESH = "media_refresh"
+COOKIE_ACESSO = "media_access"
+
+
+def _cookie_seguro() -> bool:
+    """Cookies só viajam em HTTPS em produção."""
+    return bool(getattr(settings, "is_production", False))
+
+
+def _gravar_cookies_sessao(response, access_token: str, refresh_token: Optional[str]) -> None:
+    response.set_cookie(
+        key=COOKIE_ACESSO,
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_seguro(),
+        path="/",
+    )
+    if refresh_token:
+        response.set_cookie(
+            key=COOKIE_REFRESH,
+            value=refresh_token,
+            max_age=60 * 60 * 24 * 7,
+            httponly=True,
+            samesite="lax",
+            secure=_cookie_seguro(),
+            path="/api/v1/auth",
+        )
+
+
+def _limpar_cookies_sessao(response) -> None:
+    response.delete_cookie(COOKIE_ACESSO, path="/")
+    response.delete_cookie(COOKIE_REFRESH, path="/api/v1/auth")
+
 
 # ------------------------------------------------------------------
-# Dependência de Usuário Autenticado via Bearer Token
+# Dependência de Usuário Autenticado (Bearer ou cookie HttpOnly)
 # ------------------------------------------------------------------
 def get_current_user(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ) -> Tuple[Usuario, Optional[int]]:
-    if not authorization or not authorization.startswith("Bearer "):
+    token: Optional[str] = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+    if not token:
+        # Fallback para o cookie HttpOnly: permite que a sessão do navegador
+        # funcione sem o token trafegar em `localStorage`.
+        token = request.cookies.get(COOKIE_ACESSO)
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de acesso ausente ou inválido.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = authorization.split(" ", 1)[1]
+
+    # `decode_access_token` recusa refresh token: sem isso, um token de 7 dias
+    # valeria como bearer de acesso e a redução para 15 minutos seria inócua.
     payload = decode_access_token(token)
     if not payload or "sub" not in payload:
         raise HTTPException(
@@ -60,12 +125,6 @@ def get_current_user(
     usuario = db.query(Usuario).filter(Usuario.id == user_id, Usuario.is_active == True).first()
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
-    
-    if usuario.email == "dr.versiani@media-saude.com.br" or "João Paulo" in (usuario.nome or ""):
-        usuario.email = "dra.francelli@media-saude.com.br"
-        usuario.nome = "Dra. Francelli Neves Versiani"
-        db.commit()
-        db.refresh(usuario)
 
     clinica_id = payload.get("clinica_id")
     return usuario, clinica_id
@@ -75,7 +134,12 @@ def get_current_user(
 # Endpoints de Autenticação e Demo
 # ------------------------------------------------------------------
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     """
     Login tradicional por email/senha ou login instantâneo de demonstração para testes de MVP.
 
@@ -182,7 +246,129 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         detalhes={"provider": usuario.sso_provider, "papel": vinculo_padrao.papel.value if vinculo_padrao else None}
     )
 
-    return TokenResponse(access_token=token, usuario=user_out)
+    refresh_token, _ = create_refresh_token(
+        db,
+        usuario,
+        vinculo_padrao,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    _gravar_cookies_sessao(response, token, refresh_token)
+
+    return TokenResponse(
+        access_token=token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=refresh_token,
+        usuario=user_out,
+    )
+
+
+# ------------------------------------------------------------------
+# Renovação e encerramento de sessão
+# ------------------------------------------------------------------
+@router.post("/refresh", response_model=TokenResponse)
+def renovar_sessao(
+    request: Request,
+    response: Response,
+    payload: Optional[RefreshRequest] = Body(default=None),
+    db: Session = Depends(get_db),
+):
+    """Renova o access token (15 min) a partir do refresh token.
+
+    O refresh token é **rotacionado**: o usado nesta chamada é revogado e um
+    novo é emitido. Reutilizar um token já rotacionado derruba todas as sessões
+    do usuário — comportamento padrão de detecção de roubo.
+    """
+    token_refresh = (payload.refresh_token if payload else None) or request.cookies.get(COOKIE_REFRESH)
+    if not token_refresh:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token ausente. Faça login novamente.",
+        )
+
+    dados, motivo = validar_refresh_token(db, token_refresh)
+    if not dados:
+        _limpar_cookies_sessao(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Sessão não renovável ({motivo}). Faça login novamente.",
+        )
+
+    usuario = db.query(Usuario).filter(
+        Usuario.id == int(dados["sub"]), Usuario.is_active == True
+    ).first()
+    if not usuario:
+        _limpar_cookies_sessao(response)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo.")
+
+    clinica_id = dados.get("clinica_id")
+    vinculo = None
+    if clinica_id is not None:
+        vinculo = db.query(VinculoClinica).filter(
+            VinculoClinica.usuario_id == usuario.id,
+            VinculoClinica.estabelecimento_id == clinica_id,
+        ).first()
+    if vinculo is None:
+        vinculo = db.query(VinculoClinica).filter(
+            VinculoClinica.usuario_id == usuario.id
+        ).order_by(VinculoClinica.is_default.desc()).first()
+
+    novo_access = create_access_token(usuario, vinculo)
+    novo_refresh, registro = create_refresh_token(
+        db,
+        usuario,
+        vinculo,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    revogar_refresh_token(db, dados["jti"], substituido_por=registro.jti)
+
+    user_out = AuthService.get_usuario_out(
+        db, usuario, vinculo.estabelecimento_id if vinculo else None
+    )
+    _gravar_cookies_sessao(response, novo_access, novo_refresh)
+
+    return TokenResponse(
+        access_token=novo_access,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=novo_refresh,
+        usuario=user_out,
+    )
+
+
+@router.post("/logout")
+def encerrar_sessao(
+    request: Request,
+    response: Response,
+    payload: Optional[RefreshRequest] = Body(default=None),
+    db: Session = Depends(get_db),
+):
+    """Encerra a sessão: revoga o refresh token e apaga os cookies.
+
+    Não exige access token válido de propósito — uma sessão expirada também
+    precisa conseguir se encerrar e limpar o cookie.
+    """
+    token_refresh = (payload.refresh_token if payload else None) or request.cookies.get(COOKIE_REFRESH)
+    if token_refresh:
+        dados = decode_token(token_refresh, tipo_esperado="refresh")
+        if dados and dados.get("jti"):
+            revogar_refresh_token(db, dados["jti"])
+
+    _limpar_cookies_sessao(response)
+    return {"detail": "Sessão encerrada."}
+
+
+@router.post("/logout-all")
+def encerrar_todas_as_sessoes(
+    response: Response,
+    auth_data: Tuple[Usuario, Optional[int]] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoga todas as sessões do usuário (perda de dispositivo / incidente)."""
+    usuario, _ = auth_data
+    quantidade = revogar_sessoes_do_usuario(db, usuario.id)
+    _limpar_cookies_sessao(response)
+    return {"detail": "Sessões encerradas.", "revogadas": quantidade}
 
 
 # ------------------------------------------------------------------

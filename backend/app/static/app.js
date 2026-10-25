@@ -12,6 +12,48 @@ let usuarioLogado = null;
 // GESTÃO DE SESSÃO JWT (SAAS MULTI-TENANT)
 // =========================================================================
 
+// Renova o access token (15 min) usando o refresh token que fica no cookie
+// HttpOnly `media_refresh`. O JavaScript nunca vê esse token — um XSS não
+// consegue exfiltrá-lo. Devolve o novo access token ou `null`.
+let renovacaoEmCurso = null;
+
+function renovarSessao() {
+  if (renovacaoEmCurso) return renovacaoEmCurso;
+
+  renovacaoEmCurso = (async () => {
+    try {
+      const res = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        credentials: "same-origin",
+      });
+      if (!res.ok) return null;
+      const dados = await res.json();
+      if (!dados.access_token) return null;
+      localStorage.setItem("media_token", dados.access_token);
+      if (dados.usuario) {
+        localStorage.setItem("media_user", JSON.stringify(dados.usuario));
+        usuarioLogado = dados.usuario;
+      }
+      return dados.access_token;
+    } catch (erro) {
+      return null;
+    } finally {
+      renovacaoEmCurso = null;
+    }
+  })();
+
+  return renovacaoEmCurso;
+}
+
+function encerrarSessaoLocal() {
+  localStorage.removeItem("media_token");
+  localStorage.removeItem("media_user");
+  usuarioLogado = null;
+  abrirModalLogin();
+}
+
 async function apiFetch(url, options = {}) {
   const token = localStorage.getItem("media_token");
   options.headers = options.headers || {};
@@ -20,9 +62,12 @@ async function apiFetch(url, options = {}) {
   }
   const res = await fetch(url, options);
   if (res.status === 401) {
-    localStorage.removeItem("media_token");
-    localStorage.removeItem("media_user");
-    abrirModalLogin();
+    const novoToken = await renovarSessao();
+    if (novoToken) {
+      options.headers["Authorization"] = `Bearer ${novoToken}`;
+      return fetch(url, options);
+    }
+    encerrarSessaoLocal();
     throw new Error("Sessão expirada. Faça login novamente.");
   }
   return res;
@@ -55,15 +100,29 @@ async function apiFetch(url, options = {}) {
       }
     }
 
-    return fetchOriginal(url, options).then((res) => {
-      // Sessão expirada ou revogada: encerra a sessão local imediatamente.
-      if (res.status === 401 && typeof alvo === "string" && alvo.startsWith("/api/")) {
-        localStorage.removeItem("media_token");
-        localStorage.removeItem("media_user");
-        usuarioLogado = null;
-        abrirModalLogin();
+    const ehRenovacao = typeof alvo === "string" && alvo.includes("/auth/refresh");
+
+    return fetchOriginal(url, options).then(async (res) => {
+      if (res.status !== 401 || typeof alvo !== "string" || !alvo.startsWith("/api/")) {
+        return res;
       }
-      return res;
+      // O access token dura 15 minutos. Antes, o primeiro 401 expulsava o
+      // usuário para a tela de login no meio do atendimento. Agora tentamos
+      // renovar uma vez com o refresh token do cookie e repetimos a chamada.
+      if (ehRenovacao || options._jaRenovou) {
+        encerrarSessaoLocal();
+        return res;
+      }
+
+      const novoToken = await renovarSessao();
+      if (!novoToken) {
+        encerrarSessaoLocal();
+        return res;
+      }
+
+      const headers = new Headers(options.headers || {});
+      headers.set("Authorization", `Bearer ${novoToken}`);
+      return fetchOriginal(url, { ...options, headers, _jaRenovou: true });
     });
   };
 })();
@@ -337,10 +396,25 @@ function fazerLogout() {
     // Havia DUAS definições de fazerLogout neste arquivo. Por hoisting, a
     // segunda prevalecia: ela apenas redirecionava para "/" e deixava
     // `media_token` no localStorage — ou seja, "sair" não encerrava a sessão.
-    localStorage.removeItem("media_token");
-    localStorage.removeItem("media_user");
-    usuarioLogado = null;
-    window.location.href = "/";
+    //
+    // Agora o logout também avisa o servidor: o refresh token é revogado e os
+    // cookies de sessão são apagados. Sem isso, o cookie HttpOnly continuaria
+    // válido por 7 dias mesmo depois de "sair".
+    const encerrar = () => {
+      localStorage.removeItem("media_token");
+      localStorage.removeItem("media_user");
+      usuarioLogado = null;
+      window.location.href = "/";
+    };
+
+    fetch("/api/v1/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+      credentials: "same-origin",
+    })
+      .catch(() => null)
+      .finally(encerrar);
   }
 }
 

@@ -23,7 +23,12 @@ from app.core.config import settings
 # com uma chave pública conhecida e permitir forja de tokens.
 SECRET_KEY = settings.effective_secret_key
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 horas para facilidade de uso em MVP
+
+# O token de acesso era de 24 horas — tempo demais para um bearer token que não
+# pode ser revogado e que o frontend guardava em `localStorage`. Agora ele dura
+# 15 minutos e a renovação é feita por refresh token rotativo e revogável.
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 # ------------------------------------------------------------------
@@ -88,7 +93,7 @@ def verify_totp_token(secret: str, token: str, window: int = 1) -> bool:
 def create_access_token(usuario: Usuario, clinica_ativa: Optional[VinculoClinica] = None) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     payload = {
         "sub": str(usuario.id),
         "email": usuario.email,
@@ -97,17 +102,124 @@ def create_access_token(usuario: Usuario, clinica_ativa: Optional[VinculoClinica
         "clinica_id": clinica_ativa.estabelecimento_id if clinica_ativa else None,
         "papel": clinica_ativa.papel.value if clinica_ativa else "VISITANTE",
         "profissional_id": clinica_ativa.profissional_id if clinica_ativa else None,
+        "tipo": "access",
+        "jti": secrets.token_urlsafe(16),
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+def create_refresh_token(
+    db: Session,
+    usuario: Usuario,
+    clinica_ativa: Optional[VinculoClinica] = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> Tuple[str, "RefreshToken"]:
+    """Emite um refresh token de 7 dias e registra o ``jti`` para poder revogá-lo.
+
+    O token é opaco para o frontend: tudo o que importa (validade, revogação,
+    clínica) é verificado no banco a cada renovação.
+    """
+    from app.models.usuario import RefreshToken
+
+    now = datetime.now(timezone.utc)
+    expira_em = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    jti = secrets.token_urlsafe(32)
+
+    payload = {
+        "sub": str(usuario.id),
+        "clinica_id": clinica_ativa.estabelecimento_id if clinica_ativa else None,
+        "tipo": "refresh",
+        "jti": jti,
+        "iat": int(now.timestamp()),
+        "exp": int(expira_em.timestamp()),
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    registro = RefreshToken(
+        jti=jti,
+        usuario_id=usuario.id,
+        estabelecimento_id=payload["clinica_id"],
+        expires_at=expira_em,
+        ip_address=ip_address,
+        user_agent=(user_agent or "")[:300] or None,
+    )
+    db.add(registro)
+    db.commit()
+    db.refresh(registro)
+    return token, registro
+
+
+def decode_token(token: str, tipo_esperado: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Decodifica e valida o token, conferindo o ``tipo`` (access/refresh).
+
+    Sem essa checagem, um refresh token válido por 7 dias poderia ser usado como
+    bearer token de acesso, anulando a redução para 15 minutos.
+    """
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except Exception:
         return None
+    if tipo_esperado and payload.get("tipo", "access") != tipo_esperado:
+        return None
+    return payload
+
+
+def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+    return decode_token(token, tipo_esperado="access")
+
+
+def revogar_refresh_token(db: Session, jti: str, substituido_por: Optional[str] = None) -> bool:
+    """Marca o refresh token como revogado. Devolve ``False`` se já não existia."""
+    from app.models.usuario import RefreshToken
+
+    registro = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+    if not registro:
+        return False
+    if registro.revoked_at is None:
+        registro.revoked_at = datetime.now(timezone.utc)
+    if substituido_por:
+        registro.substituido_por = substituido_por
+    db.commit()
+    return True
+
+
+def revogar_sessoes_do_usuario(db: Session, usuario_id: int) -> int:
+    """Revoga todas as sessões ativas de um usuário (logout global / incidente)."""
+    from app.models.usuario import RefreshToken
+
+    agora = datetime.now(timezone.utc)
+    quantidade = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.usuario_id == usuario_id, RefreshToken.revoked_at.is_(None))
+        .update({RefreshToken.revoked_at: agora}, synchronize_session=False)
+    )
+    db.commit()
+    return quantidade
+
+
+def validar_refresh_token(db: Session, token: str) -> Tuple[Optional[Dict[str, Any]], str]:
+    """Valida o refresh token contra o banco. Devolve ``(payload, motivo_da_falha)``."""
+    from app.models.usuario import RefreshToken
+
+    payload = decode_token(token, tipo_esperado="refresh")
+    if not payload or "jti" not in payload:
+        return None, "token_invalido"
+
+    registro = db.query(RefreshToken).filter(RefreshToken.jti == payload["jti"]).first()
+    if not registro:
+        return None, "token_desconhecido"
+    if registro.revoked_at is not None:
+        # Reutilização de token rotacionado é sinal clássico de roubo: revoga
+        # toda a família de sessões do usuário.
+        revogar_sessoes_do_usuario(db, registro.usuario_id)
+        return None, "token_revogado"
+    if registro.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        return None, "token_expirado"
+
+    return payload, ""
 
 
 # ------------------------------------------------------------------
@@ -165,12 +277,6 @@ class AuthService:
     @staticmethod
     def get_usuario_out(db: Session, usuario: Usuario, clinica_ativa_id: Optional[int] = None) -> UsuarioOut:
         """Monta o schema completo do usuário com seus vínculos a clínicas."""
-        if usuario.email == "dr.versiani@media-saude.com.br" or "João Paulo" in (usuario.nome or ""):
-            usuario.email = "dra.francelli@media-saude.com.br"
-            usuario.nome = "Dra. Francelli Neves Versiani"
-            db.commit()
-            db.refresh(usuario)
-
         vinculos = db.query(VinculoClinica).filter(VinculoClinica.usuario_id == usuario.id).all()
         
         vinculos_out = []

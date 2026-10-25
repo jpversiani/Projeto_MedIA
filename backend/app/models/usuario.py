@@ -65,6 +65,37 @@ class VinculoClinica(Base):
     profissional = relationship("Profissional")
 
 
+class RefreshToken(Base):
+    """Refresh token de sessão, com rotação e revogação explícita.
+
+    Antes, o único token de acesso durava 24 horas e não podia ser revogado: se
+    fosse roubado (``localStorage``), o atacante tinha um dia inteiro de acesso a
+    prontuários sem qualquer forma de cortar a sessão. Agora o acesso dura 15
+    minutos e a renovação passa por aqui — cada uso invalida o token anterior
+    (rotação) e o logout revoga a sessão de verdade.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    jti = Column(String(64), unique=True, nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    estabelecimento_id = Column(
+        Integer, ForeignKey("estabelecimentos.id"), nullable=True, index=True
+    )
+
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(300), nullable=True)
+    # Permite detectar reutilização de token já rotacionado (sinal de roubo).
+    substituido_por = Column(String(64), nullable=True)
+
+    usuario = relationship("Usuario")
+
+
 class AuditTrail(Base):
     """
     Trilha de Auditoria Imutável (LGPD Art. 11 & Resolução CFM 2.314/2022).

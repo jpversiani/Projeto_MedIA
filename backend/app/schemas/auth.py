@@ -80,12 +80,27 @@ class UsuarioOut(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    expires_in: int = 900 # 15 minutos
+    # Tempo de vida REAL do access token. Antes este campo dizia 900 s (15 min)
+    # enquanto o token durava 24 h — o frontend acreditava na documentação e
+    # ficava sem renovar. Agora ambos vêm de ACCESS_TOKEN_EXPIRE_MINUTES.
+    expires_in: int = 900
+    refresh_token: Optional[str] = None
     usuario: UsuarioOut
 
 
 class SwitchClinicRequest(BaseModel):
     estabelecimento_id: int
+
+
+class RefreshRequest(BaseModel):
+    """Pedido de renovação da sessão.
+
+    O refresh token pode vir no corpo (clientes nativos/testes) ou no cookie
+    HttpOnly ``media_refresh`` que o navegador envia sozinho — caso em que o
+    JavaScript nunca tem acesso ao token.
+    """
+
+    refresh_token: Optional[str] = None
 
 
 class MfaSetupResponse(BaseModel):

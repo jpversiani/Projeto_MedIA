@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -90,6 +90,7 @@ class ContextoClinico:
 
 
 def get_contexto_clinico(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ) -> Optional[ContextoClinico]:
@@ -106,7 +107,9 @@ def get_contexto_clinico(
     from app.api.v1.auth import get_current_user
     from app.models.usuario import VinculoClinica
 
-    usuario, clinica_id = get_current_user(authorization=authorization, db=db)
+    usuario, clinica_id = get_current_user(
+        request=request, authorization=authorization, db=db
+    )
 
     if usuario.is_superuser:
         return ContextoClinico(

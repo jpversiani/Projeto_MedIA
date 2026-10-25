@@ -14,5 +14,11 @@ from app.models.farmacia import Receita, ReceitaItem, Dispensacao, DispensacaoIt
 from app.models.copiloto import CopilotoAuditoria
 from app.models.mensageria import MensagemPreventiva, AlertaBuscaAtiva
 from app.models.convenios import Operadora, Plano, GuiaTISS, LancamentoFinanceiro
-from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
+from app.models.usuario import (
+    Usuario,
+    VinculoClinica,
+    PapelUsuarioEnum,
+    AuditTrail,
+    RefreshToken,
+)
 from app.models.documento_clinico import DocumentoClinicoEmitido
