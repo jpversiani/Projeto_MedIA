@@ -17,8 +17,8 @@
 | Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
 | Tabelas SQLAlchemy (`Base.metadata.tables`) | **33** | Execução real |
 | Operações OpenAPI registradas | **98** (92 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
-| Git | branch `main`, árvore limpa, 6 commits novos (`ad53e58` → `add4419`) | `git status` |
-| HEAD | `add4419` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log -1` |
+| Git | branch `main`, árvore limpa, 6 commits novos (`ad53e58` → `9c4f957`) | `git status` |
+| Commit do T3 | `9c4f957` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log` |
 
 **Veredito:** o backend sobe, migra, semeia, autentica, **autoriza por papel**,
 **isola dados por clínica**, **audita leitura de PHI** e **transmite teleconsulta
