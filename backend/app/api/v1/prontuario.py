@@ -16,9 +16,9 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated, Final
+from typing import Annotated, Final, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -39,7 +39,15 @@ from app.schemas.prontuario import (
     ProntuarioResumoOut,
 )
 
-from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+from app.core.rbac import (
+    PAPEIS_CLINICOS,
+    ContextoClinico,
+    dependencias_rbac,
+    filtrar_tenant,
+    get_contexto_clinico,
+)
+from app.services.audit_service import auditar_acesso_phi
+
 router = APIRouter(prefix="/prontuario", tags=["Prontuário do Cidadão (PEC)"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
 
 # CNS aceito no caminho: exatamente 15 dígitos numéricos (formato SUS)
@@ -146,7 +154,12 @@ def _registrar_problema_ativo(
     response_model=ProntuarioResumoOut,
     summary="Resumo do prontuário do cidadão",
 )
-def obter_resumo_prontuario(cns: CNSPath, db: Session = Depends(get_db)) -> ProntuarioResumoOut:
+def obter_resumo_prontuario(
+    cns: CNSPath,
+    request: Request,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+) -> ProntuarioResumoOut:
     """Retorna o resumo do prontuário: problemas ativos, alergias e medicamentos em uso.
 
     - **Problemas ativos**: Lista de Problemas do prontuário + episódios
@@ -157,8 +170,20 @@ def obter_resumo_prontuario(cns: CNSPath, db: Session = Depends(get_db)) -> Pron
     """
     cidadao = _obter_cidadao_por_cns(db, cns)
 
+    # Leitura de prontuário é acesso a dado sensível: registra na trilha
+    # encadeada (LGPD Art. 11 / CFM 2.314) com IP e User-Agent.
+    auditar_acesso_phi(
+        db,
+        contexto=contexto,
+        request=request,
+        acao="ACESSAR_PRONTUARIO",
+        recurso_tipo="Cidadao",
+        recurso_id=cidadao.id,
+        detalhes={"cns": cns},
+    )
+
     atendimentos = (
-        db.query(AtendimentoSOAP)
+        filtrar_tenant(db.query(AtendimentoSOAP), AtendimentoSOAP, contexto)
         .filter(AtendimentoSOAP.cidadao_id == cidadao.id)
         .order_by(AtendimentoSOAP.data_hora_inicio.desc())
         .all()
@@ -242,10 +267,12 @@ def obter_resumo_prontuario(cns: CNSPath, db: Session = Depends(get_db)) -> Pron
 )
 def listar_evolucoes_prontuario(
     cns: CNSPath,
+    request: Request,
     skip: Annotated[int, Query(ge=0, description="Registros a ignorar (offset)")] = 0,
     limit: Annotated[
         int, Query(gt=0, le=100, description="Tamanho da página (máximo 100)")
     ] = 20,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
     db: Session = Depends(get_db),
 ) -> PaginaEvolucoesOut:
     """Retorna as evoluções (atendimentos SOAP) do cidadão, paginadas por offset.
@@ -255,9 +282,19 @@ def listar_evolucoes_prontuario(
     """
     cidadao = _obter_cidadao_por_cns(db, cns)
 
-    consulta_base = db.query(AtendimentoSOAP).filter(
-        AtendimentoSOAP.cidadao_id == cidadao.id
+    auditar_acesso_phi(
+        db,
+        contexto=contexto,
+        request=request,
+        acao="LISTAR_EVOLUCOES",
+        recurso_tipo="Cidadao",
+        recurso_id=cidadao.id,
+        detalhes={"cns": cns, "skip": skip, "limit": limit},
     )
+
+    consulta_base = filtrar_tenant(
+        db.query(AtendimentoSOAP), AtendimentoSOAP, contexto
+    ).filter(AtendimentoSOAP.cidadao_id == cidadao.id)
     total = consulta_base.count()
 
     itens = (
