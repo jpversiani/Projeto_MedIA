@@ -16,6 +16,7 @@ from app.api.v1.dmed import router as dmed_router
 from app.api.v1.clinica import router as clinica_router
 from app.api.v1.agenda_medica import router as agenda_medica_router
 from app.api.v1.prescricao_cfm import router as prescricao_cfm_router
+from app.api.v1.prescricao_cfm import router_publico as prescricao_publico_router
 from app.api.v1.financeiro_medico import router as financeiro_medico_router
 from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 from app.api.v1.analytics import router as analytics_router
@@ -33,6 +34,11 @@ api_router = APIRouter()
 # --------------------------------------------------------------------------
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
+
+# Validação pública de receita/atestado: o QR Code é conferido em farmácia por
+# alguém que NÃO tem conta no sistema, então esta rota não pode exigir Bearer
+# token. Ela devolve apenas a visão mascarada do documento.
+api_router.include_router(prescricao_publico_router)
 
 # --------------------------------------------------------------------------
 # Rotas clínicas (prontuário, cidadão, agenda, prescrição, TISS, DMED,

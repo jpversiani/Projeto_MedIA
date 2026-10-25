@@ -4,7 +4,10 @@ MedIA Practice & Telemedicina OS.
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
 from pydantic import BaseModel, Field
 
 from app.schemas.fluxo_atendimento import (
@@ -136,7 +139,7 @@ def salvar_evolucao_intra(payload: IntraConsultaPayload):
 
 
 @router.post("/pos-consulta/finalizar", response_model=PacotePosConsultaOut, summary="Finalizar consulta e gerar pacote Pós-Consulta")
-def finalizar_consulta_e_gerar_pacote(payload: PosConsultaPayload):
+def finalizar_consulta_e_gerar_pacote(payload: PosConsultaPayload, db: Session = Depends(get_db)):
     """
     Conclui o atendimento e dispara a automação de pós-consulta:
     1. Prescrição Digital ICP-Brasil / CFM com QR Code validador público
@@ -146,7 +149,7 @@ def finalizar_consulta_e_gerar_pacote(payload: PosConsultaPayload):
     5. Agendamento do retorno preventivo
     """
     try:
-        return fluxo_service.finalizar_consulta_e_gerar_pacote_pos(payload)
+        return fluxo_service.finalizar_consulta_e_gerar_pacote_pos(payload, db=db)
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

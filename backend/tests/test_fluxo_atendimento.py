@@ -28,7 +28,7 @@ def test_obter_matriz_perfis():
     assert len(perfis["MEDICO"]["pos_consulta"]) > 0
 
 
-def test_ciclo_completo_jornada_medica():
+def test_ciclo_completo_jornada_medica(client):
     """Testa o ciclo de vida completo de uma consulta médica (Agendamento -> Pré -> Intra -> Pós)."""
     # 1. Criar Agendamento
     payload_novo = {

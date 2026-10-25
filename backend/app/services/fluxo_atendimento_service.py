@@ -225,7 +225,8 @@ class FluxoAtendimentoService:
 
     def finalizar_consulta_e_gerar_pacote_pos(
         self,
-        payload: PosConsultaPayload
+        payload: PosConsultaPayload,
+        db=None,
     ) -> PacotePosConsultaOut:
         """
         Executa a fase de PÓS-CONSULTA completa:
@@ -281,7 +282,8 @@ class FluxoAtendimentoService:
                 medico_uf="MG",
                 medico_rqe="12876",
                 itens=itens_prescricao,
-                tipo=tipo_rec
+                tipo=tipo_rec,
+                db=db,
             )
             codigo_verificador_receita = res_rec.codigo_validacao
 
@@ -296,7 +298,8 @@ class FluxoAtendimentoService:
                 medico_crm=jornada["medico_crm"],
                 medico_uf="MG",
                 dias_afastamento=at.get("dias_afastamento", 1),
-                cid10=at.get("cid_codigo") if at.get("incluir_cid") else None
+                cid10=at.get("cid_codigo") if at.get("incluir_cid") else None,
+                db=db,
             )
             codigo_verificador_atestado = res_at.codigo_validacao
 

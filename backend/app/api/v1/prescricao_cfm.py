@@ -3,10 +3,12 @@ Rotas REST de Prescrição Digital, Atestados Médicos e Validação Pública CF
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.services.pdf_generator_cfm import GeradorPDFMedicoCFM
 from app.services.prescricao_digital_cfm import (
     DocumentoAtestadoCFM,
@@ -15,8 +17,20 @@ from app.services.prescricao_digital_cfm import (
     TipoPrescricao,
 )
 
-from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
+from app.core.rbac import (
+    PAPEIS_CLINICOS,
+    ContextoClinico,
+    dependencias_rbac,
+    get_contexto_clinico,
+)
+
+# Emissão exige autenticação e papel clínico.
 router = APIRouter(prefix="/prescricao", tags=["Prescrição Digital CFM"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
+
+# Validação pública (QR Code conferido em farmácia/paciente) NÃO pode exigir
+# login: quem lê o código não tem conta no sistema. Estas rotas são montadas no
+# bloco público do api_router e só devolvem a visão mascarada do documento.
+router_publico = APIRouter(prefix="/prescricao", tags=["Validação Pública de Documentos (CFM)"])
 
 
 class ItemPrescricao(BaseModel):
@@ -74,7 +88,12 @@ class EmitirAtestadoRequest(BaseModel):
 
 
 @router.post("/emitir", status_code=status.HTTP_201_CREATED)
-def emitir_prescricao_digital(payload: EmitirPrescricaoRequest, request: Request):
+def emitir_prescricao_digital(
+    payload: EmitirPrescricaoRequest,
+    request: Request,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
     """Emite prescrição eletrônica com código de validação pública e hash de integridade."""
     doc = MotorPrescricaoCFM.emitir_prescricao(
         paciente_nome=payload.paciente_nome,
@@ -88,6 +107,9 @@ def emitir_prescricao_digital(payload: EmitirPrescricaoRequest, request: Request
         itens=[item.model_dump(exclude_none=True) for item in payload.itens],
         tipo=payload.tipo,
         instrucoes_gerais=payload.instrucoes_gerais,
+        db=db,
+        estabelecimento_id=getattr(contexto, "estabelecimento_id", None),
+        profissional_id=getattr(contexto, "profissional_id", None),
     )
     base_url = str(request.base_url).rstrip("/")
     url_validador_local = f"{base_url}/api/v1/prescricao/validar-html/{doc.codigo_validacao}"
@@ -106,7 +128,12 @@ def emitir_prescricao_digital(payload: EmitirPrescricaoRequest, request: Request
 
 
 @router.post("/atestado/emitir", status_code=status.HTTP_201_CREATED)
-def emitir_atestado_digital(payload: EmitirAtestadoRequest, request: Request):
+def emitir_atestado_digital(
+    payload: EmitirAtestadoRequest,
+    request: Request,
+    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
+    db: Session = Depends(get_db),
+):
     """Emite atestado médico digital em conformidade com as normas do CFM."""
     doc = MotorPrescricaoCFM.emitir_atestado(
         paciente_nome=payload.paciente_nome,
@@ -116,6 +143,9 @@ def emitir_atestado_digital(payload: EmitirAtestadoRequest, request: Request):
         medico_uf=payload.medico_uf,
         dias_afastamento=payload.dias_afastamento,
         cid10=payload.cid10,
+        db=db,
+        estabelecimento_id=getattr(contexto, "estabelecimento_id", None),
+        profissional_id=getattr(contexto, "profissional_id", None),
     )
     base_url = str(request.base_url).rstrip("/")
     url_validador = f"{base_url}/api/v1/prescricao/validar-html/{doc.codigo_validacao}"
@@ -132,10 +162,10 @@ def emitir_atestado_digital(payload: EmitirAtestadoRequest, request: Request):
     }
 
 
-@router.get("/{codigo}/pdf")
-def download_pdf_prescricao(codigo: str, request: Request):
+@router_publico.get("/{codigo}/pdf")
+def download_pdf_prescricao(codigo: str, request: Request, db: Session = Depends(get_db)):
     """Gera e retorna o PDF oficial da prescrição médica com QR Code para impressão ou download."""
-    registro = MotorPrescricaoCFM.obter_documento(codigo)
+    registro = MotorPrescricaoCFM.obter_documento(codigo, db=db)
     if not registro or not isinstance(registro["documento"], DocumentoPrescricaoCFM):
         raise HTTPException(status_code=404, detail="Prescrição médica não encontrada ou expirada.")
 
@@ -154,10 +184,10 @@ def download_pdf_prescricao(codigo: str, request: Request):
     )
 
 
-@router.get("/atestado/{codigo}/pdf")
-def download_pdf_atestado(codigo: str, request: Request):
+@router_publico.get("/atestado/{codigo}/pdf")
+def download_pdf_atestado(codigo: str, request: Request, db: Session = Depends(get_db)):
     """Gera e retorna o PDF oficial do atestado médico com QR Code para impressão ou download."""
-    registro = MotorPrescricaoCFM.obter_documento(codigo)
+    registro = MotorPrescricaoCFM.obter_documento(codigo, db=db)
     if not registro or not isinstance(registro["documento"], DocumentoAtestadoCFM):
         raise HTTPException(status_code=404, detail="Atestado médico não encontrado ou expirado.")
 
@@ -176,19 +206,19 @@ def download_pdf_atestado(codigo: str, request: Request):
     )
 
 
-@router.get("/validar/{codigo}")
-def consultar_documento_publico(codigo: str):
+@router_publico.get("/validar/{codigo}")
+def consultar_documento_publico(codigo: str, db: Session = Depends(get_db)):
     """Endpoint JSON público para farmácias e pacientes validarem a autenticidade do documento."""
-    dados = MotorPrescricaoCFM.validar_documento_publico(codigo)
+    dados = MotorPrescricaoCFM.validar_documento_publico(codigo, db=db)
     if not dados:
         raise HTTPException(status_code=404, detail="Documento médico não encontrado ou expirado no validador público.")
     return dados
 
 
-@router.get("/validar-html/{codigo}", response_class=HTMLResponse)
-def tela_validacao_publica_html(codigo: str, request: Request):
+@router_publico.get("/validar-html/{codigo}", response_class=HTMLResponse)
+def tela_validacao_publica_html(codigo: str, request: Request, db: Session = Depends(get_db)):
     """Página visual responsiva para conferência de autenticidade acessada via QR Code por farmácias e pacientes."""
-    registro = MotorPrescricaoCFM.obter_documento(codigo)
+    registro = MotorPrescricaoCFM.obter_documento(codigo, db=db)
     if not registro:
         return HTMLResponse(
             status_code=404,

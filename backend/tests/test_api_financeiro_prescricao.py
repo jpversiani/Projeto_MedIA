@@ -31,7 +31,7 @@ def test_api_livro_caixa_demonstrativo():
     assert data["receitas"]["total_bruto"] > 0
 
 
-def test_api_emitir_prescricao_e_validar():
+def test_api_emitir_prescricao_e_validar(client):
     payload = {
         "paciente_nome": "Beatriz Viana",
         "paciente_cpf": "99988877766",
@@ -61,7 +61,7 @@ def test_api_emitir_prescricao_e_validar():
     assert val_data["paciente_nome"] == "Beatriz Viana"
 
 
-def test_api_emitir_atestado():
+def test_api_emitir_atestado(client):
     payload = {
         "paciente_nome": "Carlos Pereira",
         "paciente_cpf": "11122233344",

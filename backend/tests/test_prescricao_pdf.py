@@ -4,7 +4,10 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_emitir_prescricao_e_download_pdf():
+def test_emitir_prescricao_e_download_pdf(client):
+    # Usa a fixture `client` (conftest) porque a emissão agora PERSISTE o
+    # documento: sem o override de `get_db`, a rota escreveria no banco de
+    # desenvolvimento em vez do SQLite hermético da suíte.
     # 1. Emitir prescrição
     payload = {
         "paciente_nome": "Mariana Souza Alencar",
@@ -44,7 +47,7 @@ def test_emitir_prescricao_e_download_pdf():
     assert "DOCUMENTO MÉDICO VÁLIDO" in res_html.text
 
 
-def test_emitir_atestado_e_download_pdf():
+def test_emitir_atestado_e_download_pdf(client):
     # 1. Emitir atestado
     payload = {
         "paciente_nome": "Carlos Roberto Prado",
