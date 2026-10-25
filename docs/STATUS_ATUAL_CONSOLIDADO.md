@@ -1,7 +1,8 @@
 # 📋 Status Atual Consolidado — MedIA Practice SaaS (v1)
 
 > **Documento vivo e autoritário sobre o estado atual do repositório.**
-> Branch `main` · HEAD `922b426` · T1, P0.1 (RBAC/tenant) e P0.2 (auditoria) **commitados**.
+> Branch `main` · T1, P0.1 (RBAC/tenant), P0.2 (auditoria), T2 (receitas persistidas) e
+> P1 (sessão com refresh rotativo) **commitados**.
 > Gerado pela sessão de evolução do workspace `App_Media`.
 
 ---
@@ -10,13 +11,14 @@
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **543 passed, 0 failed** (~12,5 s) | Execução real na raiz (pós-RBAC + auditoria) |
+| Testes (`pytest -q`) | **563 passed, 0 failed** (~14 s) | Execução real na raiz (pós-P1) |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
-| Testes novos de segurança | **23** (16 RBAC/tenant + 7 auditoria) | `test_rbac_tenant.py`, `test_auditoria_phi.py` |
+| Testes novos desta sessão | **41** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão) | `test_rbac_tenant.py`, `test_auditoria_phi.py`, `test_t2_persistencia_documentos.py`, `test_p1_sessao_refresh.py` |
+| Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
 | Tabelas SQLAlchemy (`Base.metadata.tables`) | **31** | Execução real |
 | Operações OpenAPI registradas | **93** (87 paths) sob `/api/v1` (+ health/docs/static/root) | `app.openapi()` |
-| Git | branch `main`, árvore limpa, 3 commits novos (`ad53e58`, `c56f318`, `922b426`) | `git status` |
-| HEAD | `922b426` — `feat(seguranca): auditoria de PHI verificavel e encadeada (P0.2)` | `git log -1` |
+| Git | branch `main`, árvore limpa, 5 commits novos (`ad53e58` → `7a1ace6`) | `git status` |
+| HEAD | `7a1ace6` — `feat(auth): sessao revogavel com refresh rotativo (P1)` | `git log -1` |
 
 **Veredito:** o backend sobe, migra, semeia, autentica, **autoriza por papel**,
 **isola dados por clínica** e **audita leitura de PHI**, com **543 testes verdes**.
@@ -99,16 +101,15 @@ CPF e CNS trafegam e armazenam em claro. |
 (`validador.iti.gov.br/validar`) não é endpoint real; cert titular fixo no código. QR Code do PDF
 entrega **hash de integridade SHA-256**, não assinatura jurídica. |
 
-### 🟠 P1 — necessário antes de piloto
+### 🟠 P1 — sessão e distribuição
 
-- Token JWT de **24 h sem refresh/revogação/`jti`**; schema anuncia `expires_in: 900`
-  (mentira). → trocar por refresh rotativo.
-- Token em **`localStorage`** (XSS) → preferir cookie `HttpOnly; Secure; SameSite=Strict`.
-- **Sem lockfile**; `requirements.txt` raiz (`>=`) ≠ `backend/` (`==`); `psycopg2-binary` e
-  `pydantic-settings` ausentes na raiz. → consolidar em lockfile fixado.
-- **Docker** incoerente: imagem copia só `backend/app` (sem `alembic/`/`alembic.ini` → não
-  roda migrações); sem `.dockerignore`; compose com Postgres default fraco.
-- Falta **`SECURITY.md`** (recomendado no roadmap).
+| Item | Situação | Evidência |
+|---|---|---|
+| Token JWT de 24 h sem refresh/revogação | 🟢 **RESOLVIDO** (`7a1ace6`) | Access de **15 min** + refresh de **7 dias** com `jti` no banco, rotação a cada uso e revogação em cascata ao detectar reutilização. `expires_in` agora vem da mesma constante do token. |
+| Token em `localStorage` | 🟡 **MITIGADO** | Refresh token em **cookie `HttpOnly`** (JS nunca o lê); access token ainda em `localStorage` por causa das 24 chamadas de `fetch` — migrar para cookie puro exige ajustar o interceptor. |
+| Sem lockfile / `requirements` divergentes | ⬜ **ABERTO** | `requirements.txt` raiz (`>=`) ≠ `backend/` (`==`). |
+| Docker não roda migração | ⬜ **ABERTO** | Imagem copia só `backend/app` (sem `alembic/`/`alembic.ini`). |
+| Falta `SECURITY.md` | ⬜ **ABERTO** | — |
 
 ### 🟡 P2 — qualidade e manutenção (aberto)
 
@@ -127,8 +128,8 @@ Documento vivo: `docs/HANDOFF_TRABALHO_RESTANTE.md` (777 linhas, base `08d130a`)
 
 | Tarefa | Escopo | Status |
 |---|---|---|
-| **T1** | Aba **Acolhimento** no Cockpit (`js/fila_espera.js` existe, nunca incluído) | ✅ **Concluída** (não commitada) |
-| **T2** | **Persistir receitas/CTE em banco** (`documentos_cfm`) — hoje em dicionário em memória (`_REPOSITORIO_DOCUMENTOS_CFM`) → QR Code dá 404 após restart | ⬜ Não iniciada |
+| **T1** | Aba **Acolhimento** no Cockpit (`js/fila_espera.js` existe, nunca incluído) | ✅ **Concluída** (`ad53e58`) |
+| **T2** | **Persistir receitas/CTE em banco** — antes em dicionário em memória (`_REPOSITORIO_DOCUMENTOS_CFM`) → QR Code dava 404 após restart | ✅ **Concluída** (`d57a982`) — tabela `documentos_clinicos`, migração `b7c31d9e4a02`, validação pública sem login |
 | **T3** | **Teleconsulta real (WebRTC)** — `webrtc_manager.js` pronto e correto, mas **morto**; hub WS com roteamento/broadcast/join/quebra de estado | ⬜ Não iniciada |
 | **T4** | Conformidade CFM/LGPD — persistir **TCLE**, auditar PHI, tenant, RBAC, lifecycle | ⬜ Não iniciada (partes P0) |
 | **T5** | Identificação de profissional (CRM/UF/RQE) — **parcialmente saneado** nos commits de identidade | 🟡 Parcial |
@@ -159,18 +160,19 @@ crítico Etapa 1 → Etapa 2 (fluxo presencial antes do vídeo).
 ## 6. Conclusão e próximo passo sugerido
 
 1. **Estado geral:** projeto funcional em desenvolvimento ativo; o núcleo (boot, migração,
-   seed, auth, autorização, fluxo presencial) está verde com **543 testes passando**.
-   Nesta sessão foram concluídos o **T1 (aba Acolhimento)**, o **P0.1 (RBAC + isolamento
-   entre clínicas)** e o **P0.2 (auditoria de PHI verificável)**.
+   seed, auth, autorização, sessão, fluxo presencial) está verde com **563 testes passando**.
+   Concluídos: **T1 (aba Acolhimento)**, **P0.1 (RBAC + isolamento entre clínicas)**,
+   **P0.2 (auditoria de PHI verificável)**, **T2 (receitas persistidas)** e o núcleo do
+   **P1 (sessão revogável com refresh rotativo)**.
 2. **O que ainda impede piloto com paciente real:** **P0.3 (ciclo de vida do dado)** —
    CPF/CNS em claro, sem retenção/anonimização/backup — e **P0.4 (assinatura ICP-Brasil
-   real)**, além de **T2 (receitas persistidas; hoje em memória, QR Code dá 404 após
-   restart)**. O **P1 (sessão/JWT)** também precisa ser resolvido: token de 24 h sem
-   refresh e guardado em `localStorage`.
-3. **Sequência recomendada:** `P0.3` → `T2` → `P1` (refresh + cookie HttpOnly) → `P0.4`
-   → `T3` (teleconsulta WebRTC real) → `T6/T8`.
+   real: hoje é um UUID, não uma assinatura jurídica)**. Nenhum dos dois é resolvível só
+   com código: exigem certificado ICP-Brasil e definição de política de retenção.
+3. **Sequência recomendada:** `P0.3` → `P0.4` → `T3` (teleconsulta WebRTC real) → `T6`
+   (TISS/DMED) → distribuição (`lockfile`, Docker com migração, `SECURITY.md`).
 4. **Ajustes pequenos herdados:** ligar `parar()` do painel de fila ao trocar de aba;
-   estender o RBAC de tenant para receitas/TISS/farmácia; auditar as demais leituras de PHI.
+   estender o RBAC de tenant para receitas/TISS/farmácia; auditar as demais leituras de PHI;
+   mover o access token de `localStorage` para cookie puro.
 
 ---
 
