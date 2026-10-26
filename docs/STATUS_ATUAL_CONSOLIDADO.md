@@ -12,22 +12,32 @@
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **610 passed, 0 failed** (~14 s) | Execução real na raiz (pós-P0.3) |
+| Testes (`pytest -q`) | **621 passed, 0 failed** (~15 s) | Execução real na raiz (pós-fix da teleconsulta) |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
-| Testes novos desta sessão | **87** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + **18 retenção** + **9 backup**) | `test_*.py` correspondentes |
+| Testes novos desta sessão | **98** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + 11 teleconsulta-frontend + 18 retenção + 9 backup) | `test_*.py` correspondentes |
 | Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
 | Tabelas SQLAlchemy (`Base.metadata.tables`) | **33** | Execução real |
 | Operações OpenAPI registradas | **100** (94 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
-| Git | branch `main`, árvore limpa, 8 commits novos (`ad53e58` → `d722b1b`) | `git status` |
+| Git | branch `main`, árvore limpa, 9 commits novos (`ad53e58` → `e8953c1`) | `git status` |
 | Commit do T3 | `9c4f957` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log` |
 | Commit do P0.3 | `d722b1b` — `feat(conformidade): retencao, anonimizacao, backup verificado e politica de incidente (P0.3)` | `git log` |
+| Correção da teleconsulta | `e8953c1` — `fix(telemedicina): aplica os servidores ICE do servidor antes de criar a PeerConnection` | `git log` |
 
 **Veredito:** o backend sobe, migra, semeia, autentica, **autoriza por papel**,
 **isola dados por clínica**, **audita leitura de PHI** e **transmite teleconsulta
 de verdade** (áudio/vídeo ponto a ponto com sinalização autenticada), com
-**583 testes verdes**. Nesta sessão foram fechados o **T1 (Acolhimento)**, o
+**621 testes verdes**. Nesta sessão foram fechados o **T1 (Acolhimento)**, o
 **P0.1 (RBAC + tenant)**, o **P0.2 (auditoria verificável)**, o **T2 (receitas
-persistidas)**, o núcleo do **P1 (sessão revogável)** e o **T3 (teleconsulta real)**.
+persistidas)**, o núcleo do **P1 (sessão revogável)**, o **T3 (teleconsulta real)**
+e a parte de código do **P0.3 (retenção/backup)**.
+
+**Sobre a teleconsulta — o que está provado e o que não está:** a sinalização
+(handshake, presença, SDP, ICE, `peer_left`, códigos de recusa) é verificada por
+testes automatizados e por dois clientes WebSocket reais conversando com o
+servidor; a ligação entre o HTML e os módulos JS é verificada por contrato
+(ID existente, função global, módulo ES carregado). **Não** foi executada em
+navegador real: a mídia saindo do alto-falante depende de câmera, microfone e
+rede — e o `TURN` só existe quando `TURN_URL` é configurado. Ver §5.
 O que resta para uso clínico com paciente real é **ciclo de vida do dado (P0.3)** e
 **assinatura ICP-Brasil real (P0.4)** — ambos exigem decisão de política e
 certificado, não apenas código.
@@ -119,7 +129,22 @@ bidirecional ainda não está implementada".
   gravados com sala, papel e nº de participantes; todos os elos escritos pelo código
   atual verificam pelo hash canônico.
 
+**Correção encontrada ao auditar a teleconsulta (commit `e8953c1`):** a
+`RTCPeerConnection` era criada em `#criarWebRTC`, **antes** de a mensagem
+`sala_ingressada` chegar com a lista de ICE. Como a conexão copia a configuração no
+construtor e nunca a relê, a chamada subia **só com STUN** — o `TURN` configurado no
+servidor jamais era usado. Em rede hospitalar com firewall, o sintoma seria "a
+chamada conecta para um lado e não passa mídia", sem erro visível. Agora o par é
+criado em `#garantirPeerConnection`, chamado no `sala_ingressada` e antes de
+responder oferta; reconexão reaproveita o par com `restartIce()`.
+`test_t3_teleconsulta_frontend.py` (11 testes) trava essa ordem e as demais
+fragilidades estruturais.
+
 **Limitações conhecidas (honestas) do T3:**
+- **Não houve teste em navegador real.** A sinalização é provada por testes e por
+  dois clientes WebSocket reais; a ligação HTML↔JS é provada por contrato. O que
+  **não** foi verificado de ponta a ponta é a mídia saindo do alto-falante: isso exige
+  duas máquinas com câmera/microfone e rede real (e um `TURN` para o caso ruim).
 - O hub de sinalização vive **na memória do processo**: funciona em um único
   worker/instância. Múltiplas instâncias exigem backplane (Redis pub/sub) — o código
   está isolado no `SignalingHub` para permitir essa troca.
