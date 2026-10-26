@@ -138,16 +138,43 @@ export class SessaoTeleconsulta extends EventTarget {
     });
 
     await this.#rtc.iniciarCaptura();
-    await this.#criarPeerConnection();
 
+    // A `RTCPeerConnection` NÃO é criada aqui de propósito. A lista de servidores
+    // ICE (STUN/TURN) chega na mensagem `sala_ingressada`, e a conexão captura a
+    // configuração no momento em que é criada — criar antes significaria subir
+    // só com STUN e nunca usar o TURN que o servidor mandou. Em rede com
+    // firewall, é exatamente o TURN que faz a chamada conectar.
     this.dispatchEvent(
       new CustomEvent("stream-local", { detail: { stream: this.#rtc.streamLocal } })
     );
   }
 
-  async #criarPeerConnection() {
+  /**
+   * Cria a PeerConnection uma única vez, já com a lista de ICE do servidor.
+   *
+   * Chamada no `sala_ingressada` (quando a lista chega) e novamente antes de
+   * responder uma oferta; o guarda evita uma segunda conexão após reconectar.
+   */
+  async #garantirPeerConnection() {
+    if (!this.#rtc) return;
+
+    const existente = this.#rtc.peerConnection;
+    if (existente) {
+      // Reconexão: reaproveita o par, mas força nova coleta de candidatos —
+      // sem `restartIce` a rede pode ter mudado (Wi-Fi → 4G) e o par nunca
+      // volta a subir.
+      try {
+        existente.restartIce();
+      } catch (erro) {
+        /* navegador antigo: segue sem restart */
+      }
+      return;
+    }
+
+    this.#rtc.definirIceServers(this.#iceServers);
     await this.#rtc.criarPeerConnection();
     this.#remotaDefinida = false;
+    this.#icePendente = [];
   }
 
   #urlWebSocket() {
@@ -253,12 +280,14 @@ export class SessaoTeleconsulta extends EventTarget {
     switch (tipo) {
       case "sala_ingressada": {
         this.#peerId = payload.seu_id ?? null;
-        if (Array.isArray(payload.ice_servers) && payload.ice_servers.length && !this.#iceServers.length) {
+        if (Array.isArray(payload.ice_servers) && payload.ice_servers.length) {
           this.#iceServers = payload.ice_servers;
         }
         this.dispatchEvent(
           new CustomEvent("sala", { detail: { sala: this.#sala, participantes: payload.participantes ?? [] } })
         );
+        // Agora sim existe a lista de ICE: só então faz sentido abrir o par.
+        await this.#garantirPeerConnection();
         if (payload.deve_criar_oferta) {
           await this.#ofertar();
         } else {
@@ -331,6 +360,7 @@ export class SessaoTeleconsulta extends EventTarget {
 
   async #responderOferta(payload) {
     if (!this.#rtc) return;
+    await this.#garantirPeerConnection();
     this.#publicar("negociando");
     const descricao = new RTCSessionDescription({ type: "offer", sdp: payload.sdp });
     const resposta = await this.#rtc.criarResposta(descricao);

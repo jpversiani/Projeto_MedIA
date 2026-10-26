@@ -186,6 +186,21 @@ export class WebRTCManager extends EventTarget {
   isAudioMuted() { return this.#muteAudio; }
   isVideoMuted() { return this.#muteVideo; }
 
+  /**
+   * Define os servidores ICE que serão usados na próxima `criarPeerConnection`.
+   *
+   * A lista vem do servidor (`GET /telemedicina/ice-servers` ou da mensagem
+   * `sala_ingressada`) e precisa ser aplicada **antes** de criar a conexão:
+   * a `RTCPeerConnection` copia a configuração no construtor e não a relê.
+   */
+  definirIceServers(servidores) {
+    const lista = Array.isArray(servidores) ? servidores : [];
+    const stun = lista.find((s) => String(s?.urls ?? '').startsWith('stun:'));
+    const turn = lista.find((s) => String(s?.urls ?? '').startsWith('turn:'));
+    if (stun) this.#config.stun = stun.urls;
+    if (turn) this.#config.turn = turn;
+  }
+
   // ---- Peer Connection ----
 
   async criarPeerConnection() {
