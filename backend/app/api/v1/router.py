@@ -23,6 +23,7 @@ from app.api.v1.analytics import router as analytics_router
 from app.api.v1.health import router as health_router
 from app.api.v1.sincronizacao import router as sincronizacao_router
 from app.api.v1.auth import router as auth_router, get_current_user
+from app.api.v1.conformidade import router as conformidade_router
 from app.core.config import settings
 
 api_router = APIRouter()
@@ -77,6 +78,9 @@ _ROUTERS_CLINICOS = (
     clinica_router,
     fluxo_atendimento_router,
     analytics_router,
+    # Ciclo de vida do dado (LGPD Art. 16): plano de retenção e execução.
+    # Restrito a gestão; a execução, a ADMIN.
+    conformidade_router,
     # Upload de contingência offline: transporta CNS, CPF e o SOAP completo,
     # portanto é dado clínico e precisa da mesma proteção das demais rotas.
     sincronizacao_router,

@@ -57,3 +57,7 @@ sandboxes/
 
 # Pastas vazias de teste com permissões travadas (resíduo local)
 backend/tests/media_env_*/
+
+# Artefatos de teste e backup
+.tmp_testes/
+backups/

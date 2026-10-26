@@ -2,7 +2,8 @@
 
 > **Documento vivo e autoritário sobre o estado atual do repositório.**
 > Branch `main` · T1, P0.1 (RBAC/tenant), P0.2 (auditoria), T2 (receitas persistidas),
-> P1 (sessão com refresh rotativo) e **T3 (teleconsulta WebRTC real)** **commitados**.
+> P1 (sessão com refresh rotativo), **T3 (teleconsulta WebRTC real)** e **P0.3
+> (retenção/anonimização/backup)** **commitados**.
 > Gerado pela sessão de evolução do workspace `App_Media`.
 
 ---
@@ -11,13 +12,13 @@
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **583 passed, 0 failed** (~14 s) | Execução real na raiz (pós-T3) |
+| Testes (`pytest -q`) | **610 passed, 0 failed** (~14 s) | Execução real na raiz (pós-P0.3) |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
-| Testes novos desta sessão | **60** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + **19 teleconsulta**) | `test_rbac_tenant.py`, `test_auditoria_phi.py`, `test_t2_persistencia_documentos.py`, `test_p1_sessao_refresh.py`, `test_t3_teleconsulta_ws.py` |
+| Testes novos desta sessão | **87** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + **18 retenção** + **9 backup**) | `test_*.py` correspondentes |
 | Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
 | Tabelas SQLAlchemy (`Base.metadata.tables`) | **33** | Execução real |
-| Operações OpenAPI registradas | **98** (92 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
-| Git | branch `main`, árvore limpa, 6 commits novos (`ad53e58` → `9c4f957`) | `git status` |
+| Operações OpenAPI registradas | **100** (94 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
+| Git | branch `main`, árvore limpa, 8 commits novos (`ad53e58` → `P0.3`) | `git status` |
 | Commit do T3 | `9c4f957` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log` |
 
 **Veredito:** o backend sobe, migra, semeia, autentica, **autoriza por papel**,
@@ -129,6 +130,40 @@ bidirecional ainda não está implementada".
   paciente ainda não existe.
 - A teleconsulta **não é gravada** (decisão de produto, não pendência técnica).
 
+### ✅ P0.3 — Ciclo de vida do dado (parte executável em código) — nesta sessão
+
+Antes: nada era apagado nunca. Refresh tokens expirados, cópias de contingência
+já sincronizadas, telefone e nome de paciente em campanhas de dois anos atrás e
+salas com link vencido ficavam no banco para sempre — risco desnecessário sob a
+LGPD (Art. 15/16) e impacto maior em qualquer vazamento. Não havia backup, nem
+política escrita, nem `SECURITY.md`.
+
+| Arquivo | Entrega |
+|---|---|
+| `backend/app/services/retencao_dados.py` | **Novo.** Sete regras declarativas com prazo, base legal e ação (`EXPURGAR`, `ENCERRAR`, `ANONIMIZAR`, `REVISAR`). `plano()` nunca altera nada; `executar()` exige `confirmar=True`, é idempotente e grava `EXECUTAR_RETENCAO_DADOS` na trilha. |
+| `backend/app/tools/retencao.py` | **Novo.** CLI `python -m app.tools.retencao [--executar] [--regra X] [--json]`, com o modo somente-leitura como padrão. |
+| `backend/app/api/v1/conformidade.py` | **Novo.** `GET /conformidade/retencao` (plano) e `POST /conformidade/retencao/executar` (ADMIN + `confirmar: true`). |
+| `scripts/backup_db.py` | **Novo.** Backup por API do SQLite (consistente com o banco em uso) ou `pg_dump`; SHA-256 em manifesto, `PRAGMA integrity_check`, poda das cópias antigas e restauração que exige `--forcar`. |
+| `SECURITY.md` | **Novo.** Como reportar falha, prazos de resposta, o que está implementado e **as 8 lacunas reais** (CPF em claro, PAdES simulado, token em `localStorage`, sem rate limit, hub em memória, sem lockfile…), além do checklist mínimo de implantação. |
+| `docs/POLITICA_RETENCAO_E_TRATAMENTO_DE_INCIDENTES.md` | **Novo.** Tabela de retenção espelhando o código, direitos do titular (Art. 18), contorno obrigatório enquanto não houver criptografia de campo, runbook de incidente (Art. 48) e desenho da criptografia futura. |
+| `backend/app/static/app.js` | Painel da fila agora chama `parar()` ao sair da aba — antes o polling de 2 s continuava em toda aba aberta. |
+
+**O que foi decidido de propósito:** registro clínico **não** é apagado nem
+anonimizado automaticamente. A guarda mínima de 20 anos (CFM 1.821/2007 e
+2.314/2022) e a anonimização de dado clínico são decisão humana — a regra
+correspondente é `REVISAR` e só relata números.
+
+**Validação executada:**
+- Suíte → **610 passed** (18 testes de retenção + 9 de backup).
+- CLI executada contra o banco de desenvolvimento: plano, execução (0 afetados) e
+  evento `EXECUTAR_RETENCAO_DADOS` gravado (elo 13 da trilha).
+- Backup real do banco de dev: 630 KB, **34 tabelas, `integrity_check = ok`**,
+  SHA-256 conferido contra o manifesto; restauração recusada sem `--forcar`.
+
+**O que continua aberto no P0.3:** CPF/CNS seguem em claro (o desenho está na
+§9 da política: `cpf_hash` para busca + `cpf_cifrado` AES-256-GCM, migração em
+duas etapas); não há criptografia de backup nem rotação de chave.
+
 ### ✅ CI
 - `.github/workflows/ci.yml` (testes Python 3.12/3.13 + migration check) e
   `codeql.yml` (análise de segurança) **existentes**.
@@ -143,8 +178,7 @@ bidirecional ainda não está implementada".
 |---|---|---|---|
 | P0.1 | **Isolamento de tenant / RBAC** | 🟢 **RESOLVIDO em grande parte** (`c56f318`) | `app/core/rbac.py` (novo) com `ContextoClinico`, `requer_papeis`, `filtrar_tenant` e `exigir_mesmo_estabelecimento`; **19 módulos** de `api/v1` declaram os papéis aceitos. Fila, agenda e atendimentos filtram pela clínica ativa e bloqueiam escrita cruzada (403). **Pendente:** receitas/TISS/farmácia ainda não verificam tenant registro a registro, e `cidadaos` é registro de pessoa compartilhado (decisão de modelagem). |
 | P0.2 | **Auditoria de acesso a PHI** | 🟢 **RESOLVIDO em grande parte** (`922b426`) | Digest agora cobre `ip_address`, `user_agent` e `detalhes_json`; leitura do último elo com `FOR UPDATE`; `AuditService.verificar_cadeia()` audita a própria corrente; `auditar_acesso_phi()` registra leitura de prontuário (resumo e evoluções) com IP/UA. **Pendente:** auditar também leitura de cadastro, atendimento avulso, emissão de receita e exportação TISS; retenção/rotação da trilha. |
-| P0.3 | **Ciclo de vida do dado** | **ABERTO** | Sem retenção/anonimização/backup/criptografia/ resposta a incidente (LGPD Art. 18/48, CFM 2.314 Art. 8º).
-CPF e CNS trafegam e armazenam em claro. |
+| P0.3 | **Ciclo de vida do dado** | 🟢 **RESOLVIDO na parte que é código** | Retenção/anonimização com 7 regras (`app/services/retencao_dados.py`), CLI e API restrita a ADMIN, backup verificado (`scripts/backup_db.py`), `SECURITY.md` e política de retenção/incidente escritas. **Aberto:** CPF/CNS ainda em claro (desenho na §9 da política) e backup sem criptografia própria. |
 | P0.4 | **Assinatura ICP-Brasil/PAdES** | **ABERTO (mock)** | `vidaas_signature_service.py` sem chamada de rede; carimbo = UUID; URL do validador
 (`validador.iti.gov.br/validar`) não é endpoint real; cert titular fixo no código. QR Code do PDF
 entrega **hash de integridade SHA-256**, não assinatura jurídica. |
@@ -157,7 +191,7 @@ entrega **hash de integridade SHA-256**, não assinatura jurídica. |
 | Token em `localStorage` | 🟡 **MITIGADO** | Refresh token em **cookie `HttpOnly`** (JS nunca o lê); access token ainda em `localStorage` por causa das 24 chamadas de `fetch` — migrar para cookie puro exige ajustar o interceptor. |
 | Sem lockfile / `requirements` divergentes | ⬜ **ABERTO** | `requirements.txt` raiz (`>=`) ≠ `backend/` (`==`). |
 | Docker não roda migração | ⬜ **ABERTO** | Imagem copia só `backend/app` (sem `alembic/`/`alembic.ini`). |
-| Falta `SECURITY.md` | ⬜ **ABERTO** | — |
+| Falta `SECURITY.md` | 🟢 **RESOLVIDO** | `SECURITY.md` na raiz: canal de reporte, prazos, controles implementados e as 8 lacunas assumidas. |
 
 ### 🟡 P2 — qualidade e manutenção (aberto)
 
@@ -180,7 +214,7 @@ Documento vivo: `docs/HANDOFF_TRABALHO_RESTANTE.md` (777 linhas, base `08d130a`)
 | **T1** | Aba **Acolhimento** no Cockpit (`js/fila_espera.js` existe, nunca incluído) | ✅ **Concluída** (`ad53e58`) |
 | **T2** | **Persistir receitas/CTE em banco** — antes em dicionário em memória (`_REPOSITORIO_DOCUMENTOS_CFM`) → QR Code dava 404 após restart | ✅ **Concluída** (`d57a982`) — tabela `documentos_clinicos`, migração `b7c31d9e4a02`, validação pública sem login |
 | **T3** | **Teleconsulta real (WebRTC)** — `webrtc_manager.js` pronto e correto, mas **morto**; hub WS com roteamento/broadcast/join/quebra de estado | ✅ **Concluída** — `signaling_hub.py`, WS autenticado com presença e roteamento por destino, `teleconsulta_sessao.js`, UI do médico e do paciente, 19 testes + smoke com dois clientes reais |
-| **T4** | Conformidade CFM/LGPD — persistir **TCLE**, auditar PHI, tenant, RBAC, lifecycle | ⬜ Não iniciada (partes P0) |
+| **T4** | Conformidade CFM/LGPD — persistir **TCLE**, auditar PHI, tenant, RBAC, lifecycle | 🟡 **Parcial** — TCLE ainda em memória; tenant/RBAC (P0.1), auditoria (P0.2) e lifecycle (P0.3) entregues |
 | **T5** | Identificação de profissional (CRM/UF/RQE) — **parcialmente saneado** nos commits de identidade | 🟡 Parcial |
 | **T6** | TISS (XML inválido, hash fake, XSD) e DMED (leiaute errado) | ⬜ Não iniciada |
 | **T7** | ICP-Brasil — decisão: implementar VIDAAS ou remover alegações | ⬜ Não iniciada |
@@ -209,22 +243,24 @@ crítico Etapa 1 → Etapa 2 (fluxo presencial antes do vídeo).
 ## 6. Conclusão e próximo passo sugerido
 
 1. **Estado geral:** projeto funcional em desenvolvimento ativo; o núcleo (boot, migração,
-   seed, auth, autorização, sessão, fluxo presencial, teleconsulta) está verde com
-   **583 testes passando**. Concluídos: **T1 (aba Acolhimento)**, **P0.1 (RBAC +
-   isolamento entre clínicas)**, **P0.2 (auditoria de PHI verificável)**, **T2 (receitas
-   persistidas)**, o núcleo do **P1 (sessão revogável com refresh rotativo)** e o
-   **T3 (teleconsulta WebRTC real)**.
-2. **O que ainda impede piloto com paciente real:** **P0.3 (ciclo de vida do dado)** —
-   CPF/CNS em claro, sem retenção/anonimização/backup — e **P0.4 (assinatura ICP-Brasil
-   real: hoje é um UUID, não uma assinatura jurídica)**. Nenhum dos dois é resolvível só
-   com código: exigem certificado ICP-Brasil e definição de política de retenção.
-3. **Sequência recomendada:** `P0.3` → `P0.4` → `T6` (TISS/DMED) → distribuição
-   (`lockfile`, Docker com migração, `SECURITY.md`) → `T8` (gravação, expiração de link,
-   acessibilidade).
-4. **Ajustes pequenos herdados:** ligar `parar()` do painel de fila ao trocar de aba;
-   estender o RBAC de tenant para receitas/TISS/farmácia; auditar as demais leituras de PHI;
-   mover o access token de `localStorage` para cookie puro; backplane Redis para o hub de
-   sinalização quando houver mais de uma instância.
+   seed, auth, autorização, sessão, fluxo presencial, teleconsulta, retenção de dados)
+   está verde com **610 testes passando**. Concluídos: **T1 (aba Acolhimento)**, **P0.1
+   (RBAC + isolamento entre clínicas)**, **P0.2 (auditoria de PHI verificável)**, **T2
+   (receitas persistidas)**, o núcleo do **P1 (sessão revogável com refresh rotativo)**,
+   o **T3 (teleconsulta WebRTC real)** e a parte de código do **P0.3 (retenção,
+   anonimização, backup e política de incidente)**.
+2. **O que ainda impede piloto com paciente real:** **P0.4 (assinatura ICP-Brasil real:
+   hoje é um UUID, não uma assinatura jurídica)** e a **criptografia de CPF/CNS em
+   repouso** — esta última já tem desenho definido (§9 da política), falta executar a
+   migração em duas etapas. P0.4 depende de certificado e decisão de fornecedor, não só
+   de código.
+3. **Sequência recomendada:** criptografia de campo (CPF/CNS) → `P0.4` → `T6`
+   (TISS/DMED) → distribuição (`lockfile`, Docker com migração) → `T8` (gravação,
+   expiração de link, acessibilidade).
+4. **Ajustes pequenos herdados:** estender o RBAC de tenant para receitas/TISS/farmácia;
+   auditar as demais leituras de PHI; mover o access token de `localStorage` para cookie
+   puro; backplane Redis para o hub de sinalização quando houver mais de uma instância;
+   rate limiting no gateway.
 
 ---
 

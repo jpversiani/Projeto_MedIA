@@ -518,6 +518,17 @@ function trocarAba(aba) {
     btnAtivo.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-md shadow-blue-500/20 transition-all";
   }
 
+  // O painel da fila faz polling de 2 s enquanto a aba está visível. Sem parar
+  // ao sair, o navegador continuava consultando `/fila/` em toda aba aberta —
+  // custo de rede e carga no banco a troco de nada.
+  if (aba !== "acolhimento" && filaEsperaInstancia && typeof filaEsperaInstancia.parar === "function") {
+    try {
+      filaEsperaInstancia.parar();
+    } catch (erro) {
+      console.warn("[Acolhimento] Falha ao parar o painel de fila:", erro);
+    }
+  }
+
   if (aba === "agenda") carregarAgenda();
   if (aba === "acolhimento") { carregarAcolhimento(); carregarConsultasCheckin(); }
   if (aba === "pacientes") carregarPacientes();
