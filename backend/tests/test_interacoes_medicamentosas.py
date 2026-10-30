@@ -1,4 +1,3 @@
-import pytest
 from app.services.interacoes_medicamentosas import VerificadorFarmacologico
 
 

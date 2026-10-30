@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-import sys
 import os
-import zipfile
+import sys
 import xml.etree.ElementTree as ET
+import zipfile
 
-def extrair_odt_para_markdown(caminho_odt: str, caminho_saida_md: str = None) -> str:
+
+def extrair_odt_para_markdown(caminho_odt: str, caminho_saida_md: str | None = None) -> str:
     if not os.path.exists(caminho_odt):
         raise FileNotFoundError(f"Arquivo não encontrado: {caminho_odt}")
 
@@ -53,13 +54,12 @@ def extrair_odt_para_markdown(caminho_odt: str, caminho_saida_md: str = None) ->
             elif tag == 'section':
                 process_container(elem)
 
-    with zipfile.ZipFile(caminho_odt, 'r') as z:
-        with z.open('content.xml') as f:
-            tree = ET.parse(f)
-            root = tree.getroot()
-            text_body = root.find(f".//{{{ns['office']}}}text")
-            if text_body is not None:
-                process_container(text_body)
+    with zipfile.ZipFile(caminho_odt, 'r') as z, z.open('content.xml') as f:
+        tree = ET.parse(f)
+        root = tree.getroot()
+        text_body = root.find(f".//{{{ns['office']}}}text")
+        if text_body is not None:
+            process_container(text_body)
 
     conteudo_formatado = "\n".join(linhas_md)
 
@@ -69,6 +69,7 @@ def extrair_odt_para_markdown(caminho_odt: str, caminho_saida_md: str = None) ->
         print(f"Dados extraídos com sucesso para: {caminho_saida_md}")
 
     return conteudo_formatado
+
 
 if __name__ == "__main__":
     arquivo_odt = sys.argv[1] if len(sys.argv) > 1 else "dados-sistema-E-sus.odt"

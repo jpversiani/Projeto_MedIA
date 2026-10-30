@@ -1,4 +1,3 @@
-import pytest
 from app.services.calculadoras_clinicas import CalculadorasClinicas
 
 

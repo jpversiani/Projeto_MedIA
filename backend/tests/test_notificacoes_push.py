@@ -11,25 +11,25 @@ Valida:
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Constantes do módulo (espelhadas em Python para validação)
 # ---------------------------------------------------------------------------
 
 CAMPOS_SENSIVEIS = frozenset([
-    "cid10", "ciap2", "descricao_clinica", "soap", "anamnese",
-    "evolucao_soap", "motivo_consulta", "diagnostico_ciap2", "diagnostico_cid10",
+    "cid10", "ciap2", "descricao_clinica", "evolucao_soap",
+    "anamnese", "motivo_consulta",
+    "diagnostico_ciap2", "diagnostico_cid10", "soap",
 ])
 
 TIPOS_EVENTO = frozenset([
-    "TELECONSULTA_LEMBRETE",
-    "PACIENTE_EM_SALA",
     "CONFIRMACAO_PRESENCA",
+    "PACIENTE_EM_SALA",
+    "TELECONSULTA_LEMBRETE",
 ])
 
 ANTECEDENCIA_LEMBRETE_MS = 15 * 60 * 1000  # 900 000 ms
@@ -42,7 +42,7 @@ INTERVALO_POLLING_PADRAO_MS = 30_000
 
 @pytest.fixture
 def agora() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @pytest.fixture
@@ -86,7 +86,6 @@ def _mascarar_cpf(cpf: str) -> str:
 
 
 def _validar_ciap2(codigo: str) -> bool:
-    import re
     return bool(__import__("re").fullmatch(r"[A-Z]\d{2}", str(codigo).upper()))
 
 
@@ -327,7 +326,7 @@ class TestDeduplicacao:
         assert len(ids) == 2
 
     def test_id_repetido_deduplicado(self) -> None:
-        ids = {"teleconsulta_1", "teleconsulta_1", "teleconsulta_2"}
+        ids = {"teleconsulta_1", "teleconsulta_2"}
         assert len(ids) == 2
 
 

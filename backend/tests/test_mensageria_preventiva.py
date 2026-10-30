@@ -15,11 +15,10 @@ from unittest.mock import patch
 
 import pytest
 
-# Importações das funções de negócio (implementadas em backend/app/services/mensageria_preventiva.py)
 from backend.app.services.mensageria_preventiva import (
+    enviar_lembrete,
     filtrar_pacientes_hipertensos_vencidos,
     verificar_janela_horario,
-    enviar_lembrete,
 )
 
 

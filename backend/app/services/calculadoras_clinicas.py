@@ -7,8 +7,6 @@ Algoritmos computacionais validados:
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
-import math
 
 
 @dataclass
@@ -50,62 +48,102 @@ class CalculadorasClinicas:
 
         # Pontos por Idade
         if sexo_upper == "M":
-            if idade <= 34: pontos += -9
-            elif idade <= 39: pontos += -4
-            elif idade <= 44: pontos += 0
-            elif idade <= 49: pontos += 3
-            elif idade <= 54: pontos += 6
-            elif idade <= 59: pontos += 8
-            elif idade <= 64: pontos += 10
-            elif idade <= 69: pontos += 11
-            elif idade <= 74: pontos += 12
-            else: pontos += 13
+            if idade <= 34:
+                pontos += -9
+            elif idade <= 39:
+                pontos += -4
+            elif idade <= 44:
+                pontos += 0
+            elif idade <= 49:
+                pontos += 3
+            elif idade <= 54:
+                pontos += 6
+            elif idade <= 59:
+                pontos += 8
+            elif idade <= 64:
+                pontos += 10
+            elif idade <= 69:
+                pontos += 11
+            elif idade <= 74:
+                pontos += 12
+            else:
+                pontos += 13
         else:  # Feminino
-            if idade <= 34: pontos += -7
-            elif idade <= 39: pontos += -3
-            elif idade <= 44: pontos += 0
-            elif idade <= 49: pontos += 3
-            elif idade <= 54: pontos += 6
-            elif idade <= 59: pontos += 8
-            elif idade <= 64: pontos += 10
-            elif idade <= 69: pontos += 12
-            elif idade <= 74: pontos += 14
-            else: pontos += 16
+            if idade <= 34:
+                pontos += -7
+            elif idade <= 39:
+                pontos += -3
+            elif idade <= 44:
+                pontos += 0
+            elif idade <= 49:
+                pontos += 3
+            elif idade <= 54:
+                pontos += 6
+            elif idade <= 59:
+                pontos += 8
+            elif idade <= 64:
+                pontos += 10
+            elif idade <= 69:
+                pontos += 12
+            elif idade <= 74:
+                pontos += 14
+            else:
+                pontos += 16
 
         # Pontos por Colesterol Total
-        if colesterol_total >= 280: pontos += 5
-        elif colesterol_total >= 240: pontos += 4
-        elif colesterol_total >= 200: pontos += 3
-        elif colesterol_total >= 160: pontos += 1
+        if colesterol_total >= 280:
+            pontos += 5
+        elif colesterol_total >= 240:
+            pontos += 4
+        elif colesterol_total >= 200:
+            pontos += 3
+        elif colesterol_total >= 160:
+            pontos += 1
 
         # Pontos por HDL (proteção vs risco)
-        if colesterol_hdl >= 60: pontos -= 1
-        elif colesterol_hdl < 35: pontos += 2
-        elif colesterol_hdl < 45: pontos += 1
+        if colesterol_hdl >= 60:
+            pontos -= 1
+        elif colesterol_hdl < 35:
+            pontos += 2
+        elif colesterol_hdl < 45:
+            pontos += 1
 
-        # Pontos por Pressão Sistólica
-        if em_tratamento_has:
-            if pressao_sistolica >= 160: pontos += 3
-            elif pressao_sistolica >= 140: pontos += 2
-            elif pressao_sistolica >= 130: pontos += 2
-            elif pressao_sistolica >= 120: pontos += 1
-        else:
-            if pressao_sistolica >= 160: pontos += 2
-            elif pressao_sistolica >= 140: pontos += 1
-            elif pressao_sistolica >= 130: pontos += 1
+        if em_tratamento_has and pressao_sistolica >= 160:
+            pontos += 3
+        elif em_tratamento_has and pressao_sistolica >= 140:
+            pontos += 2
+        elif em_tratamento_has and pressao_sistolica >= 130:
+            pontos += 2
+        elif em_tratamento_has and pressao_sistolica >= 120:
+            pontos += 1
+        elif pressao_sistolica >= 160:
+            pontos += 2
+        elif pressao_sistolica >= 140:
+            pontos += 1
+        elif pressao_sistolica >= 130:
+            pontos += 1
 
         # Tabagismo e Diabetes
-        if fumante: pontos += 4
-        if diabetico: pontos += 3
+        if fumante:
+            pontos += 4
+        if diabetico:
+            pontos += 3
 
         # Estimativa de probabilidade
-        if pontos <= 0: risco = 1.0
-        elif pontos <= 5: risco = 2.0
-        elif pontos <= 8: risco = 5.0
-        elif pontos <= 11: risco = 8.0
-        elif pontos <= 14: risco = 16.0
-        elif pontos <= 17: risco = 25.0
-        else: risco = 30.0
+        if pontos <= 0:
+            risco = 1.0
+        elif pontos <= 5:
+            risco = 2.0
+        elif pontos <= 8:
+            risco = 5.0
+        elif pontos <= 11:
+            risco = 8.0
+        elif pontos <= 14:
+            risco = 16.0
+        elif pontos <= 17:
+            risco = 25.0
+        else:
+            risco = 30.0
 
         if risco < 10.0:
             categoria = "Baixo Risco (< 10%)"
@@ -181,7 +219,7 @@ class CalculadorasClinicas:
         )
 
     @classmethod
-    def classificar_imc(cls, peso_kg: float, altura_cm: float) -> Dict[str, any]:
+    def classificar_imc(cls, peso_kg: float, altura_cm: float) -> dict:
         """Calcula IMC e classificação antropométrica."""
         if altura_cm <= 0 or peso_kg <= 0:
             return {"imc": 0.0, "classificacao": "Dados inválidos"}

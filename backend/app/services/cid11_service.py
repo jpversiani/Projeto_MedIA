@@ -9,8 +9,10 @@ Fornece:
 4. Apoio à transição regulatória (CFM / ANS / OMS)
 """
 
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+import unicodedata
 
 
 @dataclass
@@ -19,13 +21,13 @@ class ItemCID11:
     titulo: str
     capitulo: str
     capitulo_numero: str
-    cid10_equivalente: Optional[str] = None
-    sinonimos: List[str] = field(default_factory=list)
-    definicao: Optional[str] = None
+    cid10_equivalente: str | None = None
+    sinonimos: list[str] = field(default_factory=list)
+    definicao: str | None = None
 
 
 # Catálogo clínico representativo de alta prevalência da CID-11 para Consultórios e Telemedicina
-CATALOGO_CID11: List[ItemCID11] = [
+CATALOGO_CID11: list[ItemCID11] = [
     # Capítulo 05: Doenças do sistema endócrino, nutricionais ou metabólicas
     ItemCID11(
         codigo="5A11",

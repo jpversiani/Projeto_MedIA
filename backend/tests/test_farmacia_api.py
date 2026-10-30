@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
 import uuid
+from datetime import date, timedelta
 
 import pytest
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.farmacia import Receita, ReceitaItem
 
 OUTRO_HASH = "b" * 64
+
 
 def _payload(receita: Receita, **overrides) -> dict:
     base = {

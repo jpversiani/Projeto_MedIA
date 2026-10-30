@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     # -- Segurança ---------------------------------------------------------
     # `SECRET_KEY` é aceito como alias legado do `.env.example` existente.
-    JWT_SECRET_KEY: Optional[str] = Field(
+    JWT_SECRET_KEY: str | None = Field(
         default=None,
         validation_alias=AliasChoices("JWT_SECRET_KEY", "SECRET_KEY"),
     )
@@ -161,10 +161,10 @@ class Settings(BaseSettings):
     WS_TIMEOUT_OCIOSO_SEGUNDOS: int = 900
 
     # -- Integrações -------------------------------------------------------
-    GEMINI_API_KEY: Optional[str] = None
-    TURN_SECRET: Optional[str] = None
-    GOOGLE_CLIENT_ID: Optional[str] = None
-    MICROSOFT_CLIENT_ID: Optional[str] = None
+    GEMINI_API_KEY: str | None = None
+    TURN_SECRET: str | None = None
+    GOOGLE_CLIENT_ID: str | None = None
+    MICROSOFT_CLIENT_ID: str | None = None
 
     # Contingência offline (C29)
     MAX_ITENS_LOTE_SYNC: int = 500
@@ -212,7 +212,7 @@ class Settings(BaseSettings):
 
     def validar_ambiente(self) -> None:
         """Falha rápida em configurações que exponham dados de saúde."""
-        problemas: List[str] = []
+        problemas: list[str] = []
 
         if self.is_production:
             if not self.JWT_SECRET_KEY:
@@ -242,7 +242,7 @@ class Settings(BaseSettings):
             )
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     @property

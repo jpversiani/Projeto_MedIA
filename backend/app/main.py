@@ -20,8 +20,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
+from app.core.bootstrap import bootstrap_demo_data, run_migrations
 from app.core.config import settings
-from app.core.bootstrap import run_migrations, bootstrap_demo_data
+
 
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
@@ -36,7 +37,9 @@ for _stream in (sys.stdout, sys.stderr):
     try:
         if _stream is not None and hasattr(_stream, "reconfigure"):
             _stream.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # pragma: no cover - depende do ambiente
+    except OSError:
+        # Dependente do ambiente (ex.: streams sem reconfigure no Windows);
+        # ignoramos pois a reconfiguração de codificação é melhor esforço.
         pass
 
 
@@ -125,4 +128,3 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-

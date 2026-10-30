@@ -13,9 +13,7 @@ from pydantic import ValidationError
 
 from app.services.sisab_client import (
     FichaSISAB,
-    LoteInvalidoError,
     LoteSISAB,
-    TipoFicha,
 )
 
 CNS_VALIDO = "123456789012348"

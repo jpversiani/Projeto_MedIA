@@ -1,6 +1,9 @@
-import pytest
 from datetime import date
-from app.services.tiss_generator import MotorFaturamentoTISS, GuiaConsultaTISS
+
+from app.services.tiss_generator import (
+    GuiaConsultaTISS,
+    MotorFaturamentoTISS,
+)
 
 
 def test_gerar_xml_guia_consulta_sucesso():

@@ -11,8 +11,6 @@ real: persistência no banco, vínculo com o cidadão e ligação com a fila.
 """
 from datetime import date
 
-import pytest
-
 from app.models.agendamento import Agendamento
 from app.models.cidadao import Cidadao
 from app.models.fila import FilaAcolhimento

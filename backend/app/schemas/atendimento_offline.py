@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import (
     AfterValidator,
@@ -23,8 +23,8 @@ from pydantic import (
 
 from app.models.atendimento_offline import StatusSincronizacao
 from app.services.validadores import (
-    normalizar_cid10,
     normalizar_ciap2,
+    normalizar_cid10,
     normalizar_cnes,
     normalizar_cns,
     normalizar_cpf,
@@ -37,7 +37,7 @@ from app.services.validadores import (
 CNS = Annotated[str, AfterValidator(normalizar_cns)]
 """CNS validado e normalizado (15 dígitos)."""
 
-CPF = Annotated[Optional[str], AfterValidator(normalizar_cpf)]
+CPF = Annotated[str | None, AfterValidator(normalizar_cpf)]
 """CPF opcional validado e normalizado (11 dígitos)."""
 
 CIAP2 = Annotated[str, AfterValidator(normalizar_ciap2)]
@@ -59,13 +59,13 @@ class RegistroSOAP(BaseModel):
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    subjetivo: Optional[str] = Field(None, max_length=10_000, description="S — queixas e história relatada")
-    objetivo: Optional[str] = Field(None, max_length=10_000, description="O — exame físico e achados")
-    avaliacao: Optional[str] = Field(None, max_length=10_000, description="A — raciocínio clínico")
-    plano: Optional[str] = Field(None, max_length=10_000, description="P — conduta e prescrições")
+    subjetivo: str | None = Field(None, max_length=10_000, description="S — queixas e história relatada")
+    objetivo: str | None = Field(None, max_length=10_000, description="O — exame físico e achados")
+    avaliacao: str | None = Field(None, max_length=10_000, description="A — raciocínio clínico")
+    plano: str | None = Field(None, max_length=10_000, description="P — conduta e prescrições")
 
     @model_validator(mode="after")
-    def _exigir_pelo_menos_um_dominio(self) -> "RegistroSOAP":
+    def _exigir_pelo_menos_um_dominio(self) -> RegistroSOAP:
         if not any(
             (dominio or "").strip()
             for dominio in (self.subjetivo, self.objetivo, self.avaliacao, self.plano)
@@ -92,16 +92,16 @@ class AtendimentoOfflineCreate(BaseModel):
     )
     cns_cidadao: CNS
     cpf_cidadao: CPF = None
-    profissional_cns: Optional[CNS] = None
-    cnes_estabelecimento: Optional[CNES] = None
+    profissional_cns: CNS | None = None
+    cnes_estabelecimento: CNES | None = None
 
     data_hora_atendimento: datetime = Field(
         description="Momento do atendimento na UBS, com fuso horário explícito."
     )
 
     soap: RegistroSOAP
-    ciap2: Optional[CIAP2] = None
-    cid10: Optional[CID10] = None
+    ciap2: CIAP2 | None = None
+    cid10: CID10 | None = None
 
     @field_validator("data_hora_atendimento")
     @classmethod
@@ -121,16 +121,16 @@ class AtendimentoOfflineOut(BaseModel):
     id: int
     id_local: uuid.UUID
     cns_cidadao: str
-    cpf_cidadao: Optional[str] = None
-    profissional_cns: Optional[str] = None
-    cnes_estabelecimento: Optional[str] = None
+    cpf_cidadao: str | None = None
+    profissional_cns: str | None = None
+    cnes_estabelecimento: str | None = None
     data_hora_atendimento: datetime
-    subjetivo: Optional[str] = None
-    objetivo: Optional[str] = None
-    avaliacao: Optional[str] = None
-    plano: Optional[str] = None
-    ciap2: Optional[str] = None
-    cid10: Optional[str] = None
+    subjetivo: str | None = None
+    objetivo: str | None = None
+    avaliacao: str | None = None
+    plano: str | None = None
+    ciap2: str | None = None
+    cid10: str | None = None
     status: StatusSincronizacao
     criado_em: datetime
     recebido_em: datetime
@@ -164,4 +164,4 @@ class StatusSincronizacaoOut(BaseModel):
     """Painel resumido do servidor para auditoria da contingência."""
 
     total_recebidos: NonNegativeInt = 0
-    ultimo_recebimento: Optional[datetime] = None
+    ultimo_recebimento: datetime | None = None

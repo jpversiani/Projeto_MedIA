@@ -1,14 +1,15 @@
-from datetime import datetime, timedelta, timezone
+from __future__ import annotations
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import List
 
 import pytest
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Column, Integer, String, DateTime, Enum as SAEnum, ForeignKey, UniqueConstraint, create_engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker, Mapped, mapped_column
+from sqlalchemy import create_engine, DateTime, Enum as SAEnum, ForeignKey, String
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship, sessionmaker
+
 
 Base = declarative_base()
+
 
 class StatusConsulta(str, Enum):
     AGENDADA = "AGENDADA"
@@ -16,12 +17,14 @@ class StatusConsulta(str, Enum):
     CONCLUIDA = "CONCLUIDA"
     CANCELADA = "CANCELADA"
 
+
 class TelemedicinaRoom(Base):
     __tablename__ = "telemedicina_rooms"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    consultas: Mapped[List["Consulta"]] = relationship(back_populates="room")
+    consultas: Mapped[list["Consulta"]] = relationship(back_populates="room")
+
 
 class Consulta(Base):
     __tablename__ = "consultas"
@@ -29,6 +32,7 @@ class Consulta(Base):
     room_id: Mapped[int] = mapped_column(ForeignKey("telemedicina_rooms.id"))
     status: Mapped[StatusConsulta] = mapped_column(SAEnum(StatusConsulta), default=StatusConsulta.AGENDADA)
     room: Mapped["TelemedicinaRoom"] = relationship(back_populates="consultas")
+
 
 @pytest.fixture
 def db_session():
@@ -39,8 +43,9 @@ def db_session():
     yield session
     session.close()
 
+
 def test_criar_sala_telemedicina(db_session):
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     exp = agora + timedelta(hours=1)
     sala = TelemedicinaRoom(name="SALA-101", expires_at=exp)
     db_session.add(sala)
@@ -48,8 +53,9 @@ def test_criar_sala_telemedicina(db_session):
     assert sala.id is not None
     assert sala.name == "SALA-101"
 
+
 def test_rejeitar_sala_duplicada(db_session):
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     exp = agora + timedelta(hours=1)
     sala1 = TelemedicinaRoom(name="SALA-DUPLICADA", expires_at=exp)
     sala2 = TelemedicinaRoom(name="SALA-DUPLICADA", expires_at=exp)
@@ -59,8 +65,9 @@ def test_rejeitar_sala_duplicada(db_session):
     with pytest.raises(IntegrityError):
         db_session.commit()
 
+
 def test_ciclo_status_consulta(db_session):
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     sala = TelemedicinaRoom(name="SALA-CONSULTA", expires_at=agora + timedelta(hours=1))
     db_session.add(sala)
     db_session.commit()

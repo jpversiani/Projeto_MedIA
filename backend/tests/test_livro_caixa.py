@@ -1,25 +1,24 @@
-import pytest
 from app.services.livro_caixa import (
-    MotorLivroCaixaMedico,
-    LancamentoReceita,
     LancamentoDespesa,
+    LancamentoReceita,
+    MotorLivroCaixaMedico,
 )
 
 
-def test_calcular_irpf_carne_leao_isencao():
+def test_calcular_irpf_carne_leao_isencao() -> None:
     calc = MotorLivroCaixaMedico.calcular_irpf_carne_leao(2000.00)
     assert calc["imposto_devido"] == 0.0
     assert calc["aliquota_nominal"] == 0.0
 
 
-def test_calcular_irpf_carne_leao_faixa_maxima():
+def test_calcular_irpf_carne_leao_faixa_maxima() -> None:
     calc = MotorLivroCaixaMedico.calcular_irpf_carne_leao(10000.00)
     # 10000 * 0.275 - 896 = 2750 - 896 = 1854.00
     assert calc["imposto_devido"] == 1854.00
     assert calc["aliquota_nominal"] == 27.5
 
 
-def test_demonstrativo_mensal_hibrido():
+def test_demonstrativo_mensal_hibrido() -> None:
     receitas = [
         LancamentoReceita("2026-09-01", "Paciente A", "111", "PRESENCIAL", 400.0, "R1"),
         LancamentoReceita("2026-09-02", "Paciente B", "222", "TELEMEDICINA", 350.0, "R2"),

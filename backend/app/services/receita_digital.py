@@ -38,7 +38,7 @@ import json
 import os
 import unicodedata
 from collections.abc import Iterable, Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Final, Literal
 
 from app.models.receita import Medicamento, ReceitaDigital
@@ -104,7 +104,7 @@ def _serializar_datetime(data: datetime) -> str:
     """Converte datas para UTC; data sem fuso é interpretada como Brasília."""
     if data.tzinfo is None:
         data = data.replace(tzinfo=timezone(FUSO_BRASILIA))
-    return data.astimezone(timezone.utc).isoformat()
+    return data.astimezone(UTC).isoformat()
 
 
 def _converter_valores(objeto: object) -> object:
@@ -259,7 +259,7 @@ class AssinadorReceitaDigital:
                 "hash_assinatura": hash_hex,
                 "assinatura": base64.b64encode(assinatura).decode("ascii"),
                 "algoritmo_assinatura": ALGORITMO_ASSINATURA,
-                "data_assinatura": datetime.now(timezone.utc),
+                "data_assinatura": datetime.now(UTC),
             }
         )
 

@@ -8,18 +8,10 @@ Projeto MedIA — SUS/APS (Python 3.12, Pydantic v2).
 """
 
 from __future__ import annotations
-
-import re
 from datetime import date, datetime
-import sys
-from typing import Annotated, Final, Literal
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
+import re
+from typing import Annotated, Final, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
-
 from app.schemas.atendimento import AtendimentoSOAPOut
 
 # Padrões oficiais de codificação SUS (CNS, CIAP-2 e CID-10)

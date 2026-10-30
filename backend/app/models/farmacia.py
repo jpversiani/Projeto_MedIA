@@ -82,12 +82,12 @@ class Receita(Base):
         DateTime, default=_agora_utc, onupdate=_agora_utc
     )
 
-    itens: Mapped[list["ReceitaItem"]] = relationship(
+    itens: Mapped[list[ReceitaItem]] = relationship(
         back_populates="receita",
         cascade="all, delete-orphan",
         order_by="ReceitaItem.id",
     )
-    dispensacoes: Mapped[list["Dispensacao"]] = relationship(
+    dispensacoes: Mapped[list[Dispensacao]] = relationship(
         back_populates="receita",
         cascade="all, delete-orphan",
         order_by="Dispensacao.id",
@@ -119,8 +119,8 @@ class ReceitaItem(Base):
         Integer, default=0, nullable=False
     )
 
-    receita: Mapped["Receita"] = relationship(back_populates="itens")
-    baixas: Mapped[list["DispensacaoItem"]] = relationship(
+    receita: Mapped[Receita] = relationship(back_populates="itens")
+    baixas: Mapped[list[DispensacaoItem]] = relationship(
         back_populates="receita_item", cascade="all, delete-orphan"
     )
 
@@ -174,8 +174,8 @@ class Dispensacao(Base):
         String(64), nullable=True, index=True
     )
 
-    receita: Mapped["Receita"] = relationship(back_populates="dispensacoes")
-    itens: Mapped[list["DispensacaoItem"]] = relationship(
+    receita: Mapped[Receita] = relationship(back_populates="dispensacoes")
+    itens: Mapped[list[DispensacaoItem]] = relationship(
         back_populates="dispensacao",
         cascade="all, delete-orphan",
         order_by="DispensacaoItem.id",
@@ -205,8 +205,8 @@ class DispensacaoItem(Base):
     lote: Mapped[str | None] = mapped_column(String(30), nullable=True)
     validade_lote: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    dispensacao: Mapped["Dispensacao"] = relationship(back_populates="itens")
-    receita_item: Mapped["ReceitaItem"] = relationship(back_populates="baixas")
+    dispensacao: Mapped[Dispensacao] = relationship(back_populates="itens")
+    receita_item: Mapped[ReceitaItem] = relationship(back_populates="baixas")
 
     def __repr__(self) -> str:
         return (

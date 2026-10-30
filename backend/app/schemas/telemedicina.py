@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StatusTeleconsulta(str, Enum):
@@ -23,8 +23,8 @@ class TeleconsultaBase(BaseModel):
     paciente_cpf: str = Field(..., description="CPF do paciente (11 dígitos)")
     medico_crm: str = Field(..., description="CRM do médico (6 dígitos)")
     data_hora: datetime = Field(..., description="Data e hora da teleconsulta")
-    ciap2: Optional[str] = Field(None, description="Código CIAP-2 para APS")
-    cid10: Optional[str] = Field(None, description="Código CID-10")
+    ciap2: str | None = Field(None, description="Código CIAP-2 para APS")
+    cid10: str | None = Field(None, description="Código CID-10")
 
     @field_validator("paciente_cpf")
     @classmethod
@@ -53,8 +53,7 @@ class TeleconsultaStatus(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        valid = [s.value for s in StatusTeleconsulta]
-        if v not in valid:
+        if v not in [s.value for s in StatusTeleconsulta]:
             raise ValueError("Status inválido")
         return v
 
@@ -62,4 +61,4 @@ class TeleconsultaStatus(BaseModel):
 class Teleconsulta(TeleconsultaBase):
     id: int
     status: str
-    link_sala: Optional[str] = None
+    link_sala: str | None = None

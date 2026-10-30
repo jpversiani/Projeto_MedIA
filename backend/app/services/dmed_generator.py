@@ -4,18 +4,17 @@ Geração programática do leiaute magnético oficial da Declaração de Serviç
 Conformidade: Instrução Normativa RFB nº 1.987/2020 e layouts anuais da Receita Federal.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
-import re
 
 
 @dataclass
 class LancamentoDespesaMedica:
     cpf_responsavel_pagamento: str
     nome_responsavel_pagamento: str
-    cpf_beneficiario: Optional[str]
-    data_nascimento_beneficiario: Optional[date]
+    cpf_beneficiario: str | None
+    data_nascimento_beneficiario: date | None
     nome_beneficiario: str
     valor_pago: float
     data_servico: date
@@ -27,9 +26,9 @@ class DeclaracaoDMED:
     ano_calendario: int
     cnpj_prestador: str
     nome_empresarial: str
-    numero_recibo_anterior: Optional[str] = None
+    numero_recibo_anterior: str | None = None
     retificadora: bool = False
-    lancamentos: List[LancamentoDespesaMedica] = None
+    lancamentos: list[LancamentoDespesaMedica] | None = None
 
 
 class MotorFiscalDMED:
@@ -43,7 +42,7 @@ class MotorFiscalDMED:
             return False
 
         for i in range(9, 11):
-            soma = sum(int(cpf_limpo[num]) * ((i + 1) - num) for num in range(0, i))
+            soma = sum(int(cpf_limpo[num]) * ((i + 1) - num) for num in range(i))
             digito = ((soma * 10) % 11) % 10
             if digito != int(cpf_limpo[i]):
                 return False
@@ -72,7 +71,7 @@ class MotorFiscalDMED:
             cpf_resp = re.sub(r"\D", "", item.cpf_responsavel_pagamento).zfill(11)
             cpf_ben = re.sub(r"\D", "", item.cpf_beneficiario or "").zfill(11) if item.cpf_beneficiario else ""
             nasc_ben = item.data_nascimento_beneficiario.strftime("%d%m%Y") if item.data_nascimento_beneficiario else ""
-            valor_centavos = int(round(item.valor_pago * 100))
+            valor_centavos = round(item.valor_pago * 100)
             total_valor += item.valor_pago
 
             # Layout: ROP|CPF_RESP|NOME_RESP|CPF_BEN|NASC_BEN|NOME_BEN|VALOR_CENTAVOS
@@ -84,7 +83,7 @@ class MotorFiscalDMED:
             linhas.append(linha_rop)
 
         # 3. Registro Trailer (Encerramento do Arquivo com Totalizadores)
-        total_centavos = int(round(total_valor * 100))
+        total_centavos = round(total_valor * 100)
         total_registros = len(linhas) + 1  # Incluindo o próprio trailer
         trailer = f"T9|{str(total_registros).zfill(8)}|{str(total_centavos).zfill(15)}"
         linhas.append(trailer)

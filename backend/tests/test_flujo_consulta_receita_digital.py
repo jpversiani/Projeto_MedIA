@@ -13,14 +13,13 @@ CRM-UF, tipo, fecha, ítems) — ver ``MotorPrescricaoCFM.emitir_prescricao``.
 El hash NO es determinístico entre dos POSTs porque incluye ``data_emissao``
 (timestamp de emisión).
 """
-
 from __future__ import annotations
 
 import hashlib
 import json
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from app.main import app
 from app.services.prescricao_digital_cfm import MotorPrescricaoCFM, TipoPrescricao
@@ -275,7 +274,7 @@ def test_emitir_receita_sin_paciente_rechazada(client):
 # Contrato del servicio (nivel unitario, sin HTTP)
 # ---------------------------------------------------------------------------
 
-def test_motor_emite_documento_con_hash_y_repositorio():
+def test_motor_emite_documento_con_hash_y_repositorio(db_session):
     """El motor emite el documento con hash y lo registra en el validador."""
     doc = MotorPrescricaoCFM.emitir_prescricao(
         paciente_nome="Paciente Receta Digital",
@@ -287,6 +286,7 @@ def test_motor_emite_documento_con_hash_y_repositorio():
         itens=[_item()],
         tipo=TipoPrescricao.SIMPLES,
         instrucoes_gerais="Tomar según indicación.",
+        db=db_session,
     )
     assert doc.codigo_validacao.startswith("CFM-")
     assert doc.status == "VALIDA"
@@ -294,6 +294,6 @@ def test_motor_emite_documento_con_hash_y_repositorio():
     assert len(doc.itens) == 1
     assert doc.itens[0].farmaco == "Amoxicilina + Clavulanato"
 
-    val = MotorPrescricaoCFM.validar_documento_publico(doc.codigo_validacao)
+    val = MotorPrescricaoCFM.validar_documento_publico(doc.codigo_validacao, db=db_session)
     assert val is not None
     assert val["status"] == "VALIDA"

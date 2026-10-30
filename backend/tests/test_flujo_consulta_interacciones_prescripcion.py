@@ -19,8 +19,6 @@ Este archivo:
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.interacoes_medicamentosas import VerificadorFarmacologico
 
 CPF_PACIENTE: str = "55566677788"

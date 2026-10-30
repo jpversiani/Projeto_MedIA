@@ -25,11 +25,11 @@ __all__ = [
     "CPFInvalidoError",
     "CodigoClinicoInvalidoError",
     "ValidadorCNS",
-    "normalizar_cns",
-    "normalizar_cpf",
     "normalizar_ciap2",
     "normalizar_cid10",
     "normalizar_cnes",
+    "normalizar_cns",
+    "normalizar_cpf",
 ]
 
 _PADRAO_NAO_NUMERICO: Final[re.Pattern[str]] = re.compile(r"[^0-9]")

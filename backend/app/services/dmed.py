@@ -1,10 +1,11 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-def calcular_relatorio_dmed_anual(registros: List[Dict[str, Any]], ano: Optional[int] = None) -> Dict[str, float]:
+
+def calcular_relatorio_dmed_anual(registros: list[dict[str, Any]], ano: int | None = None) -> dict[str, float]:
     """
     Agrupa e calcula o valor total pago por operadora para a declaração anual da DMED.
     """
-    resultado: Dict[str, float] = {}
+    resultado: dict[str, float] = {}
     for item in registros:
         val = item.get("valor")
         if val is None:

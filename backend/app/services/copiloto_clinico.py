@@ -16,8 +16,6 @@ Arquitetura:
 from __future__ import annotations
 
 import unicodedata
-from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -34,7 +32,7 @@ class InteractionAlert(BaseModel):
     severidade: str = Field(..., description="'leve', 'moderada' ou 'grave'")
     descricao: str
     recomendacao: str
-    protocolo_sus: Optional[str] = Field(
+    protocolo_sus: str | None = Field(
         default=None,
         description="Referência ao protocolo do Ministério da Saúde"
     )
@@ -64,9 +62,9 @@ class PrescriptionCheckResult(BaseModel):
     """
     Resultado completo da análise de prescrição.
     """
-    interacoes: List[InteractionAlert] = Field(default_factory=list)
-    alergias: List[AllergyAlert] = Field(default_factory=list)
-    conduta_sugerida: List[ConductSuggestion] = Field(default_factory=list)
+    interacoes: list[InteractionAlert] = Field(default_factory=list)
+    alergias: list[AllergyAlert] = Field(default_factory=list)
+    conduta_sugerida: list[ConductSuggestion] = Field(default_factory=list)
 
 
 # ----------------------------------------------------------------------
@@ -153,7 +151,7 @@ class CopilotoClinico:
         # Em um projeto maior, poderíamos injetar dependências (ex.: repositórios)
         pass
 
-    def check_drug_interactions(self, medications: List[str]) -> List[InteractionAlert]:
+    def check_drug_interactions(self, medications: list[str]) -> list[InteractionAlert]:
         """
         Verifica interações medicamentosas entre os medicamentos fornecidos.
 
@@ -163,7 +161,7 @@ class CopilotoClinico:
         Returns:
             Lista de alertas de interação.
         """
-        alerts: List[InteractionAlert] = []
+        alerts: list[InteractionAlert] = []
         normalized = [self._normalize_medication_name(med) for med in medications]
 
         # Comparação par a par
@@ -188,9 +186,9 @@ class CopilotoClinico:
 
     def check_allergies(
         self,
-        patient_allergies: List[str],
-        medications: List[str]
-    ) -> List[AllergyAlert]:
+        patient_allergies: list[str],
+        medications: list[str]
+    ) -> list[AllergyAlert]:
         """
         Verifica se algum medicamento prescrito está na lista de alergias do paciente.
 
@@ -201,7 +199,7 @@ class CopilotoClinico:
         Returns:
             Lista de alertas de alergia.
         """
-        alerts: List[AllergyAlert] = []
+        alerts: list[AllergyAlert] = []
         if not patient_allergies:
             return alerts
 
@@ -234,9 +232,9 @@ class CopilotoClinico:
 
     def suggest_conduct(
         self,
-        interaction_alerts: List[InteractionAlert],
-        allergy_alerts: List[AllergyAlert]
-    ) -> List[ConductSuggestion]:
+        interaction_alerts: list[InteractionAlert],
+        allergy_alerts: list[AllergyAlert]
+    ) -> list[ConductSuggestion]:
         """
         Gera sugestões de conduta clínica a partir dos alertas detectados.
 
@@ -247,7 +245,7 @@ class CopilotoClinico:
         Returns:
             Lista de sugestões de conduta.
         """
-        conduta: List[ConductSuggestion] = []
+        conduta: list[ConductSuggestion] = []
 
         # Sugestão para interações graves
         for alert in interaction_alerts:
@@ -287,8 +285,8 @@ class CopilotoClinico:
 
     def analyze_prescription(
         self,
-        patient_allergies: List[str],
-        medications: List[str]
+        patient_allergies: list[str],
+        medications: list[str]
     ) -> PrescriptionCheckResult:
         """
         Executa a análise completa de uma prescrição.
@@ -343,9 +341,11 @@ class CopilotoClinico:
         # Verificação via base de sinônimos de alergias comuns
         for allergen, synonyms in COMMON_DRUG_ALERGY_KEYWORDS.items():
             # Se a alergia é de uma classe, verificar se o medicamento pertence
-            if allergy_norm == allergen or any(syn in allergy_norm for syn in synonyms):
-                if any(syn in normalized_med for syn in synonyms):
-                    return True
+            if (
+                (allergy_norm == allergen or any(syn in allergy_norm for syn in synonyms))
+                and any(syn in normalized_med for syn in synonyms)
+            ):
+                return True
 
             # Se o medicamento é o alérgeno conhecido
             if allergy_norm in synonyms and normalized_med in synonyms:
@@ -356,8 +356,8 @@ class CopilotoClinico:
 
 # Conveniência: função incapsulada para uso direto
 def check_prescription(
-    patient_allergies: List[str],
-    medications: List[str]
+    patient_allergies: list[str],
+    medications: list[str]
 ) -> PrescriptionCheckResult:
     """
     Função de conveniência para análise de prescrição.

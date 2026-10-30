@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
-from typing import Final, Iterable
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Final
 
 from app.models.atendimento import AtendimentoSOAP
 from app.models.cidadao import Cidadao
@@ -216,7 +217,7 @@ TERATOGENICOS: Final[frozenset[str]] = frozenset(
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _id_estavel(*partes: str) -> str:
@@ -337,7 +338,7 @@ class MotorSugestoesCopiloto:
             " ".join(filter(None, [atendimento.subjetivo_motivo, atendimento.subjetivo_notas]))
         )
         for palavras, titulo, conduta in RED_FLAGS:
-            if any(palavra in texto_clinico for palavra in palavras):
+            if any(_normalizar(palavra) in texto_clinico for palavra in palavras):
                 alertas.append(
                     AlertaClinicoOut(
                         id=_id_estavel("redflag", str(atendimento.id), titulo),
@@ -358,7 +359,7 @@ class MotorSugestoesCopiloto:
         if cidadao.gestante and atendimento.plano_prescricoes:
             prescricao = _normalizar(atendimento.plano_prescricoes)
             for substancia in TERATOGENICOS:
-                if substancia in prescricao:
+                if _normalizar(substancia) in prescricao:
                     alertas.append(
                         AlertaClinicoOut(
                             id=_id_estavel("terato", str(atendimento.id), substancia),

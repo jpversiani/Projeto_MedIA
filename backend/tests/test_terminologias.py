@@ -1,4 +1,5 @@
-def test_buscar_ciap2_por_codigo_ou_termo(client):
+def test_buscar_ciap2_por_codigo_ou_termo(client) -> None:
+    """Verifica busca na terminologia CIAP2 por código e por termo."""
     # Buscar por código K86 (Hipertensão)
     res = client.get("/api/v1/terminologias/ciap2?busca=K86")
     assert res.status_code == 200
@@ -13,7 +14,9 @@ def test_buscar_ciap2_por_codigo_ou_termo(client):
     assert len(itens_termo) >= 1
     assert itens_termo[0]["codigo"] == "R05"
 
-def test_buscar_cid10(client):
+
+def test_buscar_cid10(client) -> None:
+    """Verifica busca na terminologia CID-10."""
     res = client.get("/api/v1/terminologias/cid10?busca=I10")
     assert res.status_code == 200
     itens = res.json()
