@@ -1,4 +1,4 @@
-# 📋 Status Atual Consolidado — MedIA Practice SaaS (v1)
+﻿# 📋 Status Atual Consolidado — MedIA Practice SaaS (v1)
 
 > **Documento vivo e autoritário sobre o estado atual do repositório.**
 > Branch `main` · T1, P0.1 (RBAC/tenant), P0.2 (auditoria), T2 (receitas persistidas),
@@ -8,16 +8,97 @@
 
 ---
 
+## 0. Atualização de 29/10/2026 — Fase 0 da auditoria
+
+> A auditoria completa está em [`AUDITORIA_COMPLETA_2026-10-29.md`](AUDITORIA_COMPLETA_2026-10-29.md).
+> Desde o snapshot abaixo, a suíte passou de **621 para 711 testes** e foram
+> corrigidos, com teste de regressão:
+
+| Correção | Arquivo principal | Teste |
+|---|---|---|
+| `POST/GET /sincronizacao/*` respondiam 500 | `app/services/sync_offline.py` | `test_sincronizacao_api.py` (10) |
+| WebSocket do copiloto quebrava no handshake e não autenticava | `app/api/v1/copiloto.py`, `router.py` | `test_copiloto_ws.py` (7) |
+| Imagem Docker sem `alembic.ini`/`alembic`; compose em modo dev | `Dockerfile`, `docker-compose.yml`, `scripts/docker-entrypoint.sh` | `docker compose config` + simulação de layout |
+| Jornada com paciente fictício e id fixo no frontend | `fluxo_atendimento_service.py`, `static/app.js` | `test_fluxo_demo_guard.py` (5) |
+| CodeQL com action inexistente | `.github/workflows/codeql.yml` | — |
+| Dependências divergentes do ambiente validado | `backend/requirements.txt`, `requirements.txt` | — |
+| **Prescrição nunca criava `Receita` → farmácia sempre 404** | `app/services/farmacia_bridge.py`, `prescricao_digital_cfm.py`, `farmacia.py` | `test_prescricao_farmacia_integracao.py` (12) |
+| **Livro caixa com lançamentos e demonstrativo fictícios** | `app/models/financeiro.py`, `app/repositories/livro_caixa_repo.py`, `financeiro_medico.py` | `test_livro_caixa_persistido.py` (11) |
+| **Jornada do fluxo em memória (sumia no restart) e sem vínculo com o cidadão/agenda** | `app/models/jornada.py`, `fluxo_atendimento_service.py`, `api/v1/fluxo_atendimento.py` | `test_jornada_persistida.py` (7) |
+| **CPF/CNS em texto claro no banco (LGPD art. 46)** | `app/core/crypto.py`, 8 arquivos em `models/`, migrações `f1c3a8e57b20` + `b6e8f24a91d7` | `test_cpf_cns_cifrados.py` (14) + `test_copias_cpf_cns_cifradas.py` (15) |
+| **Telemedicina não plena em produção: sala da agenda não existia em `salas_virtuais` (WS recusava com auth ligada), TCLE não persistia/não bloqueiava, encerramento não notificava o hub, `teleconsulta_id: 1` fixo no frontend e link do paciente com host/código errados** | `agenda_medica.py`, `telemedicina.py`, `models/telemedicina.py`, migração `c3d9e1f5a7b2`, `fluxo_atendimento_service.py`, `core/config.py`, `static/app.js` | `test_agenda_medica.py` + `test_flujo_consulta_teleconsulta.py` (19) + `test_api_telemedicina.py` + `test_fluxo_atendimento.py` (2) + `test_t3_teleconsulta_frontend.py` (1) |
+
+**P0-4 (parte 2) fechado:** `jornadas_atendimento` guarda estado + `cidadao_id`/
+`profissional_id`/`estabelecimento_id`/`agendamento_id`; o serviço hidrata do
+banco fora do cache; `paciente_id` não é mais sorteado com `uuid4`; uma consulta
+criada na agenda pode ser finalizada pelo fluxo (antes: 404).
+
+**P0-7 (mestre + cópias) fechado:** `cidadaos` e `profissionais` guardam CPF/CNS
+com AES-256-GCM e índice cego HMAC; as **cópias** do mesmo documento em 11
+tabelas operacionais (20 colunas de texto + `xml_tiss` + CPF/CNS embutidos em
+`payload_json`/`dados_json`) também são cifradas pela migração `b6e8f24a91d7`.
+A API continua devolvendo texto claro e o `ComparadorProtegido` falha alto se
+alguém tentar comparar texto claro com coluna cifrada sem índice cego. A
+**produção agora exige `FIELD_ENCRYPTION_KEY`** no compose (guardar a chave
+junto com o backup — perdê-la torna os dados ilegíveis).
+
+**TM-1..TM-5 (telemedicina em produção) fechado:** a teleconsulta só funcionava
+no ambiente de demonstração. As cinco correções:
+
+1. **TM-1 — sala da agenda persistida.** `POST /agenda/novo` com
+   `TELEMEDICINA` cria a `SalaVirtual` real em `salas_virtuais` (status
+   AGENDADA) e a `Teleconsulta` vinculada (sala, cidadão, profissional). Antes
+   o código da sala só existia no `Agendamento`, o WebSocket recusava a conexão
+   dos dois lados com `require_auth` (4404 "Sala não encontrada") e o link do
+   paciente apontava para uma sala inexistente. `AgendamentoOut` ganhou
+   `teleconsulta_id` (resolvido pela sala).
+2. **TM-2 — TCLE persistido e bloqueante.** Novo modelo
+   `ConsentimentoTeleconsulta` (`consentimentos_teleconsulta`, migração
+   `c3d9e1f5a7b2`, CPF cifrado): grava texto integral + hash SHA-256 + método +
+   IP. `POST /tcle/registrar` persiste (antes morria num dataclass em memória)
+   e `POST /iniciar-chamada` **recusa com 409** sem consentimento vigente para
+   aquela teleconsulta — o Art. 4º da Resolução CFM nº 2.314/2022 exige
+   consentimento prévio, livre e esclarecido. Dois testes que documentavam a
+   lacuna passam a provar o bloqueio.
+3. **TM-3 — encerramento real da sala.** `finalizar-chamada` e
+   `converter-presencial` agora encerram a sala no hub de sinalização
+   (`hub_signaling.encerrar_sala`) e gravam `status` (CONCLUIDA/CANCELADA) +
+   `data_expiracao` — antes as filas WebSocket ficavam abertas para sempre e a
+   sala continuava aceitando conexões após o fim da consulta (o `_validar_sala`
+   do WS passa a recusá-la).
+4. **TM-4 — fim do `teleconsulta_id: 1` fixo.** A conversão para presencial
+   resolve o id real (`resolverTeleconsultaAtiva`: campo do agendamento, com
+   fallback pela sala); sem id, avisa o usuário em vez de registrar a conversão
+   na teleconsulta errada. Teste estático impede o literal fixo de voltar.
+5. **TM-5 — links do paciente utilizáveis.** Nova config `PUBLIC_BASE_URL`
+   (default `http://localhost:8000`; em produção, o domínio real). A
+   `sala_virtual_url` da jornada usa o `codigo_sala` real do agendamento em
+   `/static/telemedicina_paciente.html` (antes: host errado, sem `/static/` e o
+   `consulta_id` no lugar do código da sala); sem código real, o campo fica
+   `None` em vez de gerar link morto. `gerar_link_paciente` e o link do portal
+   pós-consulta também usam `PUBLIC_BASE_URL`.
+
+**Ainda pendente:** validar o build Docker real (daemon do Docker Desktop não
+ativo no ambiente da auditoria); provisionar `TURN_URL`/`TURN_USERNAME`/
+`TURN_CREDENTIAL` (sem TURN, a chamada só conecta em rede local ou NAT não
+simétrico); P1 (tenant nos módulos restantes — prescrição/TISS/farmácia/
+convênios — tenant/estabelecimento no WS e em `SalaVirtual`; redirect URI do
+SSO ainda hardcoded em `auth.py`; endurecimento do frontend: CSP + cookie
+HttpOnly em vez de `localStorage`; hub de sinalização single-instance —
+escalar para Redis com múltiplos workers; convite de paciente de uso único).
+
+---
+
 ## 1. Resumo executivo
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **621 passed, 0 failed** (~15 s) | Execução real na raiz (pós-fix da teleconsulta) |
+| Testes (`pytest -q`) | **711 passed, 0 failed** (~24 s), após P0-1/2/4/5/6/7/7b + correções TM-1..TM-5 | Execução real na raiz |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
-| Testes novos desta sessão | **98** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + 11 teleconsulta-frontend + 18 retenção + 9 backup) | `test_*.py` correspondentes |
-| Migrações Alembic | **4** (head `c8d42e1f7b33`) | `alembic current` |
-| Tabelas SQLAlchemy (`Base.metadata.tables`) | **33** | Execução real |
-| Operações OpenAPI registradas | **100** (94 paths) sob `/api/v1` (+ health/docs/static/root) + 1 rota WebSocket | `app.openapi()` |
+| Testes novos desta sessão | **98** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + 11 teleconsulta-frontend + 18 retenção + 9 backup) + **67 da auditoria** | `test_*.py` correspondentes |
+| Migrações Alembic | **9** (head `c3d9e1f5a7b2`) | `alembic upgrade head` |
+| Tabelas SQLAlchemy (`Base.metadata.tables`) | **36** (37 no banco, com `alembic_version`) | Execução real |
+| Operações OpenAPI registradas | **102** (95 paths) sob `/api/v1` (+ health/docs/static/root) + 2 rotas WebSocket | `app.openapi()` |
 | Git | branch `main`, árvore limpa, 9 commits novos (`ad53e58` → `e8953c1`) | `git status` |
 | Commit do T3 | `9c4f957` — `feat(telemedicina): teleconsulta WebRTC real com sinalizacao autenticada (T3)` | `git log` |
 | Commit do P0.3 | `d722b1b` — `feat(conformidade): retencao, anonimizacao, backup verificado e politica de incidente (P0.3)` | `git log` |
