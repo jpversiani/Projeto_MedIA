@@ -1,19 +1,29 @@
 # Arquivo: backend/requirements.txt
-fastapi==0.109.0
-uvicorn==0.27.1
-sqlalchemy==2.0.23
-pydantic==2.5.2
-pydantic-settings==2.1.0
-alembic==1.13.1
-python-dotenv==1.0.0
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
+#
+# Dependências de RUNTIME da API, com versões exatas (sem `>=`).
+#
+# Referência: as versões abaixo são as que a suíte completa (638 testes) e o
+# boot com SQLite/Postgres foram validados. Antes o arquivo fixava versões mais
+# antigas que o ambiente de desenvolvimento (ex.: FastAPI 0.109 vs 0.139), o que
+# fazia o CI testar uma combinação diferente da usada localmente.
+#
+# Para atualizar: rode a suíte em `requirements-dev.txt`, valide o boot e então
+# atualize os pins aqui. Não reintroduza intervalos abertos.
 
-# Dependências transitivas necessárias pelo código
-pyjwt[crypto]==2.8.0        # import jwt (telemedicina_ws.py)
-email-validator==2.1.0      # pydantic EmailStr (campanhas_repo.py)
-python-multipart==0.0.6     # FastAPI (suporte a formulários)
-websockets==12.0            # FastAPI WebSocket nativo
-reportlab>=4.0.0            # Geração de PDFs médicos CFM com QR Code
-psycopg2-binary>=2.9.9      # Driver PostgreSQL para produção Docker/Kubernetes
+fastapi==0.139.2
+uvicorn==0.51.0
+sqlalchemy==2.1.1
+pydantic==2.13.2
+pydantic-settings==2.15.0
+alembic==1.20.0
+python-dotenv==1.2.3
+httpx==0.28.1
+
+# Dependências transitivas exigidas diretamente pelo código
+pyjwt[crypto]==2.10.1      # import jwt (auth, telemedicina_ws)
+email-validator==2.3.0     # pydantic EmailStr
+python-multipart==0.0.32   # FastAPI (formulários/upload)
+websockets==17.0.1         # FastAPI WebSocket nativo
+reportlab==5.0.1           # PDFs médicos CFM com QR Code
+psycopg2-binary==2.9.10    # driver PostgreSQL (Docker/produção)
+cryptography==46.0.3       # AES-256-GCM/HMAC: cifra de CPF/CNS em repouso (LGPD)

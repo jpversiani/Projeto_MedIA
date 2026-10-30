@@ -61,6 +61,14 @@ class EmitirPrescricaoRequest(BaseModel):
     paciente_nome: str = Field(min_length=1)
     paciente_cpf: str = Field(min_length=11, max_length=11)
 
+    # Identificação SUS usada pela farmácia na dispensação. Sem ela a receita
+    # é emitida, mas não pode ser dispensada (antes a farmácia recebia 404 e
+    # não havia como saber o motivo). Quando o paciente está cadastrado, o CNS
+    # é resolvido pelo CPF.
+    paciente_cns: Optional[str] = Field(
+        default=None, description="CNS do paciente (15 dígitos). Resolvido pelo CPF se omitido."
+    )
+
     # SEM default: a identificação do médico vem do usuário autenticado.
     # Antes havia `medico_nome = "Dr. João Paulo Versiani"` e `medico_crm =
     # "78421"` como padrão, de modo que uma requisição sem esses campos emitia
@@ -69,6 +77,20 @@ class EmitirPrescricaoRequest(BaseModel):
     medico_crm: str = Field(min_length=4, max_length=10)
     medico_uf: str = Field(min_length=2, max_length=2)
     medico_rqe: Optional[str] = None
+    medico_cns: Optional[str] = Field(
+        default=None,
+        description="CNS do prescritor. Resolvido pelo profissional autenticado se omitido.",
+    )
+
+    # CNES da unidade emissora — obrigatório para a trilha da dispensação.
+    unidade_cnes: Optional[str] = Field(
+        default=None,
+        description="CNES da unidade (7 dígitos). Resolvido pelo estabelecimento do token se omitido.",
+    )
+
+    # Episódio clínico (SUS/APS).
+    cid10: Optional[str] = None
+    ciap2: Optional[str] = None
 
     tipo: TipoPrescricao = TipoPrescricao.SIMPLES
     itens: List[ItemPrescricao] = Field(min_length=1, description="Ao menos um medicamento.")
@@ -110,6 +132,11 @@ def emitir_prescricao_digital(
         db=db,
         estabelecimento_id=getattr(contexto, "estabelecimento_id", None),
         profissional_id=getattr(contexto, "profissional_id", None),
+        paciente_cns=payload.paciente_cns,
+        medico_cns=payload.medico_cns,
+        unidade_cnes=payload.unidade_cnes,
+        cid10=payload.cid10,
+        ciap2=payload.ciap2,
     )
     base_url = str(request.base_url).rstrip("/")
     url_validador_local = f"{base_url}/api/v1/prescricao/validar-html/{doc.codigo_validacao}"
@@ -124,6 +151,11 @@ def emitir_prescricao_digital(
         "url_validacao_publica": f"https://validador.media-saude.com.br/verificar?codigo={doc.codigo_validacao}",
         "url_validacao_local": url_validador_local,
         "url_pdf": url_pdf,
+        # Conteúdo do QR Code conferido na farmácia (``receitas.codigo_hash``).
+        "qr_code_hash": doc.qr_code_hash,
+        "receita_id": doc.receita_id,
+        "farmacia_integrada": doc.qr_code_hash is not None,
+        "farmacia_pendencias": list(doc.farmacia_pendencias),
     }
 
 

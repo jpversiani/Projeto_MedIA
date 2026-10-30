@@ -65,7 +65,11 @@ class ItemConsultaResponse(BaseModel):
 class ConsultaRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    qr_code_hash: str = Field(min_length=32, max_length=64, description="Hash SHA-256 lido do QR Code")
+    qr_code_hash: str = Field(
+        min_length=8,
+        max_length=200,
+        description="Hash SHA-256 lido do QR Code ou o código de validação (CFM-...) / URL do validador",
+    )
 
 
 class ConsultaResponse(BaseModel):
@@ -94,7 +98,7 @@ class ItemBaixaRequest(BaseModel):
 class ConfirmarRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    qr_code_hash: str = Field(min_length=32, max_length=64)
+    qr_code_hash: str = Field(min_length=8, max_length=200)
     tipo_baixa: TipoBaixa
     farmaceutico_nome: str = Field(min_length=1, max_length=200)
     farmaceutico_cns: str = Field(min_length=15, max_length=15)
@@ -122,15 +126,58 @@ class ConfirmarResponse(BaseModel):
     mensagem: str
 
 
+def _normalizar_qr(valor: str) -> str:
+    """Extrai o código de uma URL de validação, se for o caso.
+
+    O QR Code impresso na prescrição aponta para
+    ``.../prescricao/validar-html/{codigo}``; a farmácia pode enviar tanto a URL
+    inteira quanto o código isolado.
+    """
+    texto = valor.strip()
+    if "/" in texto:
+        partes = [parte for parte in texto.split("/") if parte]
+        if partes:
+            texto = partes[-1].split("?")[0]
+    return texto.strip()
+
+
 def _obter_receita(db: Session, qr_code_hash: str) -> Receita:
+    """Localiza a receita pelo hash do QR Code ou pelo código de validação.
+
+    O QR impresso carrega o código público (CFM-XXXX-XXXX-XXXX), não o hash
+    bruto. Sem este segundo caminho, escanear o documento entregue ao paciente
+    retornava 404 na farmácia mesmo com a receita emitida.
+    """
+    valor = _normalizar_qr(qr_code_hash)
+
     receita = db.scalar(
         select(Receita)
-        .where(Receita.codigo_hash == qr_code_hash)
+        .where(Receita.codigo_hash == valor)
         .options(selectinload(Receita.itens))
     )
-    if receita is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_ERRO_RECEITA_NAO_ENCONTRADA)
-    return receita
+    if receita is not None:
+        return receita
+
+    from app.models.documento_clinico import DocumentoClinicoEmitido
+
+    documento = db.scalar(
+        select(DocumentoClinicoEmitido).where(
+            DocumentoClinicoEmitido.codigo_validacao == valor.upper()
+        )
+    )
+    hash_documento = (documento.dados_consulta_publica or {}).get(
+        "qr_code_hash"
+    ) if documento else None
+    if hash_documento:
+        receita = db.scalar(
+            select(Receita)
+            .where(Receita.codigo_hash == hash_documento)
+            .options(selectinload(Receita.itens))
+        )
+        if receita is not None:
+            return receita
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_ERRO_RECEITA_NAO_ENCONTRADA)
 
 
 def _validar_disponibilidade(receita: Receita) -> None:

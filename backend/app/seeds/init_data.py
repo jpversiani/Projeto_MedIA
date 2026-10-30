@@ -4,6 +4,7 @@ from app.models.estabelecimento import Estabelecimento, Equipe
 from app.models.profissional import Profissional
 from app.models.cidadao import Cidadao
 from app.models.terminologia import CIAP2, CID10
+from app.core.crypto import hash_busca
 
 def seed_database(db: Session):
     # 1. Estabelecimento e Equipe
@@ -38,7 +39,7 @@ def seed_database(db: Session):
 
 
     # 2. Profissionais
-    prof_medico = db.query(Profissional).filter(Profissional.cpf == "11122233344").first()
+    prof_medico = db.query(Profissional).filter(Profissional.cpf_hash == hash_busca("11122233344")).first()
     if not prof_medico:
         prof_medico = Profissional(
             cns="700123456789012",
@@ -53,7 +54,7 @@ def seed_database(db: Session):
         prof_medico.cbo_descricao = "Médica de Família e Comunidade / Clínica Geral"
 
 
-    prof_enf = db.query(Profissional).filter(Profissional.cpf == "22233344455").first()
+    prof_enf = db.query(Profissional).filter(Profissional.cpf_hash == hash_busca("22233344455")).first()
     if not prof_enf:
         prof_enf = Profissional(
             cns="700987654321098",
@@ -65,7 +66,7 @@ def seed_database(db: Session):
         db.add(prof_enf)
 
     # 3. Cidadão de Exemplo
-    cidadao_exemplo = db.query(Cidadao).filter(Cidadao.cpf == "12345678900").first()
+    cidadao_exemplo = db.query(Cidadao).filter(Cidadao.cpf_hash == hash_busca("12345678900")).first()
     if not cidadao_exemplo:
         cidadao_exemplo = Cidadao(
             cns="898000123456789",

@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.crypto import hash_busca
 from app.core.database import get_db
 from app.models.atendimento import AtendimentoProblema, AtendimentoSOAP
 from app.models.cidadao import Cidadao
@@ -67,8 +68,11 @@ _REGEX_SEPARADOR_ALERGIA: Final[re.Pattern[str]] = re.compile(r"[;\n,]")
 
 
 def _obter_cidadao_por_cns(db: Session, cns: str) -> Cidadao:
-    """Localiza o cidadão pelo CNS ou levanta 404 quando inexistente."""
-    cidadao = db.query(Cidadao).filter(Cidadao.cns == cns).first()
+    """Localiza o cidadão pelo CNS ou levanta 404 quando inexistente.
+
+    O CNS é cifrado em repouso; a igualdade é feita pelo índice cego (HMAC).
+    """
+    cidadao = db.query(Cidadao).filter(Cidadao.cns_hash == hash_busca(cns)).first()
     if cidadao is None:
         raise HTTPException(
             status_code=404,

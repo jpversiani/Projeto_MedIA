@@ -2,6 +2,7 @@ import enum
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
+from app.core.crypto import CampoProtegido, TextoProtegido
 from app.core.database import Base
 
 class GuiaStatus(str, enum.Enum):
@@ -61,8 +62,8 @@ class GuiaTISS(Base):
     tipo_guia = Column(Enum(TipoGuia), default=TipoGuia.CONSULTA, nullable=False)
     plano_id = Column(Integer, ForeignKey("planos.id"), nullable=True)
     atendimento_id = Column(Integer, ForeignKey("atendimentos_soap.id"), nullable=True)
-    paciente_cns = Column(String(15), nullable=True)
-    paciente_cpf = Column(String(14), nullable=True)
+    paciente_cns = Column(CampoProtegido, nullable=True)
+    paciente_cpf = Column(CampoProtegido, nullable=True)
     paciente_nome = Column(String(200), nullable=True)
     numero_carteira = Column(String(50), nullable=True)
     
@@ -74,7 +75,7 @@ class GuiaTISS(Base):
     procedimento_tuss = Column(String(20), default="10101012")  # Consulta médica em consultório (TUSS)
     valor_total = Column(Float, default=0.0)
     
-    xml_tiss = Column(Text, nullable=True)
+    xml_tiss = Column(TextoProtegido, nullable=True)
     observacoes = Column(Text, nullable=True)
 
     plano = relationship("Plano", back_populates="guias")
@@ -87,7 +88,7 @@ class LancamentoFinanceiro(Base):
     guia_id = Column(Integer, ForeignKey("guias_tiss.id"), nullable=True)
     atendimento_id = Column(Integer, ForeignKey("atendimentos_soap.id"), nullable=True)
     
-    paciente_cpf = Column(String(14), nullable=False)
+    paciente_cpf = Column(CampoProtegido, nullable=False)
     paciente_nome = Column(String(200), nullable=False)
     tipo = Column(Enum(LancamentoTipo), default=LancamentoTipo.CONVENIO, nullable=False)
     valor = Column(Float, nullable=False)
@@ -98,7 +99,7 @@ class LancamentoFinanceiro(Base):
     
     # DMED / Comprovante Fiscal
     recibo_numero = Column(String(50), nullable=True)
-    cpf_cnpj_pagador = Column(String(14), nullable=True)
+    cpf_cnpj_pagador = Column(CampoProtegido, nullable=True)
     nome_pagador = Column(String(200), nullable=True)
 
     guia = relationship("GuiaTISS", back_populates="lancamentos")

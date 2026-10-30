@@ -341,16 +341,18 @@ class OfflineSyncIndicator {
   /**
    * Registra um atendimento no IndexedDB para upload posterior.
    * @param {Object} dados Atendimento no formato SUS/APS:
-   *   { id_local, cns_profissional, cns_paciente|cpf_paciente,
+   *   { id_local, cns_profissional, cns_paciente, cpf_paciente,
    *     ciap2_cod, cid10_cod, soap, data_atendimento, unidade_id }
    * @returns {Promise<Object>} Registro persistido.
    */
   async registrarAtendimento(dados) {
     if (!this._db) throw new Error("OfflineSyncIndicator não iniciado.");
 
-    // Identificação do cidadão é obrigatória no PEC (CNS ou CPF).
-    if (!dados.cns_paciente && !dados.cpf_paciente) {
-      throw new Error("Identificação obrigatória: informe o CNS ou o CPF do cidadão.");
+    // O contrato de upload exige o CNS do cidadão; o CPF é complementar.
+    if (!dados.cns_paciente) {
+      throw new Error(
+        "Identificação obrigatória: informe o CNS do cidadão (exigido pela API de sincronização)."
+      );
     }
     // Validação SUS/APS obrigatória.
     if (dados.cns_paciente && !validaCNS(dados.cns_paciente)) {
@@ -452,6 +454,38 @@ class OfflineSyncIndicator {
   // Sincronização                                                      //
   // ------------------------------------------------------------------ //
 
+  /**
+   * Converte o registro do IndexedDB para o contrato de
+   * `POST /api/v1/sincronizacao/atendimentos` (schema
+   * `AtendimentoOfflineCreate`).
+   * @param {Object} registro
+   * @returns {Object}
+   */
+  static _paraContratoApi(registro) {
+    const soap = registro.soap || {};
+    return {
+      id_local: registro.id_local,
+      cns_cidadao: registro.cns_paciente,
+      cpf_cidadao: registro.cpf_paciente ?? null,
+      profissional_cns: registro.cns_profissional ?? null,
+      // CNES tem 7 dígitos; `unidade_id` pode ser um identificador interno.
+      cnes_estabelecimento:
+        typeof registro.unidade_id === "string" &&
+        /^\d{7}$/.test(registro.unidade_id)
+          ? registro.unidade_id
+          : null,
+      data_hora_atendimento: registro.data_atendimento,
+      soap: {
+        subjetivo: soap.subjetivo ?? null,
+        objetivo: soap.objetivo ?? null,
+        avaliacao: soap.avaliacao ?? null,
+        plano: soap.plano ?? null,
+      },
+      ciap2: registro.ciap2_cod ?? null,
+      cid10: registro.cid10_cod ?? null,
+    };
+  }
+
   /** Executa o upload dos registros pendentes. */
   async _executarSync() {
     if (!this._online || !this._db) return;
@@ -468,7 +502,11 @@ class OfflineSyncIndicator {
       const resp = await fetch(this._opcoes.apiUploadUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itens: pendentes }),
+        body: JSON.stringify({
+          itens: pendentes.map((registro) =>
+            OfflineSyncIndicator._paraContratoApi(registro)
+          ),
+        }),
         signal: this._ctrlAbort.signal,
       });
 

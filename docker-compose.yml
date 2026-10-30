@@ -8,9 +8,23 @@ services:
     ports:
       - "${PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgresql://media_user:${POSTGRES_PASSWORD:-media_pass}@db:5432/media_db
-      - SECRET_KEY=${SECRET_KEY:-media-super-secret-jwt-key-change-in-prod}
+      # Produção: autenticação obrigatória, demo/seed desligados e chave JWT
+      # obrigatória. Sem `ENVIRONMENT=production` a aplicação subiria em modo
+      # desenvolvimento (rotas abertas, login demo e seed automático).
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://media_user:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/media_db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?defina JWT_SECRET_KEY no .env (openssl rand -hex 32)}
+      # Cifra de CPF/CNS em repouso (AES-256-GCM). Obrigatória aqui para que a
+      # chave NÃO seja derivada do JWT e possa ser rotacionada/guardada com o
+      # backup — perder esta chave torna os documentos ilegíveis.
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:?defina FIELD_ENCRYPTION_KEY no .env (openssl rand -hex 32)}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8000}
+      - AUTO_SEED_DEMO_DATA=false
+      - DEMO_LOGIN_ENABLED=false
+      - SSO_ENABLED=false
+      # O entrypoint da imagem roda `alembic upgrade head` antes do Uvicorn.
+      - AUTO_MIGRATE_ON_STARTUP=false
     depends_on:
       db:
         condition: service_healthy
@@ -19,7 +33,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
   db:
     image: postgres:16-alpine
@@ -27,7 +41,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: media_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-media_pass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: media_db
     # Porta 5432 exposta apenas em loopback para evitar acesso externo
     ports:

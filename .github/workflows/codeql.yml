@@ -26,9 +26,6 @@ jobs:
           languages: python
           queries: security-extended
 
-      - name: Autenticar no CodeQL
-        uses: github/codeql-action/authenticate@v3
-
       - name: Analisar
         uses: github/codeql-action/analyze@v3
         with:

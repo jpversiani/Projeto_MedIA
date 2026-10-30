@@ -6,6 +6,7 @@ from app.models.estabelecimento import Estabelecimento, Equipe
 from app.models.profissional import Profissional
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
 from app.services.auth_service import hash_password
+from app.core.crypto import hash_busca
 
 import logging
 
@@ -50,7 +51,7 @@ def seed_multiclinica():
             db.refresh(clinica2)
 
         # 2. Profissionais Médicos
-        med1 = db.query(Profissional).filter(Profissional.cpf == "09876543211").first()
+        med1 = db.query(Profissional).filter(Profissional.cpf_hash == hash_busca("09876543211")).first()
         if not med1:
             med1 = Profissional(
                 cns="702000123456789",
@@ -66,7 +67,7 @@ def seed_multiclinica():
             med1.nome = "Dra. Francelli Neves Versiani"
             db.commit()
 
-        med2 = db.query(Profissional).filter(Profissional.cpf == "12312312399").first()
+        med2 = db.query(Profissional).filter(Profissional.cpf_hash == hash_busca("12312312399")).first()
         if not med2:
             med2 = Profissional(
                 cns="803000987654321",

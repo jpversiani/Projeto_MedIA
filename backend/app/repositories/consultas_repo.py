@@ -40,6 +40,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
+from app.core.crypto import hash_busca
 from app.core.database import Base
 from app.models.cidadao import Cidadao
 from app.models.estabelecimento import Estabelecimento
@@ -737,8 +738,9 @@ class ConsultasRepository:
     def _obter_cidadao_por_cns(self, cns: str) -> Cidadao:
         """Localiza o cidadão pelo CNS validado (15 dígitos limpos)."""
         cns_limpo = self._normalizar_cns(cns)
+        # CNS cifrado em repouso: busca exata pelo índice cego.
         cidadao = self.session.scalars(
-            select(Cidadao).where(Cidadao.cns == cns_limpo)
+            select(Cidadao).where(Cidadao.cns_hash == hash_busca(cns_limpo))
         ).first()
         if cidadao is None:
             raise CidadaoNaoEncontradoError(cns_limpo)
@@ -748,7 +750,7 @@ class ConsultasRepository:
         """Localiza o profissional pelo CNS validado (15 dígitos limpos)."""
         cns_limpo = self._normalizar_cns(cns)
         profissional = self.session.scalars(
-            select(Profissional).where(Profissional.cns == cns_limpo)
+            select(Profissional).where(Profissional.cns_hash == hash_busca(cns_limpo))
         ).first()
         if profissional is None:
             raise ProfissionalNaoEncontradoError(cns_limpo)

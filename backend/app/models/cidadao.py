@@ -1,14 +1,19 @@
 from datetime import datetime, date, timezone
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, event
 from sqlalchemy.orm import relationship
+from app.core.crypto import CampoProtegido, hash_busca
 from app.core.database import Base
 
 class Cidadao(Base):
     __tablename__ = "cidadaos"
 
     id = Column(Integer, primary_key=True, index=True)
-    cns = Column(String(15), unique=True, index=True, nullable=True) # Cartão Nacional de Saúde
-    cpf = Column(String(11), unique=True, index=True, nullable=True)
+    # Cifrados em repouso (AES-256-GCM). A unicidade e a busca usam os índices
+    # cegos `*_hash` (HMAC), porque o mesmo CPF cifrado gera textos diferentes.
+    cns = Column(CampoProtegido, nullable=True) # Cartão Nacional de Saúde
+    cpf = Column(CampoProtegido, nullable=True)
+    cns_hash = Column(String(64), unique=True, index=True, nullable=True)
+    cpf_hash = Column(String(64), unique=True, index=True, nullable=True)
     nome_completo = Column(String(200), nullable=False, index=True)
     nome_social = Column(String(200), nullable=True)
     nome_mae = Column(String(200), nullable=True)
@@ -38,3 +43,16 @@ class Cidadao(Base):
 
     acolhimentos = relationship("FilaAcolhimento", back_populates="cidadao")
     atendimentos = relationship("AtendimentoSOAP", back_populates="cidadao")
+
+
+@event.listens_for(Cidadao, "before_insert")
+@event.listens_for(Cidadao, "before_update")
+def _sincronizar_indices_cegos(mapper, connection, target):
+    """Mantém `cpf_hash`/`cns_hash` coerentes com o texto claro.
+
+    Fica no evento do ORM (e não em cada rota) porque o CPF é gravado em vários
+    lugares — cadastro, seed, importação. Um `UPDATE` em massa via
+    `query.update()` NÃO dispara este hook: use atributo por atributo.
+    """
+    target.cpf_hash = hash_busca(target.cpf)
+    target.cns_hash = hash_busca(target.cns)

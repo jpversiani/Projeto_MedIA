@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.crypto import CampoProtegido
 from app.core.database import Base
 
 if TYPE_CHECKING:  # pragma: no cover - apenas tipagem estática
@@ -54,8 +55,8 @@ class MensagemPreventiva(Base):
     telefone: Mapped[str] = mapped_column(String(20), nullable=False)
     nome_destinatario: Mapped[str] = mapped_column(String(200), nullable=False)
 
-    cns: Mapped[str | None] = mapped_column(String(15), nullable=True, index=True)
-    cpf: Mapped[str | None] = mapped_column(String(11), nullable=True, index=True)
+    cns: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True, index=True)
+    cpf: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True, index=True)
     cidadao_id: Mapped[int | None] = mapped_column(
         ForeignKey("cidadaos.id"), nullable=True, index=True
     )
@@ -90,8 +91,8 @@ class AlertaBuscaAtiva(Base):
     cidadao_id: Mapped[int | None] = mapped_column(
         ForeignKey("cidadaos.id"), nullable=True, index=True
     )
-    cns: Mapped[str | None] = mapped_column(String(15), nullable=True, index=True)
-    cpf: Mapped[str | None] = mapped_column(String(11), nullable=True, index=True)
+    cns: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True, index=True)
+    cpf: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True, index=True)
     nome: Mapped[str] = mapped_column(String(200), nullable=False)
 
     # ALTA, MEDIA ou BAIXA

@@ -56,6 +56,11 @@ class DocumentoPrescricaoCFM:
     hash_integridade_sha256: str = ""
     status: str = "VALIDA"
     data_dispensacao: Optional[str] = None
+    # Conteúdo do QR Code lido pela farmácia (``receitas.codigo_hash``) e
+    # vínculo com a receita dispensável criada na emissão.
+    qr_code_hash: Optional[str] = None
+    receita_id: Optional[int] = None
+    farmacia_pendencias: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -103,6 +108,9 @@ def _serializar_prescricao(doc: DocumentoPrescricaoCFM) -> Dict[str, Any]:
         "hash_integridade_sha256": doc.hash_integridade_sha256,
         "status": doc.status,
         "data_dispensacao": doc.data_dispensacao,
+        "qr_code_hash": doc.qr_code_hash,
+        "receita_id": doc.receita_id,
+        "farmacia_pendencias": list(doc.farmacia_pendencias),
     }
 
 
@@ -138,6 +146,9 @@ def _desserializar_prescricao(dados: Dict[str, Any]) -> DocumentoPrescricaoCFM:
         hash_integridade_sha256=dados.get("hash_integridade_sha256", ""),
         status=dados.get("status", "VALIDA"),
         data_dispensacao=dados.get("data_dispensacao"),
+        qr_code_hash=dados.get("qr_code_hash"),
+        receita_id=dados.get("receita_id"),
+        farmacia_pendencias=list(dados.get("farmacia_pendencias") or []),
     )
 
 
@@ -177,12 +188,23 @@ class MotorPrescricaoCFM:
         cidadao_id: Optional[int] = None,
         profissional_id: Optional[int] = None,
         estabelecimento_id: Optional[int] = None,
+        paciente_cns: Optional[str] = None,
+        medico_cns: Optional[str] = None,
+        unidade_cnes: Optional[str] = None,
+        cid10: Optional[str] = None,
+        ciap2: Optional[str] = None,
     ) -> DocumentoPrescricaoCFM:
         """Emite uma prescrição médica digital estruturada com código validador.
 
         Com ``db`` informado, o documento é persistido em ``documentos_clinicos``
         e sobrevive a reinícios. Sem ``db``, cai no repositório em memória
         (comportamento legado, apenas para o motor puro).
+
+        A mesma transação cria a ``Receita`` que a farmácia consulta
+        (``app.services.farmacia_bridge``). Se faltar identificação SUS
+        (CNS/CNES), a prescrição é emitida e o retorno traz ``pendencias`` com
+        o que precisa ser cadastrado — antes a farmácia simplesmente recebia
+        404 para uma receita emitida.
         """
         partes = uuid.uuid4().hex.upper()
         codigo_validacao = f"CFM-{partes[:4]}-{partes[4:8]}-{partes[8:12]}"
@@ -243,6 +265,35 @@ class MotorPrescricaoCFM:
         }
 
         if db is not None:
+            from app.services.farmacia_bridge import preparar_receita_farmacia
+
+            resultado = preparar_receita_farmacia(
+                db,
+                codigo_validacao=codigo_validacao,
+                tipo_prescricao=tipo.value,
+                paciente_cpf=paciente_cpf,
+                paciente_cns=paciente_cns,
+                medico_nome=medico_nome,
+                medico_crm=medico_crm,
+                medico_uf=medico_uf,
+                medico_cns=medico_cns,
+                unidade_cnes=unidade_cnes,
+                data_emissao=datetime.fromisoformat(agora),
+                itens=itens,
+                cidadao_id=cidadao_id,
+                profissional_id=profissional_id,
+                estabelecimento_id=estabelecimento_id,
+                cid10=cid10,
+                ciap2=ciap2,
+            )
+            if resultado.integrada:
+                doc.qr_code_hash = resultado.qr_code_hash
+                doc.receita_id = resultado.receita.id
+                dados_publicos["qr_code_hash"] = resultado.qr_code_hash
+            if resultado.pendencias:
+                doc.farmacia_pendencias = list(resultado.pendencias)
+                dados_publicos["farmacia_pendencias"] = list(resultado.pendencias)
+
             cls._persistir(
                 db,
                 doc,

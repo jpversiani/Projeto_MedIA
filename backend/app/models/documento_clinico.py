@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
+from app.core.crypto import CampoProtegido, JsonProtegido
 from app.core.database import Base
 
 
@@ -40,7 +41,7 @@ class DocumentoClinicoEmitido(Base):
 
     # Identificação impressa no documento (CFM exige nome + CRM/UF).
     paciente_nome = Column(String(200), nullable=False)
-    paciente_cpf = Column(String(11), nullable=False, index=True)
+    paciente_cpf = Column(CampoProtegido, nullable=False, index=True)
     medico_nome = Column(String(200), nullable=False)
     medico_crm = Column(String(20), nullable=False)
     medico_uf = Column(String(2), nullable=False)
@@ -53,7 +54,9 @@ class DocumentoClinicoEmitido(Base):
     status = Column(String(20), default="VALIDA", nullable=False, index=True)
 
     # Conteúdo completo (itens, posologia, instruções) para regerar o PDF.
-    payload_json = Column(JSON, nullable=True)
+    # O CPF dentro do payload também é cifrado (o resto fica legível: hash,
+    # itens e instruções precisam ser recalculáveis sem abrir a coluna toda).
+    payload_json = Column(JsonProtegido(campos=("paciente_cpf", "paciente_cns")), nullable=True)
     # Visão mascarada servida ao validador público (farmácia/empregador).
     dados_consulta_publica = Column(JSON, nullable=True)
 

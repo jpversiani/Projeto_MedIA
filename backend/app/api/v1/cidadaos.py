@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from app.core.crypto import hash_busca, somente_digitos
 from app.core.database import get_db
 from app.models.cidadao import Cidadao
 from app.models.atendimento import AtendimentoSOAP
@@ -19,22 +21,35 @@ def listar_cidadaos(
 ):
     query = db.query(Cidadao)
     if busca:
-        busca_termo = f"%{busca}%"
-        query = query.filter(
-            (Cidadao.nome_completo.ilike(busca_termo)) |
-            (Cidadao.cpf.like(busca_termo)) |
-            (Cidadao.cns.like(busca_termo))
-        )
+        # CPF/CNS estão cifrados: `LIKE` no ciphertext nunca acharia nada.
+        # A busca por documento é exata, via índice cego (HMAC).
+        termo = busca.strip()
+        filtros = [Cidadao.nome_completo.ilike(f"%{termo}%")]
+        for valor in {termo, somente_digitos(termo)}:
+            indice = hash_busca(valor)
+            if indice:
+                filtros.append(Cidadao.cpf_hash == indice)
+                filtros.append(Cidadao.cns_hash == indice)
+        query = query.filter(or_(*filtros))
     return query.offset(skip).limit(limit).all()
 
 @router.post("/", response_model=CidadaoOut, status_code=201)
 def criar_cidadao(payload: CidadaoCreate, db: Session = Depends(get_db)):
+    # Duplicidade é verificada pelo índice cego (o ciphertext é aleatório).
     if payload.cpf:
-        cpf_existente = db.query(Cidadao).filter(Cidadao.cpf == payload.cpf).first()
+        cpf_existente = (
+            db.query(Cidadao)
+            .filter(Cidadao.cpf_hash == hash_busca(payload.cpf))
+            .first()
+        )
         if cpf_existente:
             raise HTTPException(status_code=400, detail="CPF já cadastrado.")
     if payload.cns:
-        cns_existente = db.query(Cidadao).filter(Cidadao.cns == payload.cns).first()
+        cns_existente = (
+            db.query(Cidadao)
+            .filter(Cidadao.cns_hash == hash_busca(payload.cns))
+            .first()
+        )
         if cns_existente:
             raise HTTPException(status_code=400, detail="Cartão SUS (CNS) já cadastrado.")
 

@@ -7,6 +7,7 @@ from app.api.v1.estabelecimentos import router as estabelecimentos_router
 from app.api.v1.telemedicina import router as telemedicina_router
 from app.api.v1.prontuario import router as prontuario_router
 from app.api.v1.copiloto import router as copiloto_router
+from app.api.v1.copiloto import ws_router as copiloto_ws_router
 from app.api.v1.farmacia import router as farmacia_router
 from app.api.v1.telemedicina_ws import router as telemedicina_ws_router
 from app.api.v1.convenios import router as convenios_router
@@ -48,6 +49,10 @@ api_router.include_router(prescricao_publico_router)
 # handler (`_autenticar`), que aceita o token por query string — o browser não
 # permite definir cabeçalhos em `new WebSocket()`.
 api_router.include_router(telemedicina_ws_router)
+
+# Painel do copiloto (WebSocket) segue a mesma regra: fora do bloco clínico,
+# com autenticação própria no handshake (`_autorizar_ws`).
+api_router.include_router(copiloto_ws_router)
 
 # --------------------------------------------------------------------------
 # Rotas clínicas (prontuário, cidadão, agenda, prescrição, TISS, DMED,

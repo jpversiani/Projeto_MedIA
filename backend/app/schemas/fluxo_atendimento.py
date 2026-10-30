@@ -136,11 +136,14 @@ class PacotePosConsultaOut(BaseModel):
 
 class JornadaAtendimentoOut(BaseModel):
     consulta_id: str
-    paciente_id: int
+    # Identificadores reais podem faltar: a jornada pode nascer de uma
+    # solicitação sem cidadão cadastrado. Antes o serviço preenchia com um
+    # número sorteado, o que dava aparência de vínculo onde não havia nenhum.
+    paciente_id: Optional[int] = None
     paciente_nome: str
     paciente_cpf: str
     paciente_telefone: str
-    medico_id: int
+    medico_id: Optional[int] = None
     medico_nome: str
     medico_crm: str
     especialidade: str

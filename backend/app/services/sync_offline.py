@@ -14,10 +14,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from app.core.config import settings
@@ -29,6 +32,7 @@ from app.models.atendimento_offline import (
 from app.schemas.atendimento_offline import (
     AtendimentoOfflineCreate,
     AtendimentoOfflineOut,
+    ItemDuplicado,
     LoteSincronizacaoRequest,
     LoteSincronizacaoResponse,
     StatusSincronizacaoOut,
@@ -74,72 +78,116 @@ class ServicoSincronizacaoOffline:
 
     def gerar_id_local(self) -> str:
         """Gera um UUID v4 para identificação idempotente do upload."""
-        import uuid
         return str(uuid.uuid4())
 
-    def criar_lote_offline(self, itens: List[AtendimentoOfflineCreate]) -> LoteSincronizacaoResponse:
-        """Cria um lote de atendimentos para envio ao servidor."""
-        if not itens:
-            raise ValueError("O lote não pode estar vazio.")
+    # ----------------------------------------------------------------------
+    # Upload do lote (POST /api/v1/sincronizacao/atendimentos)
+    # ----------------------------------------------------------------------
 
-        # Verifica se há duplicatas por id_local antes de adicionar
-        ids_locais = {item.id_local for item in itens}
-        if len(ids_locais) != len(itens):
-            logger.warning(f"Duplicatas encontradas no lote: {len(ids_locais) - len(itens)}")
-            # Remove itens duplicados mantendo o primeiro occurrence
-            seen = set()
-            filtered = []
-            for item in itens:
-                if item.id_local not in seen:
-                    seen.add(item.id_local)
-                    filtered.append(item)
-            itens = filtered
-            if len(itens) == 0:
-                raise ValueError("Todos os itens foram marcados como duplicados.")
+    def ingestar_lote(self, lote: LoteSincronizacaoRequest) -> LoteSincronizacaoResponse:
+        """Persiste um lote de contingência com idempotência por ``id_local``.
 
-        # Calcula hash de versão para cada item (timestamp + hash SHA256 dos campos mutáveis)
-        for item in itens:
-            # Criamos uma representação serializada dos campos que podem mudar
-            dados = {
-                "id_local": item.id_local,
-                "cns_cidadao": item.cns_cidadao,
-                "cpf_cidadao": item.cpf_cidadao,
-                "profissional_cns": item.profissional_cns,
-                "cnes_estabelecimento": item.cnes_estabelecimento,
-                "data_hora_atendimento": item.data_hora_atendimento.isoformat(),
-                "soap": item.soap.dict(),
-                "ciap2": item.ciap2,
-                "cid10": item.cid10,
-            }
-            if dados:
-                item.data_hash = hashlib.sha256(json.dumps(dados, sort_keys=True).encode()).hexdigest()
+        Reenvios (ex.: queda de rede no meio do upload) são reportados em
+        ``duplicados`` em vez de gerar erro ou registro dobrado. Cada item é
+        gravado dentro de um ``SAVEPOINT`` próprio: uma corrida entre dois
+        uploads do mesmo ``id_local`` não derruba o lote inteiro.
+        """
+        recebidos: List[uuid.UUID] = []
+        duplicados: List[ItemDuplicado] = []
+        vistos: set[str] = set()
 
-        # Persiste os itens no banco
-        for item in itens:
-            self.db.add(AtendimentoOffline(**item.__dict__))
+        for item in lote.itens:
+            chave = str(item.id_local)
 
-        # Commit e obtém IDs
+            if chave in vistos:
+                duplicados.append(
+                    ItemDuplicado(
+                        id_local=item.id_local,
+                        motivo="id_local repetido dentro do mesmo lote.",
+                    )
+                )
+                continue
+            vistos.add(chave)
+
+            if self._ja_recebido(chave):
+                duplicados.append(ItemDuplicado(id_local=item.id_local))
+                continue
+
+            try:
+                with self.db.begin_nested():
+                    self.db.add(self._para_modelo(item))
+                    self.db.flush()
+            except IntegrityError:
+                duplicados.append(ItemDuplicado(id_local=item.id_local))
+                continue
+
+            recebidos.append(item.id_local)
+
         self.db.commit()
 
-        # Gera resposta com estatísticas
-        response = LoteSincronizacaoResponse(
-            recebidos=len(items),
-            duplicados=None,
-            total_recebidos=len(items),
-            total_duplicados=0,
+        return LoteSincronizacaoResponse(
+            recebidos=recebidos,
+            duplicados=duplicados,
+            total_recebidos=len(recebidos),
+            total_duplicados=len(duplicados),
         )
 
-        # Verifica conflitos com o servidor (simulação - em produção seria chamada ao endpoint)
-        # Se houver conflitos, resolveria-os aqui
-        self._resolver_conflitos_itens(items)
+    def status_geral(self) -> StatusSincronizacaoOut:
+        """Resumo do painel de auditoria da contingência recebida."""
+        total = self.db.execute(
+            select(func.count(AtendimentoOffline.id))
+        ).scalar_one()
+        ultimo = self.db.execute(
+            select(func.max(AtendimentoOffline.recebido_em))
+        ).scalar_one_or_none()
+        return StatusSincronizacaoOut(
+            total_recebidos=total,
+            ultimo_recebimento=ultimo,
+        )
 
-        return response
+    def _ja_recebido(self, id_local: str) -> bool:
+        """True se o ``id_local`` já existe no servidor."""
+        return (
+            self.db.execute(
+                select(AtendimentoOffline.id).where(
+                    AtendimentoOffline.id_local == id_local
+                )
+            ).first()
+            is not None
+        )
 
-    def _resolver_conflitos_itens(self, itens: List[AtendimentoOfflineCreate]) -> None:
-        """Resolve conflitos entre versões locais e remotas."""
-        # Simulação: em produção, chamaríamos o serviço de sincronização remota
-        # para comparar com o estado do servidor e aplicar Last-Write-Wins
-        logger.info(f"Processando resolução de conflitos para {len(itens)} itens")
+    @staticmethod
+    def _para_modelo(item: AtendimentoOfflineCreate) -> AtendimentoOffline:
+        """Achata o payload (SOAP aninhado) no modelo de persistência."""
+        soap = item.soap
+        return AtendimentoOffline(
+            id_local=str(item.id_local),
+            cns_cidadao=item.cns_cidadao,
+            cpf_cidadao=item.cpf_cidadao,
+            profissional_cns=item.profissional_cns,
+            cnes_estabelecimento=item.cnes_estabelecimento,
+            data_hora_atendimento=item.data_hora_atendimento,
+            subjetivo=soap.subjetivo,
+            objetivo=soap.objetivo,
+            avaliacao=soap.avaliacao,
+            plano=soap.plano,
+            ciap2=item.ciap2,
+            cid10=item.cid10,
+            status=StatusSincronizacao.RECEBIDO,
+        )
+
+    def criar_lote_offline(self, itens: List[AtendimentoOfflineCreate]) -> LoteSincronizacaoResponse:
+        """Compatibilidade: delega para :meth:`ingestar_lote`.
+
+        A implementação anterior mantinha uma cópia da lógica de persistência
+        que atribuía ``data_hash`` a um schema Pydantic sem esse campo e
+        referenciava uma variável ``items`` inexistente — o endpoint chamava um
+        terceiro método que não existia. Agora existe um único caminho de
+        ingestão, testado pela rota.
+        """
+        if not itens:
+            raise ValueError("O lote não pode estar vazio.")
+        return self.ingestar_lote(LoteSincronizacaoRequest(itens=itens))
 
     # ----------------------------------------------------------------------
     # Reconciliação Bidirecional

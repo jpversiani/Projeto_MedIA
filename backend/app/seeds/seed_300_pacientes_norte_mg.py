@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.models.cidadao import Cidadao
 from app.core.database import SessionLocal
+from app.core.crypto import hash_busca
 
 # Listas de Nomes Reais Brasileiros
 NOMES_MASCULINOS = [
@@ -212,8 +213,8 @@ def popular_pacientes(db: Session, total: int = 300):
     # Filtra potenciais duplicidades acidentais
     inseridos = 0
     for p in novos:
-        existe_cpf = db.query(Cidadao).filter(Cidadao.cpf == p.cpf).first()
-        existe_cns = db.query(Cidadao).filter(Cidadao.cns == p.cns).first()
+        existe_cpf = db.query(Cidadao).filter(Cidadao.cpf_hash == hash_busca(p.cpf)).first()
+        existe_cns = db.query(Cidadao).filter(Cidadao.cns_hash == hash_busca(p.cns)).first()
         if not existe_cpf and not existe_cns:
             db.add(p)
             inseridos += 1

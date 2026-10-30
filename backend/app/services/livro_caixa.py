@@ -43,9 +43,20 @@ class MotorLivroCaixaMedico:
 
     @classmethod
     def calcular_irpf_carne_leao(cls, base_calculo: float) -> Dict[str, float]:
-        """Calcula o imposto devido no mês com base na tabela progressiva oficial."""
+        """Calcula o imposto devido no mês com base na tabela progressiva oficial.
+
+        O retorno tem **sempre as mesmas chaves**: a versão anterior devolvia um
+        dicionário reduzido quando a base era zero, e ``gerar_demonstrativo_mensal``
+        acessava ``["aliquota_nominal"]`` → ``KeyError`` → HTTP 500 em qualquer
+        mês sem receita (ou totalmente coberto por despesas dedutíveis).
+        """
         if base_calculo <= 0:
-            return {"base_calculo": 0.0, "aliquota_efetiva": 0.0, "imposto_devido": 0.0}
+            return {
+                "base_calculo": 0.0,
+                "aliquota_nominal": 0.0,
+                "aliquota_efetiva_percentual": 0.0,
+                "imposto_devido": 0.0,
+            }
 
         aliquota_aplicada = 0.0
         parcela_deducao = 0.0

@@ -21,14 +21,23 @@ def test_api_gerar_pix_cobranca():
     assert data["valor"] == "350.00"
 
 
-def test_api_livro_caixa_demonstrativo():
-    response = client.get("/api/v1/financeiro-medico/livro-caixa/demonstrativo?mes_ano=09/2026")
+def test_api_livro_caixa_demonstrativo(client):
+    """O demonstrativo não pode inventar faturamento.
+
+    Antes esta rota devolvia cinco consultas e três despesas *hardcoded*, e o
+    teste antigo (`total_bruto > 0`) apenas blindava o mock. Agora, sem
+    lançamentos na competência, todos os totais vêm zerados.
+    """
+    response = client.get("/api/v1/financeiro-medico/livro-caixa/demonstrativo?mes_ano=01/1990")
     assert response.status_code == 200
     data = response.json()
-    assert "receitas" in data
-    assert "despesas" in data
-    assert "apuracao_fiscal" in data
-    assert data["receitas"]["total_bruto"] > 0
+
+    assert data["competencia"] == "01/1990"
+    assert data["receitas"]["total_bruto"] == 0
+    assert data["receitas"]["quantidade_consultas"] == 0
+    assert data["despesas"]["total_despesas"] == 0
+    assert data["apuracao_fiscal"]["imposto_a_recolher_darf"] == 0
+    assert data["cobertura"]["possui_lancamentos"] is False
 
 
 def test_api_emitir_prescricao_e_validar(client):

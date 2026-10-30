@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import DateTime, Enum as SAEnum, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.crypto import CampoProtegido
 from app.core.database import Base
 
 
@@ -44,11 +45,11 @@ class AtendimentoOffline(Base):
     id_local: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
     # Identificação do cidadão conforme padrões SUS (CNS obrigatório; CPF opcional).
-    cns_cidadao: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
-    cpf_cidadao: Mapped[Optional[str]] = mapped_column(String(11), nullable=True)
+    cns_cidadao: Mapped[str] = mapped_column(CampoProtegido, nullable=False, index=True)
+    cpf_cidadao: Mapped[Optional[str]] = mapped_column(CampoProtegido, nullable=True)
 
     # Identificação do profissional (CNS) e do estabelecimento (CNES, 7 dígitos).
-    profissional_cns: Mapped[Optional[str]] = mapped_column(String(15), nullable=True)
+    profissional_cns: Mapped[Optional[str]] = mapped_column(CampoProtegido, nullable=True)
     cnes_estabelecimento: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
 
     # Momento em que o atendimento ocorreu na UBS (gerado no cliente).

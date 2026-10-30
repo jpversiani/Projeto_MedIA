@@ -25,11 +25,13 @@ from typing import Any, Final, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.atendimento import AtendimentoSOAP
 from app.models.cidadao import Cidadao
 from app.models.copiloto import CopilotoAuditoria
 from app.models.prontuario import ProntuarioProblema
+from app.models.usuario import Usuario
 from app.schemas.copiloto import (
     AceiteSOAPIn,
     AlertaClinicoOut,
@@ -44,6 +46,12 @@ logger = logging.getLogger(__name__)
 
 from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
 router = APIRouter(prefix="/copiloto", tags=["Copiloto Clínico (IA)"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
+
+# WebSocket fica em um router SEM dependências HTTP: `Depends(get_current_user)`
+# é uma dependência de requisição e, aplicada ao handshake, levanta HTTPException
+# antes de o navegador conseguir enviar o token. A autenticação é feita dentro do
+# handler por `_autorizar_ws` (cookie HttpOnly ou `?token=`).
+ws_router = APIRouter(prefix="/copiloto", tags=["Copiloto Clínico (IA)"])
 
 _motor = MotorSugestoesCopiloto()
 
@@ -261,7 +269,83 @@ def aceitar_soap_ia(
 # ---------------------------------------------------------------------------
 # WebSocket (push em tempo real para o painel)
 # ---------------------------------------------------------------------------
-@router.websocket("/ws/{atendimento_id}")
+
+# Código de fechamento próprio para "não autenticado" (a faixa 4000-4999 é
+# reservada para uso da aplicação pela RFC 6455).
+WS_NAO_AUTENTICADO: Final[int] = 4401
+
+
+def _autorizar_ws(
+    websocket: WebSocket, db: Session, atendimento_id: int
+) -> bool:
+    """Valida a sessão do painel antes de entrar na sala do atendimento.
+
+    O navegador não consegue definir headers no handshake do WebSocket, então o
+    token é aceito pelo cookie HttpOnly da sessão (``media_access``) ou por
+    ``?token=`` para clientes que não são navegador. Com ``require_auth``
+    desligado (desenvolvimento) o acesso continua aberto, como nas rotas REST.
+
+    Além da identidade, confere o tenant: se o token traz ``clinica_id``, o
+    atendimento precisa pertencer ao mesmo estabelecimento.
+    """
+    if not settings.require_auth:
+        return True
+
+    # Import local: evita ciclo entre o módulo de rotas de auth e este.
+    from app.api.v1.auth import COOKIE_ACESSO
+    from app.services.auth_service import decode_access_token
+
+    token = websocket.query_params.get("token") or websocket.cookies.get(
+        COOKIE_ACESSO
+    )
+    payload = decode_access_token(token) if token else None
+    if not payload or "sub" not in payload:
+        return False
+
+    try:
+        usuario_id = int(payload["sub"])
+    except (TypeError, ValueError):
+        return False
+
+    usuario = (
+        db.query(Usuario)
+        .filter(Usuario.id == usuario_id, Usuario.is_active == True)  # noqa: E712
+        .first()
+    )
+    if usuario is None:
+        return False
+
+    # Mesma matriz de papéis do router HTTP (PAPEIS_CLINICOS).
+    papeis_permitidos = {papel.value for papel in PAPEIS_CLINICOS}
+    papel = payload.get("papel")
+    if not usuario.is_superuser and papel not in papeis_permitidos:
+        logger.warning(
+            "WS do copiloto negado: usuário %s tem papel %s.", usuario_id, papel
+        )
+        return False
+
+    clinica_id = payload.get("clinica_id")
+    if clinica_id is not None:
+        try:
+            clinica_id = int(clinica_id)
+        except (TypeError, ValueError):
+            return False
+        atendimento = (
+            db.query(AtendimentoSOAP.estabelecimento_id)
+            .filter(AtendimentoSOAP.id == atendimento_id)
+            .first()
+        )
+        if atendimento is not None and atendimento.estabelecimento_id != clinica_id:
+            logger.warning(
+                "WS do copiloto negado: atendimento %s é de outro estabelecimento.",
+                atendimento_id,
+            )
+            return False
+
+    return True
+
+
+@ws_router.websocket("/ws/{atendimento_id}")
 async def ws_copiloto(
     websocket: WebSocket,
     atendimento_id: int,
@@ -269,10 +353,15 @@ async def ws_copiloto(
 ) -> None:
     """Snapshot de alertas + eventos push + pong (keepalive do painel)."""
     await websocket.accept()
+
+    if not _autorizar_ws(websocket, db, atendimento_id):
+        await websocket.close(code=WS_NAO_AUTENTICADO)
+        return
+
     fila = hub.conectar(atendimento_id)
     ids_enviados: set[str] = set()
     try:
-        _obter_atendimento(db, atendimento_id)  # 404 equivalente: fecha WS
+        atendimento = _obter_atendimento(db, atendimento_id)
         alertas = _gerar_alertas(db, atendimento)
         ids_enviados = {a.id for a in alertas}
         await websocket.send_json(

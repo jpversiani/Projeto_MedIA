@@ -19,6 +19,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.crypto import CampoProtegido
 from app.core.database import Base
 
 STATUS_EMITIDA = "EMITIDA"
@@ -51,8 +52,10 @@ class Receita(Base):
     )
 
     # Identificação SUS do paciente (CNS obrigatório; CPF complementar)
-    cns_paciente: Mapped[str] = mapped_column(String(15), nullable=False, index=True)
-    cpf_paciente: Mapped[str | None] = mapped_column(String(11), nullable=True)
+    cns_paciente: Mapped[str] = mapped_column(
+        CampoProtegido, nullable=False, index=True
+    )
+    cpf_paciente: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True)
 
     # Episódio clínico conforme terminologias SUS/APS (CID-10 e/ou CIAP-2)
     cid10: Mapped[str | None] = mapped_column(String(7), nullable=True)
@@ -60,7 +63,7 @@ class Receita(Base):
 
     # Prescritor (trilha de auditoria da emissão)
     prescritor_nome: Mapped[str] = mapped_column(String(200), nullable=False)
-    prescritor_cns: Mapped[str] = mapped_column(String(15), nullable=False)
+    prescritor_cns: Mapped[str] = mapped_column(CampoProtegido, nullable=False)
     prescritor_registro: Mapped[str] = mapped_column(String(30), nullable=False)
 
     # CNES da unidade emissora e vigência da prescrição
@@ -157,8 +160,8 @@ class Dispensacao(Base):
 
     # Auditoria do farmacêutico dispensador (identificação SUS)
     farmaceutico_nome: Mapped[str] = mapped_column(String(200), nullable=False)
-    farmaceutico_cns: Mapped[str] = mapped_column(String(15), nullable=False)
-    farmaceutico_cpf: Mapped[str | None] = mapped_column(String(11), nullable=True)
+    farmaceutico_cns: Mapped[str] = mapped_column(CampoProtegido, nullable=False)
+    farmaceutico_cpf: Mapped[str | None] = mapped_column(CampoProtegido, nullable=True)
 
     # CNES da farmácia/unidade dispensadora
     unidade_cnes: Mapped[str] = mapped_column(String(7), nullable=False)
