@@ -93,13 +93,22 @@ de uso único).
 `PUBLIC_BASE_URL` (percent-encoded); e há **varredura transversal de 401**
 sobre todas as rotas GET do router clínico (não só a lista manual anterior).
 
+**Merge da linha T4 (`feature/t4-tcle-persistente-cfm-lgpd`):** integrada ao
+main em `bbb1450`. A resolução manteve a implementação auditada onde havia
+duplicidade — TCLE cifrado com bloqueio 409 (descartada a tabela
+`consentimentos_tcle` em texto claro), RBAC/tenant, refresh token rotativo,
+cadeia de auditoria com IP/UA e o bridge de farmácia; removidas as migrações
+`db700d6edb6d`/`e3f891b2c450` (head único `c3d9e1f5a7b2`) e a aba de
+acolhimento paralela (`fila_espera.js`). O refactor de tipagem do T4 exigiu
+restaurar imports de `typing`, `timezone` e corrigir `datetime.UTC`.
+
 ---
 
 ## 1. Resumo executivo
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **714 passed, 0 failed** (~29 s), após P0-1/2/4/5/6/7/7b + TM-1..TM-5 + SSO/401 | Execução real na raiz |
+| Testes (`pytest -q`) | **715 passed, 0 failed** (~28 s), após P0-1/2/4/5/6/7/7b + TM-1..TM-5 + SSO/401 + merge T4 | Execução real na raiz |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
 | Testes novos desta sessão | **98** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + 11 teleconsulta-frontend + 18 retenção + 9 backup) + **67 da auditoria** | `test_*.py` correspondentes |
 | Migrações Alembic | **9** (head `c3d9e1f5a7b2`) | `alembic upgrade head` |
