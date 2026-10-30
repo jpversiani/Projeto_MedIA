@@ -227,7 +227,7 @@ def auditar_acesso_phi(
         ip = None
         user_agent = None
         if request is not None:
-            ip = request.client.host if request.client else None
+            ip = (request.client.host if request.client else None) or '127.0.0.1'
             user_agent = request.headers.get("user-agent") if request.headers else None
 
         return AuditService.registrar_evento(
