@@ -1,6 +1,9 @@
 """
 Suíte de Testes Automatizados para Autenticação, SSO (Google/Microsoft), Multi-Tenancy e Trilha de Auditoria (LGPD).
 """
+import urllib.parse
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -176,3 +179,51 @@ def test_audit_trail_immutable(client):
     primeiro = logs[0]
     assert "hash_integridade" in primeiro
     assert len(primeiro["hash_integridade"]) == 64 # SHA-256 hex
+
+
+# ---------------------------------------------------------------------------
+# SSO: o redirect precisa usar o domínio público e ir percent-encoded
+# ---------------------------------------------------------------------------
+def test_sso_url_usa_dominio_publico_e_escapa_redirect(client):
+    """Antes o `redirect_uri` era `http://localhost:8000` fixo.
+
+    O provedor devolvia o usuário para a máquina local (e o redirect
+    cadastrado no console do Google/Azure nunca coincidia). O parâmetro também
+    ia sem escape na query string. Agora vem de `PUBLIC_BASE_URL` e é
+    percent-encoded.
+    """
+    from app.core.config import settings
+
+    # `Settings` é frozen: o freeze é burlado deliberadamente só durante o teste
+    # e a configuração original é restaurada no `finally`.
+    original = settings.PUBLIC_BASE_URL
+    object.__setattr__(
+        settings, "PUBLIC_BASE_URL", "https://telemedicina.exemplo.com.br"
+    )
+    try:
+        esperado_google = urllib.parse.quote(
+            "https://telemedicina.exemplo.com.br/api/v1/auth/sso/google/callback",
+            safe="",
+        )
+        esperado_ms = urllib.parse.quote(
+            "https://telemedicina.exemplo.com.br/api/v1/auth/sso/microsoft/callback",
+            safe="",
+        )
+
+        url_google = client.get("/api/v1/auth/sso/google/url").json()["auth_url"]
+        assert f"redirect_uri={esperado_google}" in url_google
+        assert "localhost" not in url_google, "sobrou localhost fixo no SSO Google"
+
+        url_ms = client.get("/api/v1/auth/sso/microsoft/url").json()["auth_url"]
+        assert f"redirect_uri={esperado_ms}" in url_ms
+        assert "localhost" not in url_ms, "sobrou localhost fixo no SSO Microsoft"
+    finally:
+        object.__setattr__(settings, "PUBLIC_BASE_URL", original)
+
+
+def test_auth_nao_tem_localhost_fixo_no_redirect():
+    """Guarda estática: nenhum redirect de SSO pode voltar a fixar localhost."""
+    fonte = (
+        Path(__file__).resolve().parents[1] / "app" / "api" / "v1" / "auth.py"
+    ).read_text(encoding="utf-8")
+    assert "localhost:8000/api/v1/auth/sso" not in fonte

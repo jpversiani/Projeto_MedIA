@@ -243,3 +243,42 @@ def test_openapi_declara_esquema_de_autenticacao():
         "OpenAPI sem securitySchemes: clientes e gateways não conseguem "
         "descobrir como se autenticar."
     )
+
+
+# ----------------------------------------------------------------------
+# 5. Varredura transversal: toda rota GET clínica exige token
+# ----------------------------------------------------------------------
+def test_todas_as_rotas_get_do_router_clinico_exigem_token(client):
+    """Todo GET registrado no router clínico responde 401 sem token.
+
+    A cobertura anterior era uma lista manual curta (`ROTAS_CLINICAS`): uma rota
+    nova, sem a dependência de autenticação, passava despercebida. Esta varredura
+    lê os caminhos do próprio roteador, então a proteção é verificada em todas
+    as rotas registradas — não só naquelas que alguém lembrou de listar.
+    """
+    from fastapi import FastAPI
+
+    from app.api.v1.router import build_clinical_router
+
+    app_protegido = FastAPI()
+    app_protegido.include_router(
+        build_clinical_router(require_auth=True), prefix="/api/v1"
+    )
+    app_protegido.dependency_overrides = client.app.dependency_overrides
+
+    # O OpenAPI é a fonte estável dos caminhos: `app.routes` guarda wrappers
+    # internos (`_IncludedRouter`) que não expõem `path`.
+    caminhos = sorted(
+        caminho
+        for caminho, operacoes in app_protegido.openapi()["paths"].items()
+        if "get" in operacoes and "{" not in caminho
+    )
+    assert len(caminhos) >= 15, (
+        f"a varredura encontrou apenas {len(caminhos)} rotas GET sem parâmetro; "
+        "isso indica que a descoberta quebrou, não que a API encolheu"
+    )
+
+    with TestClient(app_protegido) as http:
+        abertas = [rota for rota in caminhos if http.get(rota).status_code != 401]
+
+    assert not abertas, f"rotas GET acessíveis sem token: {abertas}"

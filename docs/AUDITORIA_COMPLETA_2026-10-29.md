@@ -25,13 +25,13 @@
 
 ## 1.1 O que já foi corrigido nesta rodada (29/10/2026)
 
-A auditoria começou com 621 testes; hoje a suíte tem **711 testes**, todos verdes em ~24 s (Fase 0 + P0-4 parte 2 + P0-5 + P0-6 + P0-7 + P0-7b + correções TM-1..TM-5 da telemedicina). Nenhum teste existente foi afrouxado.
+A auditoria começou com 621 testes; hoje a suíte tem **714 testes**, todos verdes em ~29 s (Fase 0 + P0-4 parte 2 + P0-5 + P0-6 + P0-7 + P0-7b + correções TM-1..TM-5 da telemedicina + SSO/401). Nenhum teste existente foi afrouxado.
 
 | Item | Status | Evidência |
 |---|---|---|
 | **P0-1** Sincronização offline | **Corrigido** | `ingestar_lote` e `status_geral` implementados; `POST` responde **201** e reenvio vira duplicado; **10 testes de rota** em `test_sincronizacao_api.py` |
 | **P0-2** WebSocket do copiloto | **Corrigido** | `NameError` eliminado; WS movido para router sem dependência HTTP; token/cookie + papel + tenant validados; **7 testes** em `test_copiloto_ws.py` |
-| **P0-3** Docker/Postgres | **Corrigido (estático)** | imagem copia `alembic.ini` + `backend/alembic`; entrypoint roda `alembic upgrade head`; compose em `ENVIRONMENT=production` com segredos obrigatórios. Layout validado por simulação (34 tabelas criadas); build real não executado (daemon Docker indisponível) |
+| **P0-3** Docker/Postgres | **Corrigido e validado na prática** | imagem copia `alembic.ini` + `backend/alembic`; entrypoint roda `alembic upgrade head`; compose em `ENVIRONMENT=production` com segredos obrigatórios. **Build real executado** com engine 28.3.2: o container sobe, aplica as 9 migrações até `c3d9e1f5a7b2` e `GET /health` responde 200 com `database: connected` |
 | **P0-4** Paciente fictício / id fixo | **Parcial** | jornada demo só é criada em `development`; frontend usa `consultaAtiva.codigo` e não exibe mais números de documento falsos. Falta persistir a jornada e ligá-la à agenda |
 | **P0-8** Auth desligada | **Corrigido/esclarecido** | `require_auth` **já** era `True` em staging/produção; o risco real era o compose sem `ENVIRONMENT`, agora definido. Adicionado teste que trava a regra |
 | **P1-1** CodeQL | **Corrigido** | removido `codeql-action/authenticate@v3` (action inexistente) |
@@ -49,7 +49,7 @@ A auditoria começou com 621 testes; hoje a suíte tem **711 testes**, todos ver
 
 | Métrica | Valor | Como foi obtido |
 |---|---:|---|
-| Testes | **621 passed** (baseline) → **711 passed** após P0-1, P0-2, P0-4 (parte 2), P0-5, P0-6, P0-7, P0-7b e TM-1..TM-5, 0 failed, 0 skipped | **executado** (`pytest backend/tests -o addopts="" -q`) |
+| Testes | **621 passed** (baseline) → **714 passed** após P0-1, P0-2, P0-4 (parte 2), P0-5, P0-6, P0-7, P0-7b, TM-1..TM-5 e SSO/401, 0 failed, 0 skipped | **executado** (`pytest backend/tests -o addopts="" -q`) |
 | Cobertura de linhas | **64%** (9.117 statements) | **executado** (`--cov=backend/app`) |
 | Arquivos de teste | 58 | leitura estática |
 | Funções `test_*` | 549 (→ 621 casos com `parametrize`) | AST |
@@ -136,9 +136,9 @@ A auditoria começou com 621 testes; hoje a suíte tem **711 testes**, todos ver
 **Impacto:** copiloto clínico em tempo real não funciona e, se funcionasse, vazaria dados clínicos entre tenants.
 **Correção:** corrigir atribuição, autenticar no handshake (query param `token` + validação JWT) e testar com `TestClient.websocket_connect`. Esforço: **1 dia**.
 
-#### P0-3. Imagem Docker não sobe com Postgres — **[CORRIGIDO, validação estática]**
+#### P0-3. Imagem Docker não sobe com Postgres — **[CORRIGIDO, validado com build real]**
 **Evidência (leitura estática do `Dockerfile`):**
-**Correção aplicada:** a imagem agora espelha o layout do repositório e copia `alembic.ini` + `backend/alembic`; `scripts/docker-entrypoint.sh` roda `alembic upgrade head` antes do Uvicorn e o processo falha cedo se o banco estiver inacessível; `docker-compose.yml` define `ENVIRONMENT=production`, exige `JWT_SECRET_KEY`/`POSTGRES_PASSWORD` (`${VAR:?}`), desliga seed/demo/SSO mock e mantém CORS explícito. O layout foi validado por simulação (34 tabelas criadas); **falta o build real**, pois o daemon do Docker não está ativo nesta máquina.
+**Correção aplicada:** a imagem agora espelha o layout do repositório e copia `alembic.ini` + `backend/alembic`; `scripts/docker-entrypoint.sh` roda `alembic upgrade head` antes do Uvicorn e o processo falha cedo se o banco estiver inacessível; `docker-compose.yml` define `ENVIRONMENT=production`, exige `JWT_SECRET_KEY`/`POSTGRES_PASSWORD` (`${VAR:?}`), desliga seed/demo/SSO mock e mantém CORS explícito. O layout foi validado por simulação (34 tabelas criadas) e, nesta rodada, o **build real foi executado** com engine 28.3.2: o container sobe, aplica as 9 migrações até `c3d9e1f5a7b2` e `GET /health` responde 200 com `database: connected`.
 - `COPY backend/app ./app` copia **apenas** `backend/app`; `alembic.ini` e `alembic/` ficam fora da imagem → `run_migrations()` falha e, em seguida, o seed quebra em Postgres por falta de tabelas.
 - `docker-compose.yml` não define `ENVIRONMENT` → sobe em **modo desenvolvimento**: auth desligada, login demo ativo, seed automático e `SECRET_KEY` padrão.
 - Sem `depends_on` com healthcheck do banco, sem entrypoint de migração separado.
@@ -258,7 +258,7 @@ A auditoria começou com 621 testes; hoje a suíte tem **711 testes**, todos ver
 
 | Aspecto | Situação |
 |---|---|
-| Execução | 621 passed / 0 failed / 0 skipped em 14,46 s (baseline); **711 passed em ~24 s** após P0-1/2/4/5/6/7/7b + TM-1..TM-5 |
+| Execução | 621 passed / 0 failed / 0 skipped em 14,46 s (baseline); **714 passed em ~29 s** após P0-1/2/4/5/6/7/7b + TM-1..TM-5 + SSO/401 |
 | Isolamento individual | 58/58 arquivos passam sozinhos |
 | Hermeticidade | SQLite em memória + `StaticPool` + override de `get_db` |
 | Não aceita erro como sucesso | nenhum `== 500`, nenhum `xfail` |
@@ -403,7 +403,7 @@ Os quatro de `test_sisab_client.py` são "não deve levantar exceção" — esti
 | Métricas/tracing | Ausente | — |
 | Backup | Script + testes | `scripts/backup_db.py` |
 
-> **Não executado:** build/execução real do Docker e do Postgres (sem daemon disponível nesta sessão). As conclusões de P0-3 são leitura estática do `Dockerfile`/`compose`, mas o mecanismo de falha é determinístico (arquivo ausente no contexto de build).
+> **Executado nesta rodada:** build real da imagem (`docker build`) e execução do container com o entrypoint aplicando as 9 migrações até `c3d9e1f5a7b2`; `GET /health` respondeu 200 com `database: connected`. O item que permanece **não executado** é o `docker compose up` completo com Postgres (o smoke usou SQLite dentro do container).
 
 ---
 
@@ -463,7 +463,7 @@ Os arquivos de teste de código morto **inflam a suíte**: `test_triagem_clinica
 |---|---|---|---|---|---|
 | 1 | Corrigir sync offline (`ingestar_lote`, idempotência, contrato de resposta) | P0 | 1–2 d | `POST /sincronizacao/atendimentos` → 201; reenvio → duplicado; teste de rota | **FEITO** (10 testes) |
 | 2 | Corrigir WebSocket do copiloto + autenticar | P0 | 1 d | `websocket_connect` autenticado recebe evento; sem token → 4401 | **FEITO** (7 testes) |
-| 3 | Docker: copiar Alembic, `ENVIRONMENT=production`, entrypoint de migração, segredos | P0 | 1 d | `docker compose up` em Postgres → `/health` 200, 34 tabelas, sem demo | **FEITO** (falta build real) |
+| 3 | Docker: copiar Alembic, `ENVIRONMENT=production`, entrypoint de migração, segredos | P0 | 1 d | `docker compose up` em Postgres → `/health` 200, 34 tabelas, sem demo | **FEITO** (build real + container smoke validados) |
 | 4 | Default seguro de auth (`require_auth=true`) | P0 | 0,5 d | todos os routers → 401 sem token em modo produção | **FEITO** (já era; compose corrigido) |
 | 5 | Corrigir CodeQL (`init/analyze` apenas) e remover `authenticate` | P1 | 15 min | workflow verde | **FEITO** |
 | 6 | Travar dependências (lockfile / pins exatos) | P1 | 0,5 d | `pip install -r` reproduz o venv | **FEITO** |

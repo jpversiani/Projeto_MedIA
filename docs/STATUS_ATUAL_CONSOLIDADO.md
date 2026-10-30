@@ -11,7 +11,7 @@
 ## 0. Atualização de 29/10/2026 — Fase 0 da auditoria
 
 > A auditoria completa está em [`AUDITORIA_COMPLETA_2026-10-29.md`](AUDITORIA_COMPLETA_2026-10-29.md).
-> Desde o snapshot abaixo, a suíte passou de **621 para 711 testes** e foram
+> Desde o snapshot abaixo, a suíte passou de **621 para 714 testes** e foram
 > corrigidos, com teste de regressão:
 
 | Correção | Arquivo principal | Teste |
@@ -78,14 +78,20 @@ no ambiente de demonstração. As cinco correções:
    `None` em vez de gerar link morto. `gerar_link_paciente` e o link do portal
    pós-consulta também usam `PUBLIC_BASE_URL`.
 
-**Ainda pendente:** validar o build Docker real (daemon do Docker Desktop não
-ativo no ambiente da auditoria); provisionar `TURN_URL`/`TURN_USERNAME`/
-`TURN_CREDENTIAL` (sem TURN, a chamada só conecta em rede local ou NAT não
-simétrico); P1 (tenant nos módulos restantes — prescrição/TISS/farmácia/
-convênios — tenant/estabelecimento no WS e em `SalaVirtual`; redirect URI do
-SSO ainda hardcoded em `auth.py`; endurecimento do frontend: CSP + cookie
-HttpOnly em vez de `localStorage`; hub de sinalização single-instance —
-escalar para Redis com múltiplos workers; convite de paciente de uso único).
+**Ainda pendente:** provisionar `TURN_URL`/`TURN_USERNAME`/`TURN_CREDENTIAL`
+(sem TURN, a chamada só conecta em rede local ou NAT não simétrico); P1
+(tenant nos módulos restantes — prescrição/TISS/farmácia/convênios — e
+tenant/estabelecimento no WS e em `SalaVirtual`; endurecimento do frontend:
+CSP + cookie HttpOnly em vez de `localStorage`; hub de sinalização
+single-instance — escalar para Redis com múltiplos workers; convite de paciente
+de uso único).
+
+**Fechado nesta rodada:** o **build Docker real** foi executado e validado
+(`docker build` + container: entrypoint aplica as 9 migrações até
+`c3d9e1f5a7b2` e `/health` responde 200 com `database: connected`); o
+**redirect do SSO** deixou de fixar `localhost` e passou a usar
+`PUBLIC_BASE_URL` (percent-encoded); e há **varredura transversal de 401**
+sobre todas as rotas GET do router clínico (não só a lista manual anterior).
 
 ---
 
@@ -93,7 +99,7 @@ escalar para Redis com múltiplos workers; convite de paciente de uso único).
 
 | Dimensão | Valor verificado | Fonte |
 |---|---|---|
-| Testes (`pytest -q`) | **711 passed, 0 failed** (~24 s), após P0-1/2/4/5/6/7/7b + correções TM-1..TM-5 | Execução real na raiz |
+| Testes (`pytest -q`) | **714 passed, 0 failed** (~29 s), após P0-1/2/4/5/6/7/7b + TM-1..TM-5 + SSO/401 | Execução real na raiz |
 | Teste de contrato frontend | **28 passed** | `test_contrato_frontend.py` |
 | Testes novos desta sessão | **98** (16 RBAC/tenant + 7 auditoria + 7 persistência + 11 sessão + 19 teleconsulta + 11 teleconsulta-frontend + 18 retenção + 9 backup) + **67 da auditoria** | `test_*.py` correspondentes |
 | Migrações Alembic | **9** (head `c3d9e1f5a7b2`) | `alembic upgrade head` |

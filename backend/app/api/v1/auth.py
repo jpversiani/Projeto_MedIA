@@ -2,6 +2,7 @@
 Rotas de Autenticação, SSO (Google e Microsoft), Multi-Tenancy e Auditoria de Acesso.
 """
 import os
+import urllib.parse
 from typing import List, Optional, Tuple
 from fastapi import (
     APIRouter,
@@ -405,9 +406,17 @@ def get_google_auth_url():
     """Gera a URL de redirecionamento para login federado com o Google."""
     _exigir_sso_habilitado()
     client_id = settings.GOOGLE_CLIENT_ID or "mock_media_google_client_id.apps.googleusercontent.com"
-    redirect_uri = "http://localhost:8000/api/v1/auth/sso/google/callback"
+    # O redirect precisa apontar para o domínio público real: com localhost
+    # fixo, o provedor devolvia o usuário para uma máquina que não é o servidor
+    # (e o cadastro do redirect no console do Google nunca batia). O `redirect_uri`
+    # também precisa ir percent-encoded dentro da query string.
+    redirect_uri = f"{settings.PUBLIC_BASE_URL.rstrip('/')}/api/v1/auth/sso/google/callback"
     scope = "openid%20profile%20email"
-    url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}&access_type=offline&prompt=consent"
+    url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"
+        f"&response_type=code&scope={scope}&access_type=offline&prompt=consent"
+    )
     return {"provider": "google", "auth_url": url}
 
 
@@ -452,9 +461,14 @@ def get_microsoft_auth_url():
     """Gera a URL de autenticação com Microsoft Entra ID (Azure AD / Office 365)."""
     _exigir_sso_habilitado()
     client_id = settings.MICROSOFT_CLIENT_ID or "mock_media_microsoft_client_id"
-    redirect_uri = "http://localhost:8000/api/v1/auth/sso/microsoft/callback"
+    redirect_uri = f"{settings.PUBLIC_BASE_URL.rstrip('/')}/api/v1/auth/sso/microsoft/callback"
     scope = "openid%20profile%20email%20User.Read"
-    url = f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}"
+    url = (
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+        f"?client_id={client_id}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"
+        f"&response_type=code&scope={scope}"
+    )
     return {"provider": "microsoft", "auth_url": url}
 
 
