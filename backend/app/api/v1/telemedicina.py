@@ -6,7 +6,12 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.models.telemedicina import Teleconsulta as TeleconsultaModel, SalaVirtual as SalaVirtualModel, StatusTeleconsulta
+from app.models.telemedicina import (
+    Teleconsulta as TeleconsultaModel,
+    SalaVirtual as SalaVirtualModel,
+    ConsentimentoTeleconsulta as ConsentimentoModel,
+    StatusTeleconsulta,
+)
 from app.schemas.telemedicina import TeleconsultaCreate
 from app.services.cfm_telemedicina import (
     MotorCFMTelemedicina,
@@ -17,6 +22,7 @@ from app.services.templates_especialidades import (
     listar_todas_especialidades,
     obter_especialidade,
 )
+from app.services.signaling_hub import hub_signaling
 
 from app.core.rbac import PAPEIS_CLINICOS, dependencias_rbac
 router = APIRouter(prefix="/telemedicina", tags=["Telemedicina"], dependencies=dependencias_rbac(*PAPEIS_CLINICOS))
@@ -47,6 +53,9 @@ class TCLERegistrarRequest(BaseModel):
     paciente_cpf: str
     metodo: str = "ELETRONICO_WEB"
     ip_origem: Optional[str] = "127.0.0.1"
+    # Vincula o aceite à teleconsulta concreta (permite exigir o TCLE em
+    # /iniciar-chamada). Opcional para não quebrar chamadas legadas.
+    teleconsulta_id: Optional[int] = None
 
 
 class ConverterPresencialRequest(BaseModel):
@@ -114,6 +123,28 @@ def iniciar_chamada(payload: IniciarChamadaRequest, db: Session = Depends(get_db
     if not consulta:
         raise HTTPException(status_code=404, detail="Teleconsulta não encontrada")
 
+    # Resolução CFM nº 2.314/2022 (Art. 4º, § 2º): o consentimento livre e
+    # esclarecido do paciente é PRÉVIO e obrigatório. Sem um TCLE registrado
+    # para ESTA teleconsulta, a chamada não pode ser iniciada — antes o
+    # endpoint iniciava mesmo sem consentimento. Cada teleconsulta tem o
+    # próprio termo (paciente pode aceitar uma e recusar outra).
+    tem_consentimento = (
+        db.query(ConsentimentoModel.id)
+        .filter(ConsentimentoModel.teleconsulta_id == consulta.id)
+        .first()
+        is not None
+    )
+    if not tem_consentimento:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Consentimento (TCLE) não registrado para esta teleconsulta. "
+                "A Resolução CFM nº 2.314/2022 exige consentimento prévio, livre "
+                "e esclarecido do paciente antes da consulta de telemedicina. "
+                "Registre o aceite em /telemedicina/tcle/registrar."
+            ),
+        )
+
     consulta.status = StatusTeleconsulta.EM_ANDAMENTO
     consulta.data_inicio = datetime.now(timezone.utc)
     db.commit()
@@ -121,8 +152,34 @@ def iniciar_chamada(payload: IniciarChamadaRequest, db: Session = Depends(get_db
     return {"id": consulta.id, "status": consulta.status.value, "mensagem": "Chamada iniciada"}
 
 
+async def _encerrar_sala_da_consulta(
+    consulta: TeleconsultaModel, db: Session, novo_status: StatusTeleconsulta
+) -> None:
+    """Encerra a sala virtual da teleconsulta (hub + persistência).
+
+    Tudo em memória morria no processo: as filas WebSocket da sala ficavam
+    abertas (o hub nunca era notificado) e a linha em `salas_virtuais`
+    mantinha ``status``/``data_expiracao`` sem preencher — ou seja, com a
+    autenticação ligada a sala continuava "viva" e aceitando novas conexões
+    mesmo após o fim da consulta.
+
+    Agora o encerramento (a) remove a sala do hub de sinalização e (b)
+    grava ``status`` (CONCLUIDA ou CANCELADA) e ``data_expiracao`` no banco,
+    de modo que o WebSocket recuse reutilizações da sala encerrada.
+    """
+    sala = consulta.sala_virtual
+    if sala is None:
+        return
+
+    agora = datetime.now(timezone.utc)
+    # Remove a sala do hub (se ninguém estiver conectado, devolve 0 — ok).
+    await hub_signaling.encerrar_sala(sala.codigo_sala)
+    sala.status = novo_status
+    sala.data_expiracao = agora  # expirada: o WebSocket recusa novas conexões
+
+
 @router.post("/finalizar-chamada")
-def finalizar_chamada(payload: FinalizarChamadaRequest, db: Session = Depends(get_db)):
+async def finalizar_chamada(payload: FinalizarChamadaRequest, db: Session = Depends(get_db)):
     consulta = db.query(TeleconsultaModel).filter(TeleconsultaModel.id == payload.teleconsulta_id).first()
     if not consulta:
         raise HTTPException(status_code=404, detail="Teleconsulta não encontrada")
@@ -131,6 +188,10 @@ def finalizar_chamada(payload: FinalizarChamadaRequest, db: Session = Depends(ge
     consulta.data_fim = datetime.now(timezone.utc)
     if payload.dados_soap:
         consulta.evolucao_soap = payload.dados_soap
+    # Encerra a sala no hub de sinalização e grava o status/expiração da sala:
+    # sem isso as filas WebSocket ficavam abertas para sempre e a sala
+    # continuava "viva" (aceitava novas conexões) mesmo após o fim da consulta.
+    await _encerrar_sala_da_consulta(consulta, db, StatusTeleconsulta.CONCLUIDA)
     db.commit()
     db.refresh(consulta)
     return {"id": consulta.id, "status": consulta.status.value, "mensagem": "Chamada finalizada com sucesso"}
@@ -162,24 +223,57 @@ def gerar_termo_consentimento(payload: TCLEGerarRequest):
 
 
 @router.post("/tcle/registrar")
-def registrar_aceite_consentimento(payload: TCLERegistrarRequest):
-    """Registra auditadamente o consentimento do paciente antes da teleconsulta."""
+def registrar_aceite_consentimento(payload: TCLERegistrarRequest, db: Session = Depends(get_db)):
+    """Registra auditadamente o consentimento do paciente antes da teleconsulta.
+
+    O aceite é **persistido** (texto integral + hash SHA-256 + método + IP),
+    e não apenas devolvido em memória: é a prova exigida pela Resolução
+    CFM nº 2.314/2022 (Art. 4º, § 2º) e o que permite a checagem de
+    `/iniciar-chamada`.
+    """
     paciente = PacienteIdentificacaoCFM(
         nome_completo=payload.paciente_nome,
         cpf=payload.paciente_cpf
+    )
+    # O termo é gerado para o hash bater com o que o paciente efetivamente leu.
+    medico = MedicoIdentificacaoCFM(
+        nome_completo="Não informado",
+        crm="000000",
+        uf_crm="BR",
+    )
+    termo = MotorCFMTelemedicina.gerar_termo_consentimento_tcle(
+        paciente=paciente, medico=medico, modalidade="TELECONSULTA"
     )
     registro = MotorCFMTelemedicina.registrar_aceite_tcle(
         paciente=paciente,
         metodo=payload.metodo,
         ip_origem=payload.ip_origem
     )
+
+    agora = datetime.now(timezone.utc)
+    registro_db = ConsentimentoModel(
+        codigo=registro.consentimento_id,
+        teleconsulta_id=payload.teleconsulta_id,
+        paciente_nome=registro.paciente_nome,
+        paciente_cpf=registro.paciente_cpf,
+        texto_integral=termo["texto_integral"],
+        hash_integridade_sha256=termo["hash_integridade_sha256"],
+        metodo_aceite=registro.metodo_aceite,
+        ip_origem=registro.ip_origem,
+        data_aceite=agora,
+    )
+    db.add(registro_db)
+    db.commit()
+    db.refresh(registro_db)
+
     return {
-        "consentimento_id": registro.consentimento_id,
-        "paciente_cpf": registro.paciente_cpf,
-        "paciente_nome": registro.paciente_nome,
-        "data_hora_aceite": registro.data_hora_aceite,
-        "metodo_aceite": registro.metodo_aceite,
-        "hash_tcle": registro.hash_tcle,
+        "consentimento_id": registro_db.codigo,
+        "paciente_cpf": registro_db.paciente_cpf,
+        "paciente_nome": registro_db.paciente_nome,
+        "data_hora_aceite": registro_db.data_aceite.isoformat(),
+        "metodo_aceite": registro_db.metodo_aceite,
+        "hash_tcle": registro_db.hash_integridade_sha256,
+        "teleconsulta_id": registro_db.teleconsulta_id,
         "status": "VALIDADO_CFM_2314"
     }
 
@@ -201,11 +295,14 @@ def obter_link_acesso_paciente(
 
 
 @router.post("/converter-presencial")
-def converter_para_presencial(payload: ConverterPresencialRequest, db: Session = Depends(get_db)):
+async def converter_para_presencial(payload: ConverterPresencialRequest, db: Session = Depends(get_db)):
     """Registra a prerrogativa do médico de converter teleconsulta para presencial (Art. 3º CFM)."""
     consulta = db.query(TeleconsultaModel).filter(TeleconsultaModel.id == payload.teleconsulta_id).first()
     if consulta:
         consulta.status = StatusTeleconsulta.CANCELADA
+        # A conversão encerra a teleconsulta remota: a sala sai do hub e é
+        # marcada como CANCELADA (não pode ser reutilizada como presencial).
+        await _encerrar_sala_da_consulta(consulta, db, StatusTeleconsulta.CANCELADA)
         db.commit()
 
     medico = MedicoIdentificacaoCFM(

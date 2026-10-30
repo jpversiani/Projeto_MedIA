@@ -13,6 +13,10 @@ Conformidade:
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.schemas.fluxo_atendimento import (
     EtapaFluxoEnum,
     ModalidadeAtendimentoEnum,
@@ -25,9 +29,53 @@ from app.schemas.fluxo_atendimento import (
 )
 from app.services.cid11_service import cid11_service
 from app.services.prescricao_digital_cfm import prescricao_service
-from app.services.livro_caixa import livro_caixa_service, LancamentoReceita
+from app.services.livro_caixa import livro_caixa_service
 from app.services.pix_cobranca import pix_service
+from app.models.financeiro import ModalidadeConsulta
+from app.models.jornada import EtapaJornada, JornadaAtendimento
 
+from app.core.config import settings
+
+
+def _serializar_jornada(jornada: Dict[str, Any]) -> Dict[str, Any]:
+    """Converte o estado em JSON (enums e modelos Pydantic viram valores)."""
+    dados: Dict[str, Any] = {}
+    for chave, valor in jornada.items():
+        if chave == "checklist_pre" and hasattr(valor, "model_dump"):
+            dados[chave] = valor.model_dump(mode="json")
+        elif chave == "pacote_pos_consulta" and hasattr(valor, "model_dump"):
+            dados[chave] = valor.model_dump(mode="json")
+        elif chave == "pre_anamnese" and hasattr(valor, "model_dump"):
+            dados[chave] = valor.model_dump(mode="json")
+        elif isinstance(valor, (EtapaFluxoEnum, ModalidadeAtendimentoEnum)):
+            dados[chave] = valor.value
+        else:
+            dados[chave] = valor
+    return dados
+
+
+def _desserializar_jornada(dados: Dict[str, Any]) -> Dict[str, Any]:
+    """Reconstrói enums e modelos a partir do JSON persistido."""
+    jornada = dict(dados)
+    if jornada.get("modalidade") is not None:
+        jornada["modalidade"] = ModalidadeAtendimentoEnum(jornada["modalidade"])
+    if jornada.get("etapa_atual") is not None:
+        jornada["etapa_atual"] = EtapaFluxoEnum(jornada["etapa_atual"])
+    elif jornada.get("etapa") is not None:
+        jornada["etapa_atual"] = EtapaFluxoEnum(jornada["etapa"])
+
+    checklist = jornada.get("checklist_pre")
+    if isinstance(checklist, dict):
+        jornada["checklist_pre"] = ChecklistPreConsulta(**checklist)
+
+    pacote = jornada.get("pacote_pos_consulta")
+    if isinstance(pacote, dict):
+        jornada["pacote_pos_consulta"] = PacotePosConsultaOut(**pacote)
+    if jornada.get("pre_anamnese") is not None and not isinstance(
+        jornada["pre_anamnese"], PreAnamneseInput
+    ):
+        jornada["pre_anamnese"] = PreAnamneseInput(**jornada["pre_anamnese"])
+    return jornada
 
 
 class FluxoAtendimentoService:
@@ -41,10 +89,94 @@ class FluxoAtendimentoService:
     def __init__(self):
         # Repositório em memória para estado de alta performance
         self._jornadas: Dict[str, Dict[str, Any]] = {}
-        self._inicializar_dados_demonstracao()
+        # A jornada de demonstração contém dados de paciente fictício e NÃO
+        # pode existir fora de desenvolvimento (LGPD/CFM): em produção e nos
+        # testes ela nunca é criada.
+        self._demo_ativo = (
+            settings.ENVIRONMENT == "development" and settings.DEMO_LOGIN_ENABLED
+        )
+        if self._demo_ativo:
+            self._inicializar_dados_demonstracao()
+
+    # ------------------------------------------------------------------
+    # Persistência da jornada (P0-4, parte 2)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _etapa_persistida(jornada: Dict[str, Any]) -> str:
+        etapa = jornada.get("etapa_atual")
+        if isinstance(etapa, EtapaFluxoEnum):
+            return etapa.value
+        return str(etapa or EtapaFluxoEnum.AGENDADA.value)
+
+    def _persistir(self, db: Optional[Session], jornada: Dict[str, Any]) -> None:
+        """Grava (ou atualiza) a jornada no banco, se houver sessão."""
+        if db is None:
+            return
+
+        consulta_id = jornada["consulta_id"]
+        registro = db.scalar(
+            select(JornadaAtendimento).where(
+                JornadaAtendimento.consulta_id == consulta_id
+            )
+        )
+        dados = _serializar_jornada(jornada)
+        modalidade = jornada.get("modalidade")
+        etapa = self._etapa_persistida(jornada)
+
+        if registro is None:
+            registro = JornadaAtendimento(consulta_id=consulta_id)
+            db.add(registro)
+
+        registro.paciente_nome = jornada.get("paciente_nome") or "Não informado"
+        registro.paciente_cpf = "".join(
+            filter(str.isdigit, str(jornada.get("paciente_cpf") or ""))
+        ) or None
+        registro.medico_nome = jornada.get("medico_nome") or "Não informado"
+        registro.medico_crm = jornada.get("medico_crm")
+        registro.modalidade = (
+            modalidade.value if isinstance(modalidade, ModalidadeAtendimentoEnum) else str(modalidade)
+        )
+        registro.etapa = etapa
+        registro.valor_honorarios = jornada.get("valor_honorarios")
+        registro.dados_json = dados
+        registro.cidadao_id = jornada.get("cidadao_id")
+        registro.profissional_id = jornada.get("profissional_id")
+        registro.estabelecimento_id = jornada.get("estabelecimento_id")
+        registro.agendamento_id = jornada.get("agendamento_id")
+        db.commit()
+
+    def _hidratar(self, db: Optional[Session], consulta_id: str) -> Optional[Dict[str, Any]]:
+        """Carrega a jornada do banco para o cache em memória."""
+        if db is None:
+            return None
+        registro = db.scalar(
+            select(JornadaAtendimento).where(
+                JornadaAtendimento.consulta_id == consulta_id
+            )
+        )
+        if registro is None:
+            return None
+
+        dados = dict(registro.dados_json or {})
+        # Colunas espelhadas vencem o JSON quando este estiver incompleto.
+        dados.setdefault("consulta_id", registro.consulta_id)
+        dados.setdefault("paciente_nome", registro.paciente_nome)
+        dados.setdefault("paciente_cpf", registro.paciente_cpf)
+        dados.setdefault("medico_nome", registro.medico_nome)
+        dados.setdefault("medico_crm", registro.medico_crm)
+        dados.setdefault("modalidade", registro.modalidade)
+        dados.setdefault("etapa_atual", registro.etapa)
+        dados["cidadao_id"] = registro.cidadao_id
+        dados["profissional_id"] = registro.profissional_id
+        dados["estabelecimento_id"] = registro.estabelecimento_id
+        dados["agendamento_id"] = registro.agendamento_id
+
+        jornada = _desserializar_jornada(dados)
+        self._jornadas[consulta_id] = jornada
+        return jornada
 
     def _inicializar_dados_demonstracao(self):
-        """Cria uma jornada de referência completa para testes e demonstração imediata."""
+        """Cria uma jornada de referência apenas para demonstração local."""
         consulta_id = "CONS-2026-9812"
         self._jornadas[consulta_id] = {
             "consulta_id": consulta_id,
@@ -79,7 +211,7 @@ class FluxoAtendimentoService:
             "data_hora_fim": None,
             "duracao_minutos": None,
             "valor_honorarios": 350.00,
-            "sala_virtual_url": "http://localhost:8000/telemedicina_paciente.html?sala=CONS-2026-9812",
+            "sala_virtual_url": f"{settings.PUBLIC_BASE_URL}/static/telemedicina_paciente.html?sala=sala_demo9812ab",
             "tcle_aceito": True,
             "tcle_timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             "pacote_pos_consulta": None,
@@ -120,17 +252,41 @@ class FluxoAtendimentoService:
         especialidade: str,
         modalidade: ModalidadeAtendimentoEnum,
         valor_honorarios: float = 350.00,
-        data_hora: Optional[str] = None
+        data_hora: Optional[str] = None,
+        *,
+        db: Optional[Session] = None,
+        cidadao_id: Optional[int] = None,
+        profissional_id: Optional[int] = None,
+        estabelecimento_id: Optional[int] = None,
+        agendamento_id: Optional[int] = None,
+        consulta_id: Optional[str] = None,
+        codigo_sala: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Cria um novo ciclo de atendimento na etapa AGENDADA."""
-        consulta_id = f"CONS-{datetime.now(timezone.utc).year}-{str(uuid.uuid4())[:8].upper()}"
+        """Cria um novo ciclo de atendimento na etapa AGENDADA.
+
+        `paciente_id` era sorteado com `uuid4` — um "paciente" que não existe no
+        banco. Agora ele só é preenchido a partir de um cidadão real
+        (`cidadao_id`); sem vínculo, fica ``None`` em vez de um número inventado.
+
+        `codigo_sala` é o código real da sala virtual (quando o agendamento é de
+        telemedicina). Antes a `sala_virtual_url` era montada com o `consulta_id`
+        (um id de jornada, não um código de sala) e no host errado — o link
+        enviado ao paciente abria uma sala inexistente.
+        """
+        consulta_id = consulta_id or (
+            f"CONS-{datetime.now(timezone.utc).year}-{str(uuid.uuid4())[:8].upper()}"
+        )
         agendamento = {
             "consulta_id": consulta_id,
-            "paciente_id": int(str(uuid.uuid4().int)[:6]),
+            "paciente_id": cidadao_id,
+            "cidadao_id": cidadao_id,
+            "profissional_id": profissional_id,
+            "estabelecimento_id": estabelecimento_id,
+            "agendamento_id": agendamento_id,
             "paciente_nome": paciente_nome,
             "paciente_cpf": paciente_cpf,
             "paciente_telefone": paciente_telefone,
-            "medico_id": 1,
+            "medico_id": profissional_id,
             "medico_nome": medico_nome,
             "medico_crm": medico_crm,
             "especialidade": especialidade,
@@ -143,7 +299,14 @@ class FluxoAtendimentoService:
             "data_hora_fim": None,
             "duracao_minutos": None,
             "valor_honorarios": valor_honorarios,
-            "sala_virtual_url": f"http://localhost:8000/telemedicina_paciente.html?sala={consulta_id}",
+            "sala_virtual_url": (
+                f"{settings.PUBLIC_BASE_URL}/static/telemedicina_paciente.html"
+                f"?sala={codigo_sala}"
+                if codigo_sala
+                # Sem código de sala real, não se inventa link: um link com o
+                # `consulta_id` apontava para uma sala inexistente no WebSocket.
+                else None
+            ),
             "tcle_aceito": False,
             "tcle_timestamp": None,
             "pacote_pos_consulta": None,
@@ -152,6 +315,7 @@ class FluxoAtendimentoService:
             "prescricoes": []
         }
         self._jornadas[consulta_id] = agendamento
+        self._persistir(db, agendamento)
         return agendamento
 
     def registrar_pre_consulta(
@@ -159,10 +323,12 @@ class FluxoAtendimentoService:
         consulta_id: str,
         pre_anamnese: PreAnamneseInput,
         tcle_aceito: bool = True,
-        pagamento_confirmado: bool = True
+        pagamento_confirmado: bool = True,
+        *,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """Registra a conclusão do checklist pré-consulta pelo paciente ou recepção."""
-        jornada = self._obter_ou_erro(consulta_id)
+        jornada = self._obter_ou_erro(consulta_id, db=db)
         jornada["pre_anamnese"] = pre_anamnese
         jornada["tcle_aceito"] = tcle_aceito
         jornada["tcle_timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if tcle_aceito else None
@@ -176,21 +342,27 @@ class FluxoAtendimentoService:
         )
         jornada["checklist_pre"] = checklist
         jornada["etapa_atual"] = EtapaFluxoEnum.PRE_CONSULTA
+        self._persistir(db, jornada)
         return jornada
 
-    def iniciar_atendimento_medico(self, consulta_id: str) -> Dict[str, Any]:
+    def iniciar_atendimento_medico(
+        self, consulta_id: str, *, db: Optional[Session] = None
+    ) -> Dict[str, Any]:
         """Inicia oficialmente o atendimento intra-consulta, registrando o timestamp (CFM Art. 6º)."""
-        jornada = self._obter_ou_erro(consulta_id)
+        jornada = self._obter_ou_erro(consulta_id, db=db)
         jornada["etapa_atual"] = EtapaFluxoEnum.EM_ATENDIMENTO
         jornada["data_hora_inicio"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        self._persistir(db, jornada)
         return jornada
 
     def salvar_evolucao_intra_consulta(
         self,
-        payload: IntraConsultaPayload
+        payload: IntraConsultaPayload,
+        *,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """Atualiza prontuário SOAP, hipóteses diagnósticas Dual-Coding e prescrições em tempo real."""
-        jornada = self._obter_ou_erro(payload.consulta_id)
+        jornada = self._obter_ou_erro(payload.consulta_id, db=db)
         jornada["soap"] = {
             "subjetivo": payload.soap_subjetivo,
             "objetivo": payload.soap_objetivo,
@@ -221,6 +393,7 @@ class FluxoAtendimentoService:
         if payload.atestado:
             jornada["atestado"] = payload.atestado.model_dump()
 
+        self._persistir(db, jornada)
         return jornada
 
     def finalizar_consulta_e_gerar_pacote_pos(
@@ -238,7 +411,7 @@ class FluxoAtendimentoService:
         6. Agendamento do retorno
         7. Geração do link de WhatsApp e Portal do Paciente para download seguro
         """
-        jornada = self._obter_ou_erro(payload.consulta_id)
+        jornada = self._obter_ou_erro(payload.consulta_id, db=db)
         agora = datetime.now(timezone.utc)
         jornada["data_hora_fim"] = agora.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -277,6 +450,7 @@ class FluxoAtendimentoService:
             res_rec = prescricao_service.emitir_prescricao(
                 paciente_nome=jornada["paciente_nome"],
                 paciente_cpf=jornada["paciente_cpf"],
+                paciente_cns=jornada.get("paciente_cns"),
                 medico_nome=jornada["medico_nome"],
                 medico_crm=jornada["medico_crm"],
                 medico_uf="MG",
@@ -305,28 +479,54 @@ class FluxoAtendimentoService:
 
 
         # 3. Recibo DMED Receita Federal
-        recibo_dmed_numero = f"DMED-{agora.year}-{jornada['paciente_id']:04d}-{str(uuid.uuid4())[:4].upper()}"
+        # O número é derivado da consulta (não de um `paciente_id` sorteado):
+        # `None` aqui antes derrubava a finalização com TypeError.
+        referencia_recibo = jornada.get("cidadao_id") or jornada["consulta_id"]
+        if isinstance(referencia_recibo, int):
+            referencia_recibo = f"{referencia_recibo:06d}"
+        recibo_dmed_numero = f"DMED-{agora.year}-{referencia_recibo}-{str(uuid.uuid4())[:4].upper()}"
 
         # 4. Escrituração Livro Caixa / Carnê-Leão (Receita Federal)
         livro_caixa_id = None
         darf_prevista = 0.0
         if payload.lancar_livro_caixa:
-            tipo_consulta = "TELEMEDICINA" if jornada["modalidade"] == ModalidadeAtendimentoEnum.TELEMEDICINA else "PRESENCIAL"
-            lanc = LancamentoReceita(
-                data=agora.strftime("%Y-%m-%d"),
-                paciente_nome=jornada["paciente_nome"],
-                paciente_cpf=jornada["paciente_cpf"],
-                tipo_consulta=tipo_consulta,
-                valor=jornada["valor_honorarios"],
-                numero_recibo=recibo_dmed_numero,
-                metodo_pagamento="PIX"
+            tipo_consulta = (
+                ModalidadeConsulta.TELEMEDICINA.value
+                if jornada["modalidade"] == ModalidadeAtendimentoEnum.TELEMEDICINA
+                else ModalidadeConsulta.PRESENCIAL.value
             )
-            livro_caixa_id = f"LC-{agora.strftime('%Y%m')}-{str(uuid.uuid4())[:6].upper()}"
-            calc_irpf = livro_caixa_service.calcular_irpf_carne_leao(jornada["valor_honorarios"])
-            # Estima DARF proporcional mensal da consulta
-            darf_prevista = calc_irpf.get("imposto_devido", 0.0)
-            if darf_prevista == 0.0 and jornada["valor_honorarios"] > 0:
-                darf_prevista = round(jornada["valor_honorarios"] * 0.15, 2)
+            valor_honorarios = jornada["valor_honorarios"]
+            if valor_honorarios and valor_honorarios > 0:
+                # Persiste o honorário no livro caixa real (antes só era
+                # calculado em memória e o id "LC-..." era decorativo).
+                from app.repositories.livro_caixa_repo import LivroCaixaRepo
+
+                repo_caixa = LivroCaixaRepo(db)
+                lancamento = repo_caixa.registrar_receita(
+                    data_competencia=agora.date(),
+                    descricao=f"Consulta {tipo_consulta.lower()} — {jornada['consulta_id']}",
+                    valor=valor_honorarios,
+                    paciente_nome=jornada["paciente_nome"],
+                    paciente_cpf="".join(filter(str.isdigit, jornada["paciente_cpf"])) or None,
+                    modalidade=tipo_consulta,
+                    numero_recibo=recibo_dmed_numero,
+                    metodo_pagamento="PIX",
+                    origem="FLUXO_ATENDIMENTO",
+                    chave_idempotencia=f"consulta:{jornada['consulta_id']}",
+                )
+                livro_caixa_id = f"LC-{lancamento.id:06d}"
+                # DARF do mês calculado sobre o livro caixa real da competência
+                # (receitas acumuladas - despesas dedutíveis). Antes o código
+                # inventava 15% do valor da consulta quando o IRPF era zero,
+                # produzindo um imposto que não existe.
+                demonstrativo_mes = repo_caixa.demonstrativo(
+                    mes_ano=f"{agora.month:02d}/{agora.year}",
+                    estabelecimento_id=jornada.get("estabelecimento_id"),
+                    profissional_id=jornada.get("profissional_id"),
+                )
+                darf_prevista = float(
+                    demonstrativo_mes["apuracao_fiscal"]["imposto_a_recolher_darf"]
+                )
 
 
         # 5. Agendamento de Retorno
@@ -336,7 +536,7 @@ class FluxoAtendimentoService:
             retorno_str = data_ret.strftime("%d/%m/%Y")
 
         # 6. Geração de Links de Acesso Seguro e WhatsApp
-        link_portal = f"http://localhost:8000/portal_paciente.html?consulta={jornada['consulta_id']}&cpf={jornada['paciente_cpf']}"
+        link_portal = f"{settings.PUBLIC_BASE_URL}/portal_paciente.html?consulta={jornada['consulta_id']}&cpf={jornada['paciente_cpf']}"
         msg_whatsapp = (
             f"Olá {jornada['paciente_nome']}, aqui é do consultório do {jornada['medico_nome']}. "
             f"Sua consulta foi concluída com sucesso! Acesse suas receitas digitais, atestados e recibo para o IRPF no link seguro: {link_portal}"
@@ -363,15 +563,33 @@ class FluxoAtendimentoService:
         )
 
         jornada["pacote_pos_consulta"] = pacote
+        if db is not None:
+            # A escrituração do livro caixa é feita depois da emissão dos
+            # documentos (que já comitou por conta própria); aqui persiste o
+            # restante do pacote e o estado final da jornada.
+            self._persistir(db, jornada)
+            db.commit()
         return pacote
 
-    def obter_jornada(self, consulta_id: str) -> JornadaAtendimentoOut:
+    def obter_jornada(
+        self, consulta_id: str, *, db: Optional[Session] = None
+    ) -> JornadaAtendimentoOut:
         """Retorna o estado consolidado da jornada de atendimento."""
-        dados = self._obter_ou_erro(consulta_id)
+        dados = self._obter_ou_erro(consulta_id, db=db)
         return JornadaAtendimentoOut(**dados)
 
-    def listar_jornadas_ativas(self) -> List[JornadaAtendimentoOut]:
-        """Lista todas as consultas ativas ou recentes na agenda."""
+    def listar_jornadas_ativas(
+        self, *, db: Optional[Session] = None
+    ) -> List[JornadaAtendimentoOut]:
+        """Lista todas as consultas ativas ou recentes.
+
+        Com sessão, lê também o que está no banco (de outro worker ou de antes
+        do restart), não apenas o cache deste processo.
+        """
+        if db is not None:
+            for registro in db.scalars(select(JornadaAtendimento)):
+                if registro.consulta_id not in self._jornadas:
+                    self._hidratar(db, registro.consulta_id)
         return [JornadaAtendimentoOut(**d) for d in self._jornadas.values()]
 
     def obter_matriz_perfis(self) -> Dict[str, Any]:
@@ -412,8 +630,13 @@ class FluxoAtendimentoService:
             }
         }
 
-    def _obter_ou_erro(self, consulta_id: str) -> Dict[str, Any]:
+    def _obter_ou_erro(
+        self, consulta_id: str, *, db: Optional[Session] = None
+    ) -> Dict[str, Any]:
+        """Busca no cache e, se ausente, hidrata do banco (restart/outro worker)."""
         jornada = self._jornadas.get(consulta_id)
+        if not jornada:
+            jornada = self._hidratar(db, consulta_id)
         if not jornada:
             raise KeyError(f"Consulta '{consulta_id}' não encontrada no motor de fluxo clínico.")
         return jornada

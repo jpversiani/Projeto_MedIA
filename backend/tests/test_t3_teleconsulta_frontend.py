@@ -109,3 +109,25 @@ def test_ids_da_teleconsulta_existem_no_index():
 def test_token_vai_na_query_do_websocket_e_nao_em_texto_puro_no_log():
     assert "params.set(\"token\"" in SESSAO
     assert "console.log(this.#token" not in SESSAO
+
+
+# ----------------------------------------------------------------------
+# TM-4: a conversão para presencial usa o id REAL da teleconsulta
+# ----------------------------------------------------------------------
+def test_conversao_presencial_nao_usa_teleconsulta_id_fixo():
+    """Antes o frontend enviava `teleconsulta_id: 1` fixo.
+
+    Com vários atendimentos o registro da conversão (Art. 3º CFM) ia para a
+    teleconsulta errada — ou para uma inexistente. A conversão agora resolve
+    o id real (`resolverTeleconsultaAtiva`), e este teste impede que o
+    literal fixo volte ao arquivo.
+    """
+    assert "teleconsulta_id: 1," not in APP_JS
+    assert "resolverTeleconsultaAtiva" in APP_JS
+
+    # Dentro de `acionarConversaoPresencial` o id vem do helper resolvido.
+    inicio = APP_JS.index("async function acionarConversaoPresencial(")
+    fim = APP_JS.index("\nfunction ", inicio + 10)
+    corpo = APP_JS[inicio:fim]
+    assert "resolverTeleconsultaAtiva()" in corpo
+    assert "teleconsulta_id: teleconsultaId" in corpo

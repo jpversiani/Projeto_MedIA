@@ -52,6 +52,17 @@ def test_transicao_fluxo_chamada(client):
     create_res = client.post("/api/v1/telemedicina/agendamentos", json=payload)
     consulta_id = create_res.json()["id"]
 
+    # O consentimento (TCLE) é prévio e obrigatório (CFM 2.314/2022)
+    tcle_res = client.post(
+        "/api/v1/telemedicina/tcle/registrar",
+        json={
+            "paciente_nome": "Paciente Transicao",
+            "paciente_cpf": "11122233344",
+            "teleconsulta_id": consulta_id,
+        },
+    )
+    assert tcle_res.status_code == 200
+
     # Iniciar chamada
     init_res = client.post("/api/v1/telemedicina/iniciar-chamada", json={"teleconsulta_id": consulta_id})
     assert init_res.status_code == 200

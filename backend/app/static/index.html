@@ -400,7 +400,7 @@
             </div>
             <div>
               <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Honorários Previstos</div>
-              <div id="stat-total-honorarios" class="text-lg font-bold text-slate-900 font-mono">R$ 1.780,00</div>
+              <div id="stat-total-honorarios" class="text-lg font-bold text-slate-900 font-mono">R$ 0,00</div>
             </div>
           </div>
         </div>
@@ -1126,10 +1126,53 @@
           </button>
         </div>
 
+        <!-- Resumo real do demonstrativo (fonte: /financeiro-medico/livro-caixa/demonstrativo) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Receitas da Competência</div>
+            <div id="livro-caixa-receitas" class="text-xl font-bold text-slate-900 font-mono mt-1">R$ 0,00</div>
+            <div id="livro-caixa-consultas" class="text-[11px] text-slate-500 mt-1">0 atendimentos</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Despesas Dedutíveis</div>
+            <div id="livro-caixa-despesas" class="text-xl font-bold text-rose-600 font-mono mt-1">R$ 0,00</div>
+            <div class="text-[11px] text-slate-500 mt-1">Base do Carnê-Leão</div>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">DARF 0190 Estimado</div>
+            <div id="livro-caixa-darf" class="text-xl font-bold text-slate-900 font-mono mt-1">R$ 0,00</div>
+            <div id="livro-caixa-erro" class="text-[11px] text-rose-600 mt-1 hidden"></div>
+          </div>
+        </div>
+
+        <!-- Lançamento manual -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+          <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Novo lançamento no livro caixa</div>
+          <div class="grid grid-cols-1 sm:grid-cols-6 gap-3 text-xs">
+            <select id="livro-tipo" class="border border-slate-200 rounded-xl p-2.5 font-semibold">
+              <option value="RECEITA">Receita (honorário)</option>
+              <option value="DESPESA">Despesa</option>
+            </select>
+            <input type="date" id="livro-data" class="border border-slate-200 rounded-xl p-2.5 font-mono">
+            <input type="text" id="livro-descricao" placeholder="Descrição" class="border border-slate-200 rounded-xl p-2.5 sm:col-span-2">
+            <input type="number" id="livro-valor" step="0.01" min="0.01" placeholder="Valor (R$)" class="border border-slate-200 rounded-xl p-2.5 font-mono">
+            <select id="livro-modalidade" class="border border-slate-200 rounded-xl p-2.5">
+              <option value="PRESENCIAL">Presencial</option>
+              <option value="TELEMEDICINA">Telemedicina</option>
+            </select>
+            <input type="text" id="livro-paciente" placeholder="Paciente (obrigatório p/ receita)" class="border border-slate-200 rounded-xl p-2.5 sm:col-span-2">
+            <input type="text" id="livro-cpf" placeholder="CPF (opcional)" class="border border-slate-200 rounded-xl p-2.5 font-mono">
+            <input type="text" id="livro-categoria" placeholder="Categoria (despesa)" class="border border-slate-200 rounded-xl p-2.5">
+            <button type="button" onclick="lancarNoLivroCaixa()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition">
+              Lançar
+            </button>
+          </div>
+        </div>
+
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Lançamentos Financeiros do Mês</div>
-            <div class="text-xs text-slate-400 font-mono">100% Compatível com Receita Federal</div>
+            <div id="livro-caixa-competencia" class="text-xs text-slate-400 font-mono"></div>
           </div>
           <table class="w-full text-left text-sm">
             <thead class="bg-slate-50/70 border-b border-slate-200/60 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
@@ -1457,14 +1500,18 @@
 
       <div class="overflow-y-auto space-y-4 text-xs pr-1">
         <!-- Dados do Paciente e Tipo de Receituário -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div class="sm:col-span-2">
             <label class="block font-semibold text-slate-600 mb-1">Paciente</label>
-            <input type="text" id="presc-paciente-nome" value="Mariana Souza Alencar" class="w-full border border-slate-200 rounded-xl p-2.5 font-medium">
+            <input type="text" id="presc-paciente-nome" placeholder="Nome completo do paciente" class="w-full border border-slate-200 rounded-xl p-2.5 font-medium">
           </div>
           <div>
             <label class="block font-semibold text-slate-600 mb-1">CPF</label>
-            <input type="text" id="presc-paciente-cpf" value="12345678901" class="w-full border border-slate-200 rounded-xl p-2.5 font-mono">
+            <input type="text" id="presc-paciente-cpf" placeholder="11 dígitos" class="w-full border border-slate-200 rounded-xl p-2.5 font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-600 mb-1">CNS (dispensação)</label>
+            <input type="text" id="presc-paciente-cns" placeholder="15 dígitos" class="w-full border border-slate-200 rounded-xl p-2.5 font-mono">
           </div>
         </div>
 
@@ -1558,13 +1605,13 @@
       <div class="space-y-3 text-xs">
         <div>
           <label class="block font-semibold text-slate-600 mb-1">Paciente</label>
-          <input type="text" id="atestado-paciente-nome" value="Mariana Souza Alencar" class="w-full border border-slate-200 rounded-xl p-2.5 font-medium">
+          <input type="text" id="atestado-paciente-nome" placeholder="Nome completo do paciente" class="w-full border border-slate-200 rounded-xl p-2.5 font-medium">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-semibold text-slate-600 mb-1">CPF do Paciente</label>
-            <input type="text" id="atestado-paciente-cpf" value="12345678901" class="w-full border border-slate-200 rounded-xl p-2.5 font-mono">
+            <input type="text" id="atestado-paciente-cpf" placeholder="11 dígitos" class="w-full border border-slate-200 rounded-xl p-2.5 font-mono">
           </div>
           <div>
             <label class="block font-semibold text-slate-600 mb-1">Dias de Afastamento</label>

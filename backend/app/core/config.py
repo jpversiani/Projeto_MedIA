@@ -60,6 +60,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "JWT_SECRET_KEY",
+        "FIELD_ENCRYPTION_KEY",
         "GEMINI_API_KEY",
         "TURN_SECRET",
         "GOOGLE_CLIENT_ID",
@@ -104,6 +105,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("JWT_SECRET_KEY", "SECRET_KEY"),
     )
 
+    # Chave (base64url ou texto) para cifrar CPF/CNS em repouso (AES-256-GCM).
+    # Ausente → derivada de JWT_SECRET_KEY via HKDF. Definir explicitamente
+    # permite rotacionar a chave dos campos sem trocar a do JWT. Trocar esta
+    # chave invalida os dados já cifrados: guarde-a com o backup.
+    FIELD_ENCRYPTION_KEY: Optional[str] = None
+
     # -- Banco de dados ---------------------------------------------------
     DATABASE_URL: str = Field(
         default_factory=lambda: os.getenv("DATABASE_URL") or _sqlite_padrao()
@@ -131,6 +138,12 @@ class Settings(BaseSettings):
     # Callbacks SSO Google/Microsoft. O mock de interface fica ligado em
     # desenvolvimento, mas NUNCA em produção (ver `_exigir_sso_habilitado`).
     SSO_ENABLED: bool = True
+
+    # -- URLs públicas -----------------------------------------------------
+    # Host usado nos links enviados ao paciente (sala de teleconsulta, portal
+    # pós-consulta). Em produção, defina com o domínio real; os links gerados
+    # com `localhost` nunca funcionariam para o paciente fora da máquina.
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     # -- WebRTC / Teleconsulta (T3) ---------------------------------------
     # Sem STUN os navegadores não descobrem o IP público e a chamada só

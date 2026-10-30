@@ -45,6 +45,22 @@ def _crear_agendamento(client, cpf: str = CPF_PACIENTE, crm: str = CRM_AGENDA) -
     return response.json()
 
 
+def _registrar_tcle(client, consulta_id: int, cpf: str = CPF_PACIENTE) -> dict:
+    """Registra o consentimento (TCLE) prévio da teleconsulta e retorna o JSON."""
+    response = client.post(
+        "/api/v1/telemedicina/tcle/registrar",
+        json={
+            "paciente_nome": "Paciente Flujo Consulta",
+            "paciente_cpf": cpf,
+            "metodo": "ELETRONICO_WEB",
+            "ip_origem": "127.0.0.1",
+            "teleconsulta_id": consulta_id,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 # ---------------------------------------------------------------------------
 # Agendamiento y sala virtual
 # ---------------------------------------------------------------------------
@@ -107,9 +123,14 @@ def test_consultar_sala_inexistente_devuelve_404(client):
 # ---------------------------------------------------------------------------
 
 def test_iniciar_y_finalizar_chamada_con_soap(client):
-    """Ciclo completo: iniciar (EM_ANDAMENTO) y finalizar (CONCLUIDA) con SOAP."""
+    """Ciclo completo: iniciar (EM_ANDAMENTO) y finalizar (CONCLUIDA) con SOAP.
+
+    O consentimento (TCLE) é prévio e obrigatório (CFM 2.314/2022, Art. 4º),
+    então o teste registra o aceite ANTES de iniciar a chamada.
+    """
     datos = _crear_agendamento(client)
     consulta_id = datos["id"]
+    _registrar_tcle(client, consulta_id=consulta_id)
 
     inicio = client.post(
         "/api/v1/telemedicina/iniciar-chamada", json={"teleconsulta_id": consulta_id}
@@ -152,11 +173,11 @@ def test_iniciar_chamada_sin_tcle_registrado(client):
 
     A Resolução CFM 2.314/2022 (Art. 4º) exige consentimento livre e
     informado ANTES da teleconsulta. O endpoint /iniciar-chamada NÃO
-    consulta nenhun registro de TCLE: a chamada se inicia igualmente.
+    consulta o registro PERSISTIDO de TCLE e recusa com 409 quando nao ha
+    consentimento para a teleconsulta.
 
-    Este teste documenta a LACUNA de segurança atual (não deve falhar a
-    suíte): se no futuro se implementa o bloqueo, este teste deverá ser
-    atualizado para esperar 409/403.
+    Antes deste teste documentava a LACUNA (iniciava com 200); agora prova o
+    BLOQUEIO.
     """
     datos = _crear_agendamento(client)
     consulta_id = datos["id"]
@@ -165,8 +186,128 @@ def test_iniciar_chamada_sin_tcle_registrado(client):
     response = client.post(
         "/api/v1/telemedicina/iniciar-chamada", json={"teleconsulta_id": consulta_id}
     )
+    assert response.status_code == 409
+    assert "consentimento" in response.json()["detail"].lower()
+
+
+def test_iniciar_chamada_con_tcle_registrado(client):
+    """CASO POSITIVO: com o TCLE persistido, a chamada inicia normalmente."""
+    datos = _crear_agendamento(client)
+    consulta_id = datos["id"]
+
+    registro = _registrar_tcle(client, consulta_id=consulta_id)
+    assert registro["teleconsulta_id"] == consulta_id
+    assert registro["status"] == "VALIDADO_CFM_2314"
+
+    response = client.post(
+        "/api/v1/telemedicina/iniciar-chamada", json={"teleconsulta_id": consulta_id}
+    )
     assert response.status_code == 200
     assert response.json()["status"] == "EM_ANDAMENTO"
+
+
+def test_tcle_registrado_e_persistido_no_banco(client, db_session):
+    """O aceite do TCLE é GRAVADO (não apenas devolvido em memória)."""
+    from app.models.telemedicina import ConsentimentoTeleconsulta
+
+    datos = _crear_agendamento(client)
+    consulta_id = datos["id"]
+    registro = _registrar_tcle(client, consulta_id=consulta_id)
+
+    # A rota de consulta da sala deve expor a teleconsulta vinculada
+    sala = client.get(f"/api/v1/telemedicina/salas/{datos['codigo_sala']}").json()
+    assert sala["teleconsulta_id"] == consulta_id
+
+    # E o consentimento deve existir no banco, com texto e hash
+    persisted = (
+        db_session.query(ConsentimentoTeleconsulta)
+        .filter(ConsentimentoTeleconsulta.teleconsulta_id == consulta_id)
+        .first()
+    )
+    assert persisted is not None, "TCLE não foi persistido no banco"
+    assert persisted.codigo == registro["consentimento_id"]
+    assert len(persisted.hash_integridade_sha256) == 64
+    assert "CONSENTIMENTO" in persisted.texto_integral.upper()
+    assert persisted.metodo_aceite == "ELETRONICO_WEB"
+
+
+def test_finalizar_chamada_encerra_sala_virtual(client, db_session, monkeypatch):
+    """TM-3: finalizar a chamada encerra a sala (hub + status + expiração).
+
+    Antes a fila WebSocket ficava aberta para sempre no hub e a linha em
+    `salas_virtuais` mantinha status/data_expiracao sem preencher — com a
+    autenticação ligada a sala continuaria aceitando conexões depois do fim.
+    """
+    from sqlalchemy.orm import sessionmaker
+
+    from app.api.v1 import telemedicina_ws as ws_mod
+    from app.api.v1.telemedicina_ws import _validar_sala
+    from app.models.telemedicina import SalaVirtual, StatusTeleconsulta
+
+    # O handler WS abre sessões próprias; aponta para o mesmo banco do teste.
+    monkeypatch.setattr(
+        ws_mod,
+        "SessionLocal",
+        sessionmaker(bind=db_session.get_bind(), autocommit=False, autoflush=False),
+    )
+
+    datos = _crear_agendamento(client)
+    consulta_id = datos["id"]
+    codigo_sala = datos["codigo_sala"]
+    _registrar_tcle(client, consulta_id=consulta_id)
+
+    client.post("/api/v1/telemedicina/iniciar-chamada", json={"teleconsulta_id": consulta_id})
+    fin = client.post(
+        "/api/v1/telemedicina/finalizar-chamada",
+        json={"teleconsulta_id": consulta_id, "dados_soap": {"plano": "repouso"}},
+    )
+    assert fin.status_code == 200
+
+    # A sala foi encerrada no banco: status CONCLUIDA e expirada
+    sala = db_session.query(SalaVirtual).filter(SalaVirtual.codigo_sala == codigo_sala).first()
+    assert sala is not None
+    assert sala.status == StatusTeleconsulta.CONCLUIDA
+    assert sala.data_expiracao is not None
+
+    # E o WebSocket recusa a reutilização da sala encerrada
+    recusa = _validar_sala(codigo_sala)
+    assert recusa is not None
+    assert "encerrada" in recusa.lower()
+
+
+def test_converter_presencial_encerra_sala_virtual(client, db_session, monkeypatch):
+    """TM-3: a conversão para presencial encerra a sala como CANCELADA."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app.api.v1 import telemedicina_ws as ws_mod
+    from app.api.v1.telemedicina_ws import _validar_sala
+    from app.models.telemedicina import SalaVirtual, StatusTeleconsulta
+
+    monkeypatch.setattr(
+        ws_mod,
+        "SessionLocal",
+        sessionmaker(bind=db_session.get_bind(), autocommit=False, autoflush=False),
+    )
+
+    datos = _crear_agendamento(client)
+    consulta_id = datos["id"]
+    codigo_sala = datos["codigo_sala"]
+
+    conv = client.post(
+        "/api/v1/telemedicina/converter-presencial",
+        json={
+            "teleconsulta_id": consulta_id,
+            "paciente_nome": "Paciente Conversao",
+            "motivo_clinico": "Necessidade de exame físico.",
+        },
+    )
+    assert conv.status_code == 200
+
+    sala = db_session.query(SalaVirtual).filter(SalaVirtual.codigo_sala == codigo_sala).first()
+    assert sala is not None
+    assert sala.status == StatusTeleconsulta.CANCELADA
+    assert sala.data_expiracao is not None
+    assert _validar_sala(codigo_sala) is not None
 
 
 # ---------------------------------------------------------------------------

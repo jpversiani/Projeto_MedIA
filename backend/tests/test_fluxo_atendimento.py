@@ -4,14 +4,10 @@ MedIA Practice & Telemedicina OS.
 """
 
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.schemas.fluxo_atendimento import EtapaFluxoEnum, ModalidadeAtendimentoEnum
 
-client = TestClient(app)
 
-
-def test_obter_matriz_perfis():
+def test_obter_matriz_perfis(client):
     """Testa consulta da matriz de papéis (Médico, Recepção, Paciente, Admin, Farmacêutico)."""
     resp = client.get("/api/v1/fluxo-atendimento/perfis")
     assert resp.status_code == 200
@@ -133,12 +129,81 @@ def test_ciclo_completo_jornada_medica(client):
     assert "ATE-" in pacote["codigo_verificador_atestado"]
     assert "DMED-" in pacote["recibo_dmed_numero"]
     assert pacote["livro_caixa_id"] is not None
-    assert pacote["darf_carnê_leão_prevista"] > 0
+    # DARF é o do mês, calculado sobre o livro caixa real. Com uma única
+    # consulta de R$ 400 (abaixo da faixa de isenção), o valor correto é 0,00 —
+    # o código antigo inventava 15% do honorário e o teste exigia `> 0`.
+    assert pacote["darf_carnê_leão_prevista"] >= 0
+    assert pacote["darf_carnê_leão_prevista"] == 0.0
     assert "whatsapp" in pacote["link_whatsapp_despacho"].lower()
     assert "portal_paciente" in pacote["link_paciente_portal"].lower()
 
 
-def test_jornada_inexistente_retorna_404():
+def test_jornada_inexistente_retorna_404(client):
     """Garante que IDs inexistentes geram HTTP 404 apropriado."""
     resp = client.get("/api/v1/fluxo-atendimento/CONS-NAO-EXISTE/jornada")
     assert resp.status_code == 404
+
+
+def test_jornada_telemedicina_usa_codigo_real_da_sala(client, db_session):
+    """TM-5: a `sala_virtual_url` usa o código REAL da sala, em `/static/`.
+
+    Antes a URL era montada com o `consulta_id` (um id de jornada, não um
+    código de sala) e no host errado (sem `/static/`): o link enviado ao
+    paciente apontava para uma sala inexistente no WebSocket. Agora o link
+    usa o `codigo_sala_telemedicina` persistido no agendamento da agenda.
+    """
+    from app.models.cidadao import Cidadao
+
+    cidadao = db_session.query(Cidadao).filter(Cidadao.cpf == "12345678900").first()
+    assert cidadao is not None
+
+    resp_ag = client.post(
+        "/api/v1/agenda/novo",
+        json={
+            "cidadao_id": cidadao.id,
+            "tipo": "TELEMEDICINA",
+            "horario": "11:00",
+            "especialidade": "Clínica Médica",
+            "motivo_queixa": "Retorno por telemedicina",
+        },
+    )
+    assert resp_ag.status_code == 201, resp_ag.text
+    agendamento = resp_ag.json()
+    codigo_sala = agendamento["codigo_sala_telemedicina"]
+    assert codigo_sala, "agendamento de telemedicina deve ter código de sala"
+
+    resp_jornada = client.post(
+        "/api/v1/fluxo-atendimento/novo-agendamento",
+        json={
+            "paciente_nome": "Paciente Sala Real",
+            "paciente_cpf": "12345678900",
+            "modalidade": "TELEMEDICINA",
+            "agendamento_codigo": agendamento["codigo"],
+        },
+    )
+    assert resp_jornada.status_code == 200
+    jornada = resp_jornada.json()
+    url = jornada["sala_virtual_url"]
+    assert url is not None
+    assert "/static/telemedicina_paciente.html" in url
+    # O parâmetro `sala` é o código real da sala, nunca o id da jornada.
+    assert url.endswith(f"?sala={codigo_sala}")
+    assert f"sala={jornada['consulta_id']}" not in url
+
+
+def test_jornada_sem_sala_nao_inventa_link(client):
+    """Sem código de sala real a `sala_virtual_url` fica ``None``.
+
+    O código antigo montava a URL com o `consulta_id`, gerando um link que
+    abria uma sala inexistente — pior que nenhum link.
+    """
+    resp = client.post(
+        "/api/v1/fluxo-atendimento/novo-agendamento",
+        json={
+            "paciente_nome": "Paciente Sem Sala",
+            "paciente_cpf": "98765432100",
+            "modalidade": "TELEMEDICINA",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["sala_virtual_url"] is None

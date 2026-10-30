@@ -23,14 +23,20 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
+from app.core.crypto import hash_busca
 from app.core.database import get_db
 from app.models.agendamento import Agendamento, StatusAgendamento, TipoAtendimento
 from app.models.cidadao import Cidadao
 from app.models.estabelecimento import Estabelecimento
 from app.models.fila import FilaAcolhimento
 from app.models.profissional import Profissional
+from app.models.telemedicina import (
+    SalaVirtual as SalaVirtualModel,
+    Teleconsulta as TeleconsultaModel,
+    StatusTeleconsulta,
+)
 
 from app.core.rbac import (
     PAPEIS_ACOLHIMENTO,
@@ -89,6 +95,10 @@ class AgendamentoOut(BaseModel):
     motivo_queixa: Optional[str] = None
     valor_consulta: Optional[float] = None
     codigo_sala_telemedicina: Optional[str] = None
+    # Id real da `Teleconsulta` criada junto com a sala de telemedicina; o
+    # frontend usa este id em /iniciar-chamada, /finalizar-chamada e
+    # /converter-presencial (antes enviava `1` fixo).
+    teleconsulta_id: Optional[int] = None
     fila_id: Optional[int] = None
     profissional_id: Optional[int] = None
     estabelecimento_id: Optional[int] = None
@@ -134,10 +144,31 @@ def _serializar(ag: Agendamento) -> AgendamentoOut:
         motivo_queixa=ag.motivo_queixa,
         valor_consulta=ag.valor_consulta,
         codigo_sala_telemedicina=ag.codigo_sala_telemedicina,
+        teleconsulta_id=_teleconsulta_id_da_sala(ag),
         fila_id=ag.fila_id,
         profissional_id=ag.profissional_id,
         estabelecimento_id=ag.estabelecimento_id,
     )
+
+
+def _teleconsulta_id_da_sala(ag: Agendamento) -> Optional[int]:
+    """Resolve o id da `Teleconsulta` associada à sala do agendamento.
+
+    Só faz sentido para telemedicina; devolve ``None`` quando não há sala ou
+    nenhuma teleconsulta foi criada para ela.
+    """
+    if not ag.codigo_sala_telemedicina:
+        return None
+    sessao = object_session(ag)
+    if sessao is None:
+        return None
+    linha = (
+        sessao.query(TeleconsultaModel.id)
+        .join(SalaVirtualModel, TeleconsultaModel.sala_virtual_id == SalaVirtualModel.id)
+        .filter(SalaVirtualModel.codigo_sala == ag.codigo_sala_telemedicina)
+        .first()
+    )
+    return linha[0] if linha else None
 
 
 def _resolver_cidadao(db: Session, cidadao_id: Optional[int], cpf: Optional[str]) -> Cidadao:
@@ -150,7 +181,12 @@ def _resolver_cidadao(db: Session, cidadao_id: Optional[int], cpf: Optional[str]
 
     if cpf:
         cpf_limpo = "".join(filter(str.isdigit, cpf))
-        cidadao = db.query(Cidadao).filter(Cidadao.cpf == cpf_limpo).first()
+        # CPF cifrado: busca exata pelo índice cego.
+        cidadao = (
+            db.query(Cidadao)
+            .filter(Cidadao.cpf_hash == hash_busca(cpf_limpo))
+            .first()
+        )
         if not cidadao:
             raise HTTPException(
                 status_code=404,
@@ -236,6 +272,38 @@ def criar_agendamento_consulta(
     codigo_sala = None
     if payload.tipo == TipoAtendimento.TELEMEDICINA:
         codigo_sala = f"sala_{uuid.uuid4().hex[:10]}"
+        # A sala precisa EXISTIR em `salas_virtuais`: é nela que o WebSocket
+        # valida o código com a autenticação ligada (produção). Sem esta linha,
+        # o link gerado apontava para uma sala inexistente e os dois lados
+        # recebiam 4404 ao conectar.
+        sala = SalaVirtualModel(
+            codigo_sala=codigo_sala,
+            status=StatusTeleconsulta.AGENDADA,
+            data_criacao=datetime.now(timezone.utc),
+        )
+        db.add(sala)
+        db.flush()
+        # A teleconsulta nasce vinculada à sala, ao cidadão e ao profissional:
+        # é ela que fornece o `teleconsulta_id` real usado por
+        # /iniciar-chamada, /finalizar-chamada e /converter-presencial.
+        horario_agenda = _parse_horario(payload.horario)
+        db.add(
+            TeleconsultaModel(
+                cidadao_id=cidadao.id,
+                profissional_id=payload.profissional_id,
+                sala_virtual_id=sala.id,
+                paciente_cpf=cidadao.cpf,
+                medico_crm=None,  # CRM do profissional fica no cadastro (vínculo)
+                status=StatusTeleconsulta.AGENDADA,
+                motivo_consulta=payload.motivo_queixa,
+                data_inicio=(
+                    datetime.combine(payload.data_consulta or date.today(), horario_agenda)
+                    if horario_agenda
+                    else None
+                ),
+            )
+        )
+        db.flush()
 
     agendamento = Agendamento(
         codigo=f"AG-{uuid.uuid4().hex[:6].upper()}",

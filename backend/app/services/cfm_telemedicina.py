@@ -142,13 +142,21 @@ class MotorCFMTelemedicina:
         codigo_sala: str,
         nome_paciente: str,
         nome_medico: str,
-        base_url: str = "http://localhost:8000",
+        base_url: Optional[str] = None,
         telefone_whatsapp: Optional[str] = None,
     ) -> Dict[str, str]:
         """
         Gera link direto e seguro para o paciente entrar na sala WebRTC pelo navegador
         (sem precisar instalar nenhum aplicativo ou fazer cadastro prévio).
+
+        Sem ``base_url`` explícita usa ``PUBLIC_BASE_URL`` (em produção, o
+        domínio real): o link com ``localhost`` nunca funcionaria para o
+        paciente fora da máquina do servidor.
         """
+        if base_url is None:
+            from app.core.config import settings
+
+            base_url = settings.PUBLIC_BASE_URL
         url_sala_paciente = f"{base_url}/static/telemedicina_paciente.html?sala={codigo_sala}"
         
         mensagem_whatsapp = (

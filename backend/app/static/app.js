@@ -842,6 +842,37 @@ async function resolverSalaTeleconsulta(consulta) {
   return alternativa;
 }
 
+/**
+ * Resolve o id REAL da teleconsulta em atendimento.
+ *
+ * Antes a conversão para presencial enviava `teleconsulta_id: 1` fixo: com
+ * vários atendimentos o registro ia para a teleconsulta errada (ou para uma
+ * inexistente). O backend agora expõe `teleconsulta_id` no agendamento e na
+ * sala; este helper usa esse id, com fallback pela consulta da sala.
+ */
+async function resolverTeleconsultaAtiva() {
+  if (consultaAtiva && consultaAtiva.teleconsulta_id) {
+    return consultaAtiva.teleconsulta_id;
+  }
+
+  // Fallback: a sala consultada devolve a teleconsulta vinculada.
+  const codigoSala = consultaAtiva &&
+    (consultaAtiva.codigo_sala_telemedicina || consultaAtiva.sala_codigo);
+  if (codigoSala) {
+    try {
+      const resposta = await apiFetch(`/api/v1/telemedicina/salas/${codigoSala}`);
+      if (resposta && resposta.ok) {
+        const sala = await resposta.json();
+        if (sala && sala.teleconsulta_id) return sala.teleconsulta_id;
+      }
+    } catch (erro) {
+      console.warn("[teleconsulta] não foi possível resolver o id da sala:", erro);
+    }
+  }
+
+  return null;
+}
+
 async function iniciarSessaoTelemedicina(consulta) {
   const codigoSala = await resolverSalaTeleconsulta(consulta);
   document.getElementById("label-codigo-sala-atual").textContent = codigoSala;
@@ -1160,12 +1191,23 @@ async function acionarConversaoPresencial() {
   );
   if (!motivo) return;
 
+  // Id real da teleconsulta (nunca um fixo): com vários atendimentos o
+  // registro da conversão precisa ir para a teleconsulta certa.
+  const teleconsultaId = await resolverTeleconsultaAtiva();
+  if (!teleconsultaId) {
+    alert(
+      "Não foi possível identificar a teleconsulta ativa.\n\n" +
+      "Abra a teleconsulta pela agenda para registrar a conversão presencial."
+    );
+    return;
+  }
+
   try {
     const res = await fetch("/api/v1/telemedicina/converter-presencial", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        teleconsulta_id: 1,
+        teleconsulta_id: teleconsultaId,
         paciente_nome: consultaAtiva ? consultaAtiva.paciente_nome : "Paciente",
         motivo_clinico: motivo,
       })
@@ -1199,13 +1241,19 @@ function transferirParaProntuario() {
 }
 
 async function visualizarTCLE() {
+  // O TCLE é assinado por um paciente real; sem atendimento aberto não há a
+  // quem vincular o termo.
+  if (!consultaAtiva || !consultaAtiva.paciente_nome) {
+    alert("Abra o atendimento na agenda antes de gerar o TCLE.");
+    return;
+  }
   try {
     const res = await fetch("/api/v1/telemedicina/tcle/gerar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        paciente_nome: consultaAtiva ? consultaAtiva.paciente_nome : "Mariana Souza Alencar",
-        paciente_cpf: consultaAtiva ? consultaAtiva.paciente_cpf : "12345678901",
+        paciente_nome: consultaAtiva.paciente_nome,
+        paciente_cpf: consultaAtiva.paciente_cpf,
         especialidade: especialidadeAtual,
         modalidade: "TELECONSULTA"
       })
@@ -1241,8 +1289,13 @@ function abrirModalPrescricaoDigital(tipo = "SIMPLES") {
   if (resBox) resBox.classList.add("hidden");
 
   if (consultaAtiva) {
-    if (pacienteNome) pacienteNome.value = consultaAtiva.paciente_nome || "Mariana Souza Alencar";
-    if (pacienteCpf) pacienteCpf.value = consultaAtiva.paciente_cpf || "12345678901";
+    // Sem fallback fictício: campo vazio exige preenchimento na tela.
+    if (pacienteNome && consultaAtiva.paciente_nome) {
+      pacienteNome.value = consultaAtiva.paciente_nome;
+    }
+    if (pacienteCpf && consultaAtiva.paciente_cpf) {
+      pacienteCpf.value = consultaAtiva.paciente_cpf;
+    }
   }
 
   if (tipoSelect) tipoSelect.value = tipo;
@@ -1359,6 +1412,11 @@ async function submeterEmissaoPrescricao() {
   const btn = document.getElementById("btn-submit-prescricao");
   const pacienteNome = document.getElementById("presc-paciente-nome").value.trim();
   const pacienteCpf = document.getElementById("presc-paciente-cpf").value.trim().replace(/\D/g, "");
+  const pacienteCns = (
+    document.getElementById("presc-paciente-cns")?.value ||
+    (typeof consultaAtiva !== "undefined" && consultaAtiva && consultaAtiva.paciente_cns) ||
+    ""
+  ).replace(/\D/g, "");
   const tipo = document.getElementById("presc-tipo").value;
   const instrucoes = document.getElementById("presc-instrucoes")?.value || "";
 
@@ -1383,14 +1441,25 @@ async function submeterEmissaoPrescricao() {
     return;
   }
 
+  // Nunca emitir documento clínico para paciente fictício/genérico.
+  if (!pacienteNome) {
+    alert("Informe o nome do paciente antes de emitir a receita.");
+    return;
+  }
+  if (pacienteCpf.length !== 11) {
+    alert("Informe o CPF do paciente (11 dígitos) antes de emitir a receita.");
+    return;
+  }
+
   try {
     if (btn) btn.disabled = true;
     const res = await fetch("/api/v1/prescricao/emitir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        paciente_nome: pacienteNome || "Mariana Souza Alencar",
-        paciente_cpf: pacienteCpf || "12345678901",
+        paciente_nome: pacienteNome,
+        paciente_cpf: pacienteCpf,
+        paciente_cns: pacienteCns || null,
         ...identificacaoMedicoDaSessao(),
         tipo: tipo,
         itens: itens,
@@ -1412,7 +1481,18 @@ async function submeterEmissaoPrescricao() {
     if (btnPdf) btnPdf.href = data.url_pdf;
 
     document.getElementById("presc-resultado-box").classList.remove("hidden");
-    alert(`Prescrição Eletrônica ${data.codigo_validacao} emitida com sucesso! QR Code e PDF gerados.`);
+
+    const pendencias = Array.isArray(data.farmacia_pendencias) ? data.farmacia_pendencias : [];
+    if (pendencias.length > 0) {
+      alert(
+        `Prescrição ${data.codigo_validacao} emitida, mas a farmácia não conseguirá dispensá-la:\n\n- ` +
+          pendencias.join("\n- ")
+      );
+    } else {
+      alert(
+        `Prescrição Eletrônica ${data.codigo_validacao} emitida com sucesso! QR Code e PDF gerados; receita disponível para dispensação.`
+      );
+    }
   } catch (e) {
     alert("Falha ao emitir receita digital: " + e.message);
   } finally {
@@ -1459,8 +1539,13 @@ function abrirModalAtestadoDigital() {
   if (resBox) resBox.classList.add("hidden");
 
   if (consultaAtiva) {
-    if (pacienteNome) pacienteNome.value = consultaAtiva.paciente_nome || "Mariana Souza Alencar";
-    if (pacienteCpf) pacienteCpf.value = consultaAtiva.paciente_cpf || "12345678901";
+    // Sem fallback fictício: campo vazio exige preenchimento na tela.
+    if (pacienteNome && consultaAtiva.paciente_nome) {
+      pacienteNome.value = consultaAtiva.paciente_nome;
+    }
+    if (pacienteCpf && consultaAtiva.paciente_cpf) {
+      pacienteCpf.value = consultaAtiva.paciente_cpf;
+    }
   }
 
   modal.classList.remove("hidden");
@@ -1479,14 +1564,24 @@ async function submeterEmissaoAtestado() {
   const autoriza = document.getElementById("atestado-autoriza-cid")?.checked;
   const cid = autoriza ? document.getElementById("atestado-cid10")?.value.trim() : null;
 
+  // Atestado é documento legal: não pode sair em nome de paciente fictício.
+  if (!pacienteNome) {
+    alert("Informe o nome do paciente antes de emitir o atestado.");
+    return;
+  }
+  if (pacienteCpf.length !== 11) {
+    alert("Informe o CPF do paciente (11 dígitos) antes de emitir o atestado.");
+    return;
+  }
+
   try {
     if (btn) btn.disabled = true;
     const res = await fetch("/api/v1/prescricao/atestado/emitir", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        paciente_nome: pacienteNome || "Mariana Souza Alencar",
-        paciente_cpf: pacienteCpf || "12345678901",
+        paciente_nome: pacienteNome,
+        paciente_cpf: pacienteCpf,
         ...identificacaoMedicoDaSessao(),
         dias_afastamento: dias,
         cid10: cid
@@ -1759,75 +1854,232 @@ function iniciarConsultaPaciente(nome, cpf) {
   });
 }
 
-function carregarHonorarios() {
+// Lançamentos do livro caixa carregados da API (competência corrente).
+let lancamentosLivroCaixa = [];
+
+function competenciaAtual() {
+  const hoje = new Date();
+  return `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+}
+
+async function submeterLancamentoLivroCaixa(dados) {
+  const res = await fetch("/api/v1/financeiro-medico/lancamentos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados)
+  });
+  if (!res.ok) {
+    let detalhe = `HTTP ${res.status}`;
+    try {
+      const erro = await res.json();
+      if (erro && erro.detail) detalhe = erro.detail;
+    } catch (_) {
+      /* resposta sem JSON */
+    }
+    throw new Error(detalhe);
+  }
+  return res.json();
+}
+
+async function carregarDemonstrativoLivroCaixa(competencia) {
+  const alvoReceitas = document.getElementById("livro-caixa-receitas");
+  if (!alvoReceitas) return;
+
+  const rotulo = document.getElementById("livro-caixa-competencia");
+  if (rotulo) rotulo.textContent = `Competência ${competencia}`;
+
+  const erro = document.getElementById("livro-caixa-erro");
+  if (erro) erro.classList.add("hidden");
+
+  try {
+    const res = await fetch(
+      `/api/v1/financeiro-medico/livro-caixa/demonstrativo?mes_ano=${encodeURIComponent(competencia)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const dados = await res.json();
+
+    alvoReceitas.textContent = `R$ ${Number(dados.receitas.total_bruto).toFixed(2)}`;
+    const statHonorarios = document.getElementById("stat-total-honorarios");
+    if (statHonorarios) {
+      statHonorarios.textContent = `R$ ${Number(dados.receitas.total_bruto).toFixed(2)}`;
+    }
+    document.getElementById("livro-caixa-consultas").textContent =
+      `${dados.receitas.quantidade_consultas} atendimento(s)`;
+    document.getElementById("livro-caixa-despesas").textContent =
+      `R$ ${Number(dados.despesas.dedutiveis_carne_leao).toFixed(2)}`;
+    document.getElementById("livro-caixa-darf").textContent =
+      `R$ ${Number(dados.apuracao_fiscal.imposto_a_recolher_darf).toFixed(2)}`;
+  } catch (falha) {
+    console.error("Falha ao carregar o demonstrativo:", falha);
+    // Nunca mostrar número de exemplo: zera e avisa.
+    alvoReceitas.textContent = "R$ 0,00";
+    document.getElementById("livro-caixa-consultas").textContent = "indisponível";
+    document.getElementById("livro-caixa-despesas").textContent = "R$ 0,00";
+    document.getElementById("livro-caixa-darf").textContent = "R$ 0,00";
+    if (erro) {
+      erro.textContent = "Demonstrativo indisponível — valores não carregados.";
+      erro.classList.remove("hidden");
+    }
+  }
+}
+
+async function lancarNoLivroCaixa() {
+  const tipo = document.getElementById("livro-tipo").value;
+  const data = document.getElementById("livro-data").value;
+  const descricao = document.getElementById("livro-descricao").value.trim();
+  const valor = parseFloat(document.getElementById("livro-valor").value);
+  const paciente = document.getElementById("livro-paciente").value.trim();
+  const cpf = document.getElementById("livro-cpf").value.replace(/\D/g, "");
+  const categoria = document.getElementById("livro-categoria").value.trim();
+  const modalidade = document.getElementById("livro-modalidade").value;
+
+  if (!data || !descricao || !(valor > 0)) {
+    alert("Informe data, descrição e um valor maior que zero.");
+    return;
+  }
+
+  const payload = {
+    tipo: tipo,
+    data_competencia: data,
+    descricao: descricao,
+    valor: valor
+  };
+
+  if (tipo === "RECEITA") {
+    if (!paciente) {
+      alert("Receita exige o nome do paciente (comprovação no DMED).");
+      return;
+    }
+    payload.paciente_nome = paciente;
+    payload.modalidade = modalidade;
+    if (cpf.length === 11) payload.paciente_cpf = cpf;
+  } else {
+    if (!categoria) {
+      alert("Despesa exige a categoria (ex.: ALUGUEL_CONSULTORIO).");
+      return;
+    }
+    payload.categoria = categoria;
+  }
+
+  try {
+    const lancamento = await submeterLancamentoLivroCaixa(payload);
+    alert(`Lançamento #${lancamento.id} registrado no livro caixa.`);
+    document.getElementById("livro-descricao").value = "";
+    document.getElementById("livro-valor").value = "";
+    await carregarHonorarios();
+  } catch (falha) {
+    alert(`Não foi possível lançar: ${falha.message}`);
+  }
+}
+
+async function carregarHonorarios() {
   const tabela = document.getElementById("tabela-honorarios-corpo");
   if (!tabela) return;
 
-  avisarDadosDeDemonstracao(
-    "tabela-honorarios-corpo",
-    "O livro caixa ainda não usa <code>GET /api/v1/financeiro-medico/livro-caixa/demonstrativo</code>."
-  );
+  const competencia = competenciaAtual();
+  const campoData = document.getElementById("livro-data");
+  if (campoData && !campoData.value) {
+    campoData.value = new Date().toISOString().slice(0, 10);
+  }
+  carregarDemonstrativoLivroCaixa(competencia);
 
-  const lancamentos = [
-    { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00 },
-    { recibo: "REC-2026-082", paciente: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tipo: "Presencial (Cartão)", valor: 400.00 },
-    { recibo: "REC-2026-083", paciente: "Juliana Mendes Prado", cpf: "456.789.123-44", tipo: "Telemedicina (Pix)", valor: 350.00 },
-    { recibo: "REC-2026-084", paciente: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tipo: "Presencial (Pix)", valor: 300.00 },
-    { recibo: "REC-2026-085", paciente: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tipo: "Telemedicina (Pix)", valor: 380.00 },
-  ];
+  try {
+    const res = await fetch(
+      `/api/v1/financeiro-medico/lancamentos?mes_ano=${encodeURIComponent(competencia)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    lancamentosLivroCaixa = await res.json();
+  } catch (erro) {
+    console.error("Falha ao carregar o livro caixa:", erro);
+    lancamentosLivroCaixa = [];
+    tabela.innerHTML =
+      '<tr><td colspan="7" class="px-5 py-6 text-center text-xs text-rose-600">' +
+      "Não foi possível carregar o livro caixa. Nenhum lançamento foi exibido para não mostrar dados de demonstração." +
+      "</td></tr>";
+    return;
+  }
+
+  if (lancamentosLivroCaixa.length === 0) {
+    tabela.innerHTML =
+      '<tr><td colspan="7" class="px-5 py-6 text-center text-xs text-slate-500">' +
+      `Nenhum lançamento em ${competencia}. Lance honorários e despesas para escriturar o mês.` +
+      "</td></tr>";
+    return;
+  }
 
   tabela.innerHTML = "";
-  lancamentos.forEach(l => {
+  lancamentosLivroCaixa.forEach((l) => {
+    const ehReceita = l.tipo === "RECEITA";
     const tr = document.createElement("tr");
     tr.className = "hover:bg-slate-50 transition-colors";
+
+    const descricao = ehReceita
+      ? `${l.modalidade === "TELEMEDICINA" ? "Telemedicina" : "Presencial"}${
+          l.metodo_pagamento ? ` (${l.metodo_pagamento})` : ""
+        }`
+      : l.categoria || "Despesa";
+
+    const celulaAcao = ehReceita
+      ? `<button onclick="baixarReciboDMEDPorId(${Number(l.id)})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition">
+           <i class="fa-solid fa-download mr-1"></i> Recibo
+         </button>`
+      : "";
+
+    const selo = ehReceita
+      ? '<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200"><i class="fa-solid fa-circle-check text-[9px]"></i> Dedutível IRPF</span>'
+      : l.dedutivel
+        ? '<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">Despesa dedutível</span>'
+        : '<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">Não dedutível</span>';
+
     tr.innerHTML = `
-      <td class="px-5 py-3.5 font-mono text-xs font-semibold text-slate-800">${l.recibo}</td>
-      <td class="px-5 py-3.5 font-medium text-slate-900">${l.paciente}</td>
-      <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${l.cpf}</td>
-      <td class="px-5 py-3.5 text-xs text-slate-600">${l.tipo}</td>
-      <td class="px-5 py-3.5 font-mono font-bold text-slate-900">R$ ${l.valor.toFixed(2)}</td>
-      <td class="px-5 py-3.5">
-        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-          <i class="fa-solid fa-circle-check text-[9px]"></i> Dedutível IRPF
-        </span>
-      </td>
-      <td class="px-5 py-3.5 text-right">
-        <button onclick="baixarReciboDMED('${l.recibo}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition">
-          <i class="fa-solid fa-download mr-1"></i> Recibo
-        </button>
-      </td>
+      <td class="px-5 py-3.5 font-mono text-xs font-semibold text-slate-800">${escaparHtml(l.numero_recibo || `#${l.id}`)}</td>
+      <td class="px-5 py-3.5 font-medium text-slate-900">${escaparHtml(l.paciente_nome || l.descricao)}</td>
+      <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${escaparHtml(l.paciente_cpf || "—")}</td>
+      <td class="px-5 py-3.5 text-xs text-slate-600">${escaparHtml(descricao)}</td>
+      <td class="px-5 py-3.5 font-mono font-bold ${ehReceita ? "text-slate-900" : "text-rose-600"}">R$ ${Number(l.valor).toFixed(2)}</td>
+      <td class="px-5 py-3.5">${selo}</td>
+      <td class="px-5 py-3.5 text-right">${celulaAcao}</td>
     `;
     tabela.appendChild(tr);
   });
+}
+
+function escaparHtml(valor) {
+  return String(valor ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[c]);
 }
 
 function abrirModalReciboDMED(recibo) {
   const m = document.getElementById("modal-recibo-dmed-view");
   if (!m) return;
   
-  const lancamentos = [
-    { recibo: "REC-2026-081", paciente: "Mariana Souza Alencar", cpf: "123.456.789-01", tipo: "Telemedicina (Pix)", valor: 350.00, data: "02/09/2026" },
-    { recibo: "REC-2026-082", paciente: "Roberto Carlos Fagundes", cpf: "987.654.321-00", tipo: "Presencial (Cartão)", valor: 400.00, data: "04/09/2026" },
-    { recibo: "REC-2026-083", paciente: "Juliana Mendes Prado", cpf: "456.789.123-44", tipo: "Telemedicina (Pix)", valor: 350.00, data: "08/09/2026" },
-    { recibo: "REC-2026-084", paciente: "Carlos Eduardo Pereira", cpf: "111.222.333-44", tipo: "Presencial (Pix)", valor: 300.00, data: "12/09/2026" },
-    { recibo: "REC-2026-085", paciente: "Camila Guimarães Ribeiro", cpf: "555.666.777-88", tipo: "Telemedicina (Pix)", valor: 380.00, data: "18/09/2026" },
-  ];
-  
-  const item = lancamentos.find(l => l.recibo === recibo) || {
-    recibo: recibo,
-    paciente: consultaAtiva ? consultaAtiva.paciente_nome : "Mariana Souza Alencar",
-    cpf: consultaAtiva ? consultaAtiva.paciente_cpf : "123.456.789-01",
-    tipo: "Telemedicina (Pix)",
-    valor: 350.00,
-    data: new Date().toLocaleDateString("pt-BR")
-  };
-  
-  document.getElementById("dmed-rec-numero").textContent = item.recibo;
-  document.getElementById("dmed-rec-paciente").textContent = item.paciente;
-  document.getElementById("dmed-rec-cpf").textContent = item.cpf;
-  document.getElementById("dmed-rec-tipo").textContent = item.tipo;
-  document.getElementById("dmed-rec-data").textContent = item.data;
-  document.getElementById("dmed-rec-valor").textContent = `R$ ${item.valor.toFixed(2)}`;
+  const item = lancamentosLivroCaixa.find(
+    (lancamento) => (lancamento.numero_recibo || `#${lancamento.id}`) === recibo
+  );
+
+  if (!item) {
+    alert(
+      `Recibo ${recibo} não está entre os lançamentos carregados. ` +
+        "Recarregue a lista do livro caixa antes de abrir o comprovante."
+    );
+    return;
+  }
+
+  document.getElementById("dmed-rec-numero").textContent = item.numero_recibo || `#${item.id}`;
+  document.getElementById("dmed-rec-paciente").textContent = item.paciente_nome || "—";
+  document.getElementById("dmed-rec-cpf").textContent = item.paciente_cpf || "—";
+  document.getElementById("dmed-rec-tipo").textContent =
+    item.modalidade === "TELEMEDICINA" ? "Telemedicina" : "Atendimento presencial";
+  document.getElementById("dmed-rec-data").textContent = item.data_competencia
+    .split("-")
+    .reverse()
+    .join("/");
+  document.getElementById("dmed-rec-valor").textContent = `R$ ${Number(item.valor).toFixed(2)}`;
   
   m.classList.remove("hidden");
 }
@@ -1835,6 +2087,16 @@ function abrirModalReciboDMED(recibo) {
 function fecharModalReciboDMED() {
   const m = document.getElementById("modal-recibo-dmed-view");
   if (m) m.classList.add("hidden");
+}
+
+/** Abre o comprovante pelo id do lançamento (identificador seguro para HTML). */
+function baixarReciboDMEDPorId(id) {
+  const item = lancamentosLivroCaixa.find((lancamento) => lancamento.id === Number(id));
+  if (!item) {
+    alert("Lançamento não encontrado. Recarregue a aba de honorários.");
+    return;
+  }
+  abrirModalReciboDMED(item.numero_recibo || `#${item.id}`);
 }
 
 function baixarReciboDMED(recibo) {
@@ -2092,7 +2354,17 @@ document.addEventListener("DOMContentLoaded", () => {
 // =========================================================================
 
 window.finalizarAtendimentoComFluxo = async function() {
-  const consultaId = "CONS-2026-9812"; // ID da consulta corrente no cockpit
+  // Usa o atendimento realmente aberto no cockpit. Antes havia um id fixo de
+  // demonstração, o que emitia documentos para um paciente fictício.
+  const consultaId =
+    (typeof consultaAtiva !== "undefined" && consultaAtiva && consultaAtiva.codigo) ||
+    null;
+
+  if (!consultaId) {
+    alert("Nenhum atendimento aberto. Abra a consulta na agenda antes de finalizar.");
+    return;
+  }
+
   if (!confirm("Confirmar a finalização do atendimento? O sistema assinará as receitas digitalmente (CFM), gerará o recibo DMED e lançará no Livro Caixa.")) {
     return;
   }
@@ -2111,30 +2383,40 @@ window.finalizarAtendimentoComFluxo = async function() {
     });
 
     if (!res.ok) {
-      alert("Aviso: Houve uma instabilidade ao finalizar. Verifique a conexão com o servidor.");
+      let detalhe = `HTTP ${res.status}`;
+      try {
+        const erro = await res.json();
+        if (erro && erro.detail) detalhe = erro.detail;
+      } catch (_) {
+        /* resposta sem JSON */
+      }
+      alert(`Não foi possível finalizar o atendimento: ${detalhe}`);
       return;
     }
 
     const pacote = await res.json();
-    
-    // Alerta enriquecido com resumo do fechamento
+    const valor = Number(pacote.valor_consulta);
+    const valorTexto = Number.isFinite(valor) ? valor.toFixed(2) : "não informado";
+
+    // Alerta enriquecido com resumo do fechamento (sem números fictícios de
+    // fallback: se o documento não foi emitido, a mensagem diz isso).
     const msg = `
 ✅ ATENDIMENTO FINALIZADO COM SUCESSO!
 
-📄 Prescrição CFM: ${pacote.codigo_verificador_receita || "CFM-8F12-9A4B-2026"}
-🏛️ Recibo DMED (IRPF): ${pacote.recibo_dmed_numero || "DMED-2026-101-9812"}
-💼 Livro Caixa / Carnê-Leão: Honorários de R$ ${pacote.valor_consulta.toFixed(2)} escriturados
+📄 Prescrição CFM: ${pacote.codigo_verificador_receita || "não emitida"}
+🏛️ Recibo DMED (IRPF): ${pacote.recibo_dmed_numero || "não emitido"}
+💼 Livro Caixa / Carnê-Leão: Honorários de R$ ${valorTexto} escriturados
 📅 Retorno Sugerido: ${pacote.retorno_agendado_para || "Em 30 dias"}
 
 Deseja abrir o WhatsApp para enviar o link seguro ao paciente agora?
     `;
 
-    if (confirm(msg.trim())) {
+    if (confirm(msg.trim()) && pacote.link_whatsapp_despacho) {
       window.open(pacote.link_whatsapp_despacho, "_blank");
     }
   } catch (err) {
-    console.warn("Erro ao finalizar atendimento:", err);
-    alert("Consulta finalizada localmente com sucesso!");
+    console.error("Erro ao finalizar atendimento:", err);
+    alert("Falha de comunicação ao finalizar o atendimento. Nada foi emitido; tente novamente.");
   }
 };
 

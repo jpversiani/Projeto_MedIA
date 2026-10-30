@@ -9,8 +9,14 @@ Atendimento = AtendimentoSOAP  # Alias para compatibilidade com serviços legado
 from app.models.atendimento_offline import AtendimentoOffline, StatusSincronizacao, SyncState
 from app.models.prontuario import ProntuarioProblema
 from app.models.terminologia import CIAP2, CID10, CID11
-from app.models.telemedicina import SalaVirtual, Teleconsulta, DocumentoEmitido
+from app.models.telemedicina import (
+    SalaVirtual,
+    Teleconsulta,
+    DocumentoEmitido,
+    ConsentimentoTeleconsulta,
+)
 from app.models.farmacia import Receita, ReceitaItem, Dispensacao, DispensacaoItem
+from app.models.jornada import JornadaAtendimento, EtapaJornada
 from app.models.copiloto import CopilotoAuditoria
 from app.models.mensageria import MensagemPreventiva, AlertaBuscaAtiva
 from app.models.convenios import Operadora, Plano, GuiaTISS, LancamentoFinanceiro
@@ -22,3 +28,8 @@ from app.models.usuario import (
     RefreshToken,
 )
 from app.models.documento_clinico import DocumentoClinicoEmitido
+from app.models.financeiro import (
+    LancamentoLivroCaixa,
+    ModalidadeConsulta,
+    TipoLancamento,
+)
