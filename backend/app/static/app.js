@@ -2683,7 +2683,10 @@ async function carregarAnalytics() {
       if (noShowEl) noShowEl.textContent = `${kpis.no_show_rate}%`;
       if (waitEl) waitEl.textContent = `${kpis.average_wait_time} min`;
       if (resEl) resEl.textContent = `${kpis.resolution_rate}%`;
-      if (totalEl) totalEl.textContent = `${kpis.total_atendimentos || kpis.total_acolhimentos || 32}`;
+      // `??` (não `||`): um total real de 0 deve aparecer como 0. O antigo
+      // `|| 32` fabricava "32 atendimentos" quando a clínica não tinha nenhum —
+      // dado fictício em tela de produção. Só null/undefined cai no fallback.
+      if (totalEl) totalEl.textContent = `${kpis.total_atendimentos ?? kpis.total_acolhimentos ?? 0}`;
     }
 
     const resHeat = await fetch("/api/v1/analytics/heatmap");
