@@ -14,6 +14,7 @@ from app.models.telemedicina import (
     Teleconsulta,
     DocumentoEmitido,
     ConsentimentoTeleconsulta,
+    ConviteTeleconsulta,
 )
 from app.models.farmacia import Receita, ReceitaItem, Dispensacao, DispensacaoItem
 from app.models.jornada import JornadaAtendimento, EtapaJornada

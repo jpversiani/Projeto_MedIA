@@ -143,6 +143,7 @@ class MotorCFMTelemedicina:
         nome_medico: str,
         base_url: Optional[str] = None,
         telefone_whatsapp: Optional[str] = None,
+        convite: Optional[str] = None,
     ) -> Dict[str, str]:
         """
         Gera link direto e seguro para o paciente entrar na sala WebRTC pelo navegador
@@ -151,12 +152,19 @@ class MotorCFMTelemedicina:
         Sem ``base_url`` explícita usa ``PUBLIC_BASE_URL`` (em produção, o
         domínio real): o link com ``localhost`` nunca funcionaria para o
         paciente fora da máquina do servidor.
+
+        ``convite`` é o token assinado de uso do paciente (Fase 2). Com a
+        autenticação ligada é ele que permite entrar sem conta; o link sem
+        convite só funciona em desenvolvimento. O token é amarrado a esta sala
+        e tem prazo de validade/revogação.
         """
         if base_url is None:
             from app.core.config import settings
 
             base_url = settings.PUBLIC_BASE_URL
         url_sala_paciente = f"{base_url}/static/telemedicina_paciente.html?sala={codigo_sala}"
+        if convite:
+            url_sala_paciente += f"&convite={urllib.parse.quote(convite)}"
         
         mensagem_whatsapp = (
             f"Olá {nome_paciente}! Sua teleconsulta com o(a) {nome_medico} está pronta. "

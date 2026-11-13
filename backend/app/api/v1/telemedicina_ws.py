@@ -255,11 +255,16 @@ def _extrair_token(websocket: WebSocket, token_query: Optional[str]) -> Optional
     return None
 
 
-def _autenticar(websocket: WebSocket, token_query: Optional[str]):
+def _autenticar(websocket: WebSocket, token_query: Optional[str], codigo_sala: Optional[str] = None):
     """Resolve ``(usuario_id, papel, nome)`` a partir do token.
 
-    Devolve ``(None, papel_da_query, "Convidado")`` quando a autenticação está
-    desligada (desenvolvimento), preservando o comportamento da demo.
+    Aceita duas credenciais, nesta ordem:
+    1. **Access token** de usuário com conta (médico/admin/paciente);
+    2. **Convite assinado** do paciente sem conta (``convite_teleconsulta``),
+       amarrado a ``codigo_sala`` — é o link que o paciente recebe.
+
+    Devolve ``(None, None, "Convidado")`` quando a autenticação está desligada
+    (desenvolvimento), preservando o comportamento da demo.
     """
     from app.services.auth_service import decode_access_token
 
@@ -269,20 +274,35 @@ def _autenticar(websocket: WebSocket, token_query: Optional[str]):
             raise PermissionError("Token de acesso ausente.")
         return None, None, "Convidado"
 
+    # 1) Access token de usuário.
     dados = decode_access_token(token)
-    if not dados or "sub" not in dados:
-        raise PermissionError("Token inválido ou expirado.")
+    if dados and "sub" in dados:
+        papel_token = str(dados.get("papel") or "").upper()
+        if papel_token in ("MEDICO", "ADMIN"):
+            papel = PapelParticipante.MEDICO.value
+        elif papel_token == "PACIENTE":
+            papel = PapelParticipante.PACIENTE.value
+        else:
+            # Recepção/farmácia não participam da chamada clínica.
+            raise PermissionError("Papel sem permissão para entrar na teleconsulta.")
+        return int(dados["sub"]), papel, dados.get("nome") or "Usuário"
 
-    papel_token = str(dados.get("papel") or "").upper()
-    if papel_token in ("MEDICO", "ADMIN"):
-        papel = PapelParticipante.MEDICO.value
-    elif papel_token == "PACIENTE":
-        papel = PapelParticipante.PACIENTE.value
-    else:
-        # Recepção/farmácia não participam da chamada clínica.
-        raise PermissionError("Papel sem permissão para entrar na teleconsulta.")
+    # 2) Convite assinado do paciente (sem conta), válido apenas para esta sala.
+    from app.services.convite_teleconsulta import validar_convite
 
-    return int(dados["sub"]), papel, dados.get("nome") or "Usuário"
+    db = SessionLocal()
+    try:
+        convite = validar_convite(db, token, codigo_sala)
+    finally:
+        db.close()
+    if convite and "sub" in convite:
+        return (
+            int(convite["sub"]),
+            PapelParticipante.PACIENTE.value,
+            convite.get("nome") or "Paciente",
+        )
+
+    raise PermissionError("Token inválido ou expirado.")
 
 
 def _validar_sala(codigo_sala: str) -> Optional[str]:
@@ -363,7 +383,7 @@ async def telemedicina_sala_ws(
     await websocket.accept()
 
     try:
-        usuario_id, papel_autenticado, nome = _autenticar(websocket, token)
+        usuario_id, papel_autenticado, nome = _autenticar(websocket, token, codigo_sala)
     except PermissionError as erro:
         await websocket.send_json(
             _envelope(TipoMensagemWS.ERRO.value, "servidor", {"motivo": str(erro)})

@@ -275,17 +275,26 @@ def criar_agendamento_consulta(
         # valida o código com a autenticação ligada (produção). Sem esta linha,
         # o link gerado apontava para uma sala inexistente e os dois lados
         # recebiam 4404 ao conectar.
+        from app.services.convite_teleconsulta import expiracao_sala
+
+        horario_agenda = _parse_horario(payload.horario)
+        data_inicio_consulta = (
+            datetime.combine(payload.data_consulta or date.today(), horario_agenda)
+            if horario_agenda
+            else None
+        )
         sala = SalaVirtualModel(
             codigo_sala=codigo_sala,
             status=StatusTeleconsulta.AGENDADA,
             data_criacao=datetime.now(timezone.utc),
+            # Vida limitada da sala: o link do paciente expira junto (Fase 2).
+            data_expiracao=expiracao_sala(data_inicio_consulta),
         )
         db.add(sala)
         db.flush()
         # A teleconsulta nasce vinculada à sala, ao cidadão e ao profissional:
         # é ela que fornece o `teleconsulta_id` real usado por
         # /iniciar-chamada, /finalizar-chamada e /converter-presencial.
-        horario_agenda = _parse_horario(payload.horario)
         db.add(
             TeleconsultaModel(
                 cidadao_id=cidadao.id,
@@ -295,11 +304,7 @@ def criar_agendamento_consulta(
                 medico_crm=None,  # CRM do profissional fica no cadastro (vínculo)
                 status=StatusTeleconsulta.AGENDADA,
                 motivo_consulta=payload.motivo_queixa,
-                data_inicio=(
-                    datetime.combine(payload.data_consulta or date.today(), horario_agenda)
-                    if horario_agenda
-                    else None
-                ),
+                data_inicio=data_inicio_consulta,
             )
         )
         db.flush()

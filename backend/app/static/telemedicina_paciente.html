@@ -147,10 +147,11 @@
       btnEntrar.disabled = true;
       textoAviso('Conectando à sala segura...', 'Autorize o uso da câmera e do microfone.');
 
-      // Com autenticação ligada, o paciente precisa estar logado; o token fica
-      // no localStorage. Em desenvolvimento (auth desligada) a sala do link
-      // basta, então conecta sem token.
-      const token = localStorage.getItem('media_token') || '';
+      // O convite assinado no link (?convite=...) é a credencial do paciente:
+      // permite entrar SEM conta, mesmo com a autenticação ligada (Fase 2).
+      // Tem prioridade sobre qualquer token de login; sem convite, cai no
+      // localStorage (compatibilidade) ou conecta sem token em desenvolvimento.
+      const token = urlParams.get('convite') || localStorage.getItem('media_token') || '';
 
       try {
         sessao = new SessaoTeleconsulta({

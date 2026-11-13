@@ -69,11 +69,16 @@ class ConverterPresencialRequest(BaseModel):
 
 @router.post("/agendamentos", status_code=status.HTTP_201_CREATED)
 def criar_agendamento(dados: TeleconsultaCreate, db: Session = Depends(get_db)):
+    from app.services.convite_teleconsulta import expiracao_sala
+
     codigo_sala = f"sala_{uuid.uuid4().hex[:12]}"
     nova_sala = SalaVirtualModel(
         codigo_sala=codigo_sala,
         status=StatusTeleconsulta.AGENDADA,
-        data_criacao=datetime.now(timezone.utc)
+        data_criacao=datetime.now(timezone.utc),
+        # Vida limitada: o WebSocket recusa sala expirada, então o link do
+        # paciente não sobrevive à janela da consulta (Fase 2).
+        data_expiracao=expiracao_sala(dados.data_hora),
     )
     db.add(nova_sala)
     db.flush()
@@ -167,6 +172,12 @@ async def _encerrar_sala_da_consulta(
     grava ``status`` (CONCLUIDA ou CANCELADA) e ``data_expiracao`` no banco,
     de modo que o WebSocket recuse reutilizações da sala encerrada.
     """
+    from app.services.convite_teleconsulta import revogar_convites_da_teleconsulta
+
+    # Revoga os convites do paciente: o link deixa de funcionar mesmo que o JWT
+    # ainda não tenha expirado — impede reutilização da sala encerrada.
+    revogar_convites_da_teleconsulta(db, consulta.id)
+
     sala = consulta.sala_virtual
     if sala is None:
         return
@@ -284,13 +295,45 @@ def obter_link_acesso_paciente(
     paciente_nome: str = Query("Paciente"),
     medico_nome: str = Query("Dra. Francelli Neves Versiani"),
     telefone: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
 ):
-    """Gera o link efêmero direto para o paciente e mensagem de WhatsApp."""
+    """Gera o link de acesso do paciente com convite assinado (Fase 2).
+
+    O convite é um token curto amarrado a esta sala, que permite ao paciente
+    entrar **sem conta** mesmo com a autenticação ligada. Só é emitido quando a
+    teleconsulta existe; sem ela o link sai sem convite (funciona apenas em
+    desenvolvimento). Cada chamada emite um novo convite; todos são revogados
+    juntos ao finalizar/cancelar a consulta.
+    """
+    from app.services.convite_teleconsulta import gerar_convite_paciente
+
+    convite = None
+    sala = (
+        db.query(SalaVirtualModel)
+        .filter(SalaVirtualModel.codigo_sala == codigo_sala)
+        .first()
+    )
+    if sala:
+        consulta = (
+            db.query(TeleconsultaModel)
+            .filter(TeleconsultaModel.sala_virtual_id == sala.id)
+            .first()
+        )
+        if consulta:
+            convite = gerar_convite_paciente(
+                db,
+                teleconsulta_id=consulta.id,
+                codigo_sala=codigo_sala,
+                nome_paciente=paciente_nome,
+                cidadao_id=consulta.cidadao_id,
+            )
+
     return MotorCFMTelemedicina.gerar_link_paciente(
         codigo_sala=codigo_sala,
         nome_paciente=paciente_nome,
         nome_medico=medico_nome,
-        telefone_whatsapp=telefone
+        telefone_whatsapp=telefone,
+        convite=convite,
     )
 
 

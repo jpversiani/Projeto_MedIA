@@ -112,3 +112,31 @@ class DocumentoEmitido(Base):
     data_emissao = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     teleconsulta = relationship("Teleconsulta", back_populates="documentos")
+
+
+class ConviteTeleconsulta(Base):
+    """Convite assinado de uso do paciente para entrar na teleconsulta sem conta.
+
+    O paciente não tem usuário no sistema: o link que ele recebe precisa ser,
+    ele próprio, a credencial. Antes o link era ``?sala=<codigo>`` puro —
+    permanente, sem token e sem TTL — e, com a autenticação ligada, o paciente
+    nem conseguia entrar (a página exigia um token de login que ele não tem).
+
+    Cada convite é um JWT curto (``tipo=convite_teleconsulta``, papel PACIENTE)
+    amarrado a UMA sala, com ``jti`` persistido aqui para poder ser revogado
+    (ao finalizar/cancelar a consulta) e com prazo de validade. O WebSocket
+    valida o convite contra esta tabela: token desconhecido, revogado, expirado
+    ou de outra sala é recusado.
+    """
+
+    __tablename__ = "convites_teleconsulta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    jti = Column(String(64), unique=True, nullable=False, index=True)
+    teleconsulta_id = Column(
+        Integer, ForeignKey("teleconsultas.id"), nullable=False, index=True
+    )
+    codigo_sala = Column(String(64), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
