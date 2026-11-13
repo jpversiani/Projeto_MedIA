@@ -19,6 +19,14 @@ services:
       # backup — perder esta chave torna os documentos ilegíveis.
       - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:?defina FIELD_ENCRYPTION_KEY no .env (openssl rand -hex 32)}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # TURN da teleconsulta: com TURN_SECRET o servidor gera credenciais
+      # efêmeras para o coturn (perfil `turn`). TURN_URL aponta para o servidor
+      # TURN público (ex.: turn:seu-dominio:3478). Sem TURN, a chamada só
+      # conecta em rede local/NAT não simétrico.
+      - TURN_URL=${TURN_URL:-}
+      - TURN_SECRET=${TURN_SECRET:-}
+      # Domínio real nos links enviados ao paciente (sala de teleconsulta).
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8000}
       - AUTO_SEED_DEMO_DATA=false
       - DEMO_LOGIN_ENABLED=false

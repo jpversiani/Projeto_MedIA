@@ -9,7 +9,11 @@ definida pelo operador nunca era aplicada.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import os
+import time
 import warnings
 from typing import List, Literal, Optional
 
@@ -19,6 +23,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Chave usada APENAS em desenvolvimento/testes. Nunca é aceitável em produção:
 # qualquer pessoa que a conheça consegue forjar um JWT de administrador.
 DEV_FALLBACK_SECRET = "media_secret_jwt_sovereign_clinical_2026_key"
+
+# Validade das credenciais efêmeras do TURN (mecanismo use-auth-secret do coturn).
+# O username é o timestamp de expiração e a credential é o HMAC-SHA1 do secret
+# sobre esse username — padrão REST API do TURN (RFC 8489). 24 h cobrem a janela
+# da teleconsulta + reconexão sem deixar a credencial eterna.
+TURN_CREDENTIAL_TTL_SEGUNDOS = 86400
 
 
 def _sqlite_padrao() -> str:
@@ -202,13 +212,30 @@ class Settings(BaseSettings):
 
         if self.TURN_URL:
             turn: dict = {"urls": self.TURN_URL}
-            if self.TURN_USERNAME:
-                turn["username"] = self.TURN_USERNAME
-            if self.TURN_CREDENTIAL:
-                turn["credential"] = self.TURN_CREDENTIAL
+            username, credential = self._credenciais_turn()
+            if username:
+                turn["username"] = username
+            if credential:
+                turn["credential"] = credential
             servidores.append(turn)
 
         return servidores
+
+    def _credenciais_turn(self) -> tuple[Optional[str], Optional[str]]:
+        """Par (username, credential) do TURN.
+
+        Com ``TURN_SECRET`` gera credenciais efêmeras no padrão REST API do TURN
+        (coturn ``use-auth-secret``): username = timestamp de expiração,
+        credential = base64(HMAC-SHA1(secret, username)). Sem o secret, devolve o
+        par estático configurado (compatibilidade com TURN de credencial fixa).
+        """
+        if self.TURN_SECRET:
+            username = str(int(time.time()) + TURN_CREDENTIAL_TTL_SEGUNDOS)
+            digest = hmac.new(
+                self.TURN_SECRET.encode("utf-8"), username.encode("utf-8"), hashlib.sha1
+            ).digest()
+            return username, base64.b64encode(digest).decode("ascii")
+        return self.TURN_USERNAME, self.TURN_CREDENTIAL
 
     def validar_ambiente(self) -> None:
         """Falha rápida em configurações que exponham dados de saúde."""
