@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg)](https://fastapi.tiangolo.com)
-[![Tests](https://img.shields.io/badge/Pytest-496%20passing-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Pytest-715%20passing-success.svg)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Plataforma de prontuário eletrônico, telemedicina, prescrição e faturamento
@@ -14,17 +14,17 @@ terminologias brasileiras (CIAP-2, CID-10, CID-11, CNES, CNS).
 > Esta v1 **sobe, migra, semeia e autentica** de ponta a ponta e está pronta
 > para **testes funcionais em ambiente de desenvolvimento**.
 >
-> **Não use com dados reais de pacientes.** O isolamento entre clínicas ainda
-> não é aplicado nas consultas ao banco, a trilha de auditoria não registra
-> acesso a prontuário, e não existe ciclo de vida do dado (retenção, backup,
-> criptografia em repouso, resposta a incidente). A conformidade LGPD e CFM
-> 2.314/2022 **não está implementada** — e o token SSO e a assinatura
-> ICP-Brasil são *mocks*, não integrações.
+> **Ainda não use com dados reais de pacientes.** A assinatura digital
+> ICP-Brasil é um *mock* (P0.4); a auditoria de PHI não cobre todas as leituras
+> (cadastro, receita e exportação TISS) e a checagem de tenant ainda falta em
+> receitas, TISS e farmácia. O token SSO também é um mock, bloqueado fora de
+> desenvolvimento.
 >
-> O inventário completo do que falta está em
-> **[`docs/ROADMAP_V1.md`](docs/ROADMAP_V1.md)**. Resumindo: **P0.1** isolamento
-> de tenant e RBAC, **P0.2** auditoria de acesso a PHI, **P0.3** ciclo de vida do
-> dado, **P0.4** assinatura digital.
+> O estado atual por frente está em
+> **[`docs/STATUS_ATUAL_CONSOLIDADO.md`](docs/STATUS_ATUAL_CONSOLIDADO.md)**.
+> Para saber quais documentos são confiáveis, use
+> **[`docs/INDICE.md`](docs/INDICE.md)**. O único bloqueio P0 aberto é
+> **P0.4 — assinatura digital**; o restante são pendências P1/P2.
 
 ---
 
@@ -87,7 +87,7 @@ uvicorn app.main:app --reload
 
 Na primeira execução o aplicativo, sozinho:
 
-1. aplica as migrações do Alembic criando as 30 tabelas;
+1. aplica as migrações do Alembic criando as 34 tabelas;
 2. popula o banco com 2 unidades de saúde, profissionais, um cidadão de
    exemplo e as terminologias;
 3. passa a atender em `http://localhost:8000`.
@@ -122,12 +122,24 @@ Papéis disponíveis: `medico_titular`, `medica_familia`, `secretaria`, `admin`.
 pytest -q          # a partir da raiz do repositório
 ```
 
-**496 testes, todos passando.** A suíte roda em SQLite em memória e é
+**715 testes, todos passando.** A suíte roda em SQLite em memória e é
 hermética: não toca no banco de desenvolvimento, e o seed e as migrações são
 desligados durante os testes.
 
 ```bash
 pytest -q backend/tests/test_seguranca_v1.py    # apenas as regressões de segurança
+```
+
+### Lint
+
+O CI roda um gate mínimo de análise estática com [Ruff](https://docs.astral.sh/ruff/),
+configurado em [`pyproject.toml`](pyproject.toml): erros de sintaxe/import
+(`E4`, `E7`, `E9`) e pyflakes (`F`), que pegam nomes indefinidos, imports
+duplicados e variáveis mortas. Regras puramente estilísticas ficam fora para
+não gerar um diff histórico enorme.
+
+```bash
+ruff check backend
 ```
 
 ---
@@ -140,8 +152,10 @@ Tudo é lido de variáveis de ambiente e do arquivo `.env`.
 |---|---|---|
 | `ENVIRONMENT` | `development` | `production` ativa validações obrigatórias |
 | `JWT_SECRET_KEY` | — | **Obrigatória em produção** (`SECRET_KEY` também é aceita) |
+| `FIELD_ENCRYPTION_KEY` | derivada do JWT | Chave AES-256-GCM de CPF/CNS; trocá-la invalida os dados já cifrados |
 | `DATABASE_URL` | `sqlite:///backend/esus.db` | Ancorado em `backend/`, não no diretório atual |
 | `CORS_ORIGINS` | `http://localhost:8000,http://127.0.0.1:8000` | Lista separada por vírgula |
+| `PUBLIC_BASE_URL` | `http://localhost:8000` | Base dos links de teleconsulta enviados ao paciente |
 | `REQUIRE_AUTH` | `true` fora de dev | Exige `Bearer` em todas as rotas clínicas |
 | `AUTO_MIGRATE_ON_STARTUP` | `true` | Aplica `alembic upgrade head` no boot |
 | `AUTO_SEED_DEMO_DATA` | `true` | **Sempre `false` em produção** |
@@ -159,17 +173,17 @@ Projeto_MedIA/
 │   ├── alembic/            # Migrações (schema versionado e reprodutível)
 │   │   └── versions/       # cbe75db02199_initial_schema.py — 30 tabelas
 │   ├── app/
-│   │   ├── api/v1/         # ~91 rotas: auth, prontuário, agenda, telemedicina,
+│   │   ├── api/v1/         # ~99 rotas: auth, prontuário, agenda, telemedicina,
 │   │   │                   #   copiloto, prescrição, TISS, DMED, farmácia…
 │   │   ├── core/           # config, database, bootstrap
-│   │   ├── models/         # 30 tabelas SQLAlchemy 2.0
+│   │   ├── models/         # 34 tabelas SQLAlchemy 2.0
 │   │   ├── schemas/        # Contratos Pydantic v2
 │   │   ├── repositories/   # Camada de persistência
 │   │   ├── seeds/          # Dados iniciais (idempotentes)
 │   │   ├── services/       # Regras clínicas, CFM, ANS, SHA-256
 │   │   ├── static/         # Cockpit, landing e módulos JS
 │   │   └── main.py         # Entrada FastAPI
-│   ├── tests/              # 50 arquivos, 496 testes
+│   ├── tests/              # 69 arquivos, 715 testes
 │   └── requirements.txt
 ├── docs/                   # ROADMAP_V1.md e demais documentos
 ├── scripts/

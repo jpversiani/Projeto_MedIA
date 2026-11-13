@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.telemedicina import (

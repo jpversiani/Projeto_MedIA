@@ -1,7 +1,6 @@
 """
 Serviço de Autenticação Central, Single Sign-On (Google & Microsoft), JWT, MFA (TOTP) e Multi-Tenancy.
 """
-import os
 import time
 import hmac
 import struct
@@ -9,13 +8,16 @@ import base64
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, Tuple
+from typing import TYPE_CHECKING, Optional, Dict, Any, Tuple
 import jwt
 from sqlalchemy.orm import Session
 
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum
+
+if TYPE_CHECKING:  # pragma: no cover - apenas tipagem estática
+    from app.models.usuario import RefreshToken
 from app.models.estabelecimento import Estabelecimento
-from app.schemas.auth import UsuarioOut, VinculoClinicaOut, TokenResponse
+from app.schemas.auth import UsuarioOut, VinculoClinicaOut
 from app.core.config import settings
 
 # Resolve a chave via settings. Em produção a ausência de JWT_SECRET_KEY gera

@@ -10,7 +10,6 @@ Cobrem três falhas que existiam antes:
 
 import pytest
 
-from app.core.config import settings
 from app.models.estabelecimento import Estabelecimento
 from app.models.usuario import PapelUsuarioEnum, Usuario, VinculoClinica
 from app.services.audit_service import AuditService, calcular_hash_auditoria

@@ -1,4 +1,4 @@
-from datetime import datetime, date, timezone
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, event
 from sqlalchemy.orm import relationship
 from app.core.crypto import CampoProtegido, hash_busca

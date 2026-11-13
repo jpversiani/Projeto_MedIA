@@ -2,8 +2,8 @@
 Rotas REST de Prescrição Digital, Atestados Médicos e Validação Pública CFM 2.314/2022.
 """
 
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session

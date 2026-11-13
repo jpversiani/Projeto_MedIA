@@ -49,8 +49,6 @@ def test_estados_sessao_enum():
 
 def test_status_teleconsulta_enum():
     """Testa enum StatusTeleconsulta."""
-    from app.models.telemedicina import StatusTeleconsulta
-
     valores_validos = {"AGENDADA", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA", "SUSPENSA"}
     valores_reais = {s.value for s in StatusTeleconsulta}
     assert valores_validos == valores_reais
@@ -141,7 +139,7 @@ def test_hub_telemedicina_estatisticas():
     mock_db = Mock()
 
     hub = HubTelemedicinaWS()
-    sala = hub.criar_sala("TEST-SALA-STATS", mock_db)
+    hub.criar_sala("TEST-SALA-STATS", mock_db)
 
     stats = hub.obter_estatisticas("TEST-SALA-STATS")
     assert stats["sala_codigo"] == "TEST-SALA-STATS"
@@ -155,7 +153,7 @@ def test_hub_telemedicina_encerrar_sala():
     mock_db = Mock()
 
     hub = HubTelemedicinaWS()
-    sala = hub.criar_sala("TEST-SALA-CLOSE", mock_db)
+    hub.criar_sala("TEST-SALA-CLOSE", mock_db)
 
     # Adicionar uma conexão mock
     fila = Mock()
@@ -172,7 +170,7 @@ def test_hub_telemedicina_pub_evento():
     mock_db = Mock()
 
     hub = HubTelemedicinaWS()
-    sala = hub.criar_sala("TEST-SALA-EVENTO", mock_db)
+    hub.criar_sala("TEST-SALA-EVENTO", mock_db)
 
     evento = {
         "tipo": "estado_medico",

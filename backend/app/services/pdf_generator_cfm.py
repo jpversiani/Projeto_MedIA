@@ -364,9 +364,6 @@ class GeradorPDFMedicoCFM:
         )
 
         # Quebra simples de texto
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import Paragraph
-
         style_corpo = ParagraphStyle(
             name="AtestadoCorpo",
             fontName="Helvetica",

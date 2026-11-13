@@ -29,10 +29,8 @@ from app.schemas.fluxo_atendimento import (
 )
 from app.services.cid11_service import cid11_service
 from app.services.prescricao_digital_cfm import prescricao_service
-from app.services.livro_caixa import livro_caixa_service
-from app.services.pix_cobranca import pix_service
 from app.models.financeiro import ModalidadeConsulta
-from app.models.jornada import EtapaJornada, JornadaAtendimento
+from app.models.jornada import JornadaAtendimento
 
 from app.core.config import settings
 

@@ -30,7 +30,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.crypto import CampoProtegido, JsonProtegido
+from app.core.crypto import CampoProtegido
 from app.core.database import Base
 
 

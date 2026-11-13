@@ -2,13 +2,11 @@ import xml.etree.ElementTree as ET
 
 from datetime import date, datetime
 
-from app.services.tiss_generator import GuiaConsultaTISS, MotorFaturamentoTISS
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 
-from app.services.tiss_generator import GuiaConsultaTISS, MotorFaturamentoTISS
-
 from app.core.rbac import PAPEIS_FATURAMENTO, dependencias_rbac
+from app.services.tiss_generator import GuiaConsultaTISS, MotorFaturamentoTISS
 router = APIRouter(prefix="/tiss", tags=["Faturamento TISS ANS 4.01"], dependencies=dependencias_rbac(*PAPEIS_FATURAMENTO))
 
 

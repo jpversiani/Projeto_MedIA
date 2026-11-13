@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.convenios import GuiaStatus, LancamentoTipo
+from app.models.convenios import GuiaStatus
 from app.repositories.convenios_repo import ConveniosRepository
 from app.services.tiss_generator import TISSGenerator
 

@@ -1,4 +1,3 @@
-import pytest
 from app.services.prescricao_digital_cfm import MotorPrescricaoCFM, TipoPrescricao
 
 

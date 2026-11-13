@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from app.core.config import Settings, settings
+from app.core.config import Settings
 from app.models.usuario import PapelUsuarioEnum, Usuario
 from app.services.auth_service import create_access_token
 

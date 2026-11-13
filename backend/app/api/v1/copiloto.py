@@ -20,7 +20,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Final, List, Optional
+from typing import Any, Final, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
@@ -359,11 +359,9 @@ async def ws_copiloto(
         return
 
     fila = hub.conectar(atendimento_id)
-    ids_enviados: set[str] = set()
     try:
         atendimento = _obter_atendimento(db, atendimento_id)
         alertas = _gerar_alertas(db, atendimento)
-        ids_enviados = {a.id for a in alertas}
         await websocket.send_json(
             _evento(
                 EventoWS.SNAPSHOT_ALERTAS,

@@ -31,7 +31,6 @@ from app.models.agendamento import Agendamento, StatusAgendamento, TipoAtendimen
 from app.models.cidadao import Cidadao
 from app.models.estabelecimento import Estabelecimento
 from app.models.fila import FilaAcolhimento
-from app.models.profissional import Profissional
 from app.models.telemedicina import (
     SalaVirtual as SalaVirtualModel,
     Teleconsulta as TeleconsultaModel,

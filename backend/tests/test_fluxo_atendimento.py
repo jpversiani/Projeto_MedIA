@@ -3,8 +3,6 @@ Testes automatizados da máquina de estados do Fluxo Clínico e Perfis de Usuár
 MedIA Practice & Telemedicina OS.
 """
 
-import pytest
-from app.schemas.fluxo_atendimento import EtapaFluxoEnum, ModalidadeAtendimentoEnum
 
 
 def test_obter_matriz_perfis(client):

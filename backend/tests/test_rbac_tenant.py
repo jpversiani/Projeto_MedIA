@@ -13,7 +13,6 @@ from datetime import date, time
 
 import pytest
 
-from app.core.config import settings
 from app.models.agendamento import Agendamento, StatusAgendamento, TipoAtendimento
 from app.models.estabelecimento import Estabelecimento
 from app.models.fila import FilaAcolhimento

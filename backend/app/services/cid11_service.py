@@ -421,7 +421,6 @@ class CID11Service:
         Pesquisa códigos CID-11 por código exato, parte do código, título ou sinônimos clínicos.
         Suporta busca insensível a acentuação e caixa.
         """
-        import unicodedata
 
         def normalizar(t: str) -> str:
             return "".join(c for c in unicodedata.normalize("NFKD", t) if not unicodedata.combining(c)).lower().strip()

@@ -23,7 +23,7 @@ interruptor, o RBAC é obrigatório.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session

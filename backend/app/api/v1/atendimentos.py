@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from app.core.database import get_db
 from app.models.atendimento import AtendimentoSOAP, AtendimentoProblema
 from app.models.fila import FilaAcolhimento

@@ -27,7 +27,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
 from sqlalchemy.orm import Session

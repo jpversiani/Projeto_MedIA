@@ -1,0 +1,37 @@
+# Configuração das ferramentas de qualidade do projeto.
+#
+# O objetivo deste arquivo é criar um gate *mínimo e confiável* no CI: apenas
+# regras que apontam defeitos reais (nomes indefinidos, imports duplicados,
+# variáveis mortas e erros de sintaxe). Regras puramente estilísticas
+# (ordenação de imports, anotações PEP 604, etc.) ficam de fora para não
+# transformar uma limpeza histórica em um diff gigante e difícil de revisar.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+    ".venv",
+    "backend/app/static",
+    "brhealth_landing",
+]
+
+[tool.ruff.lint]
+# E4/E7/E9 = erros de import, statement e sintaxe; F = pyflakes.
+select = ["E4", "E7", "E9", "F"]
+
+ignore = [
+    # SQLAlchemy usa `Coluna == True` para gerar SQL; a troca sugerida pelo
+    # Ruff (`Coluna.is_(True)`) é diferente e não é obrigatória.
+    "E712",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `env.py` importa `app.models` pelo efeito colateral de registrar todas as
+# tabelas no metadata do Alembic — o import parece "não usado", mas é essencial.
+"backend/alembic/env.py" = ["E402", "F401"]
+# Pacote de reexportação: os nomes importados formam a API pública de
+# `app.models` e são consumidos por outros módulos.
+"backend/app/models/__init__.py" = ["E402", "F401"]
+# Imports de serviços de IA ficam no fim do arquivo por organização histórica
+# e não afetam o runtime.
+"backend/app/api/v1/copiloto.py" = ["E402"]

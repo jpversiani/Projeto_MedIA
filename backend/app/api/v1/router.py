@@ -23,7 +23,7 @@ from app.api.v1.fluxo_atendimento import router as fluxo_atendimento_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.health import router as health_router
 from app.api.v1.sincronizacao import router as sincronizacao_router
-from app.api.v1.auth import router as auth_router, get_current_user
+from app.api.v1.auth import get_current_user
 from app.api.v1.conformidade import router as conformidade_router
 from app.core.config import settings
 

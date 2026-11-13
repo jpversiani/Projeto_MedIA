@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.models.financeiro import LancamentoLivroCaixa, TipoLancamento
+from app.models.financeiro import LancamentoLivroCaixa
 
 
 def _receita(**overrides) -> dict:

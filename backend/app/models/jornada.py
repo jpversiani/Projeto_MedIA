@@ -24,7 +24,6 @@ import enum
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    JSON,
     DateTime,
     Float,
     ForeignKey,

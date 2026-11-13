@@ -11,27 +11,21 @@ metodologia SOAP, identificação por CNS/CPF.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey, UniqueConstraint
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.database import Base
 from app.models.atendimento_offline import (
     AtendimentoOffline,
     StatusSincronizacao,
 )
 from app.schemas.atendimento_offline import (
     AtendimentoOfflineCreate,
-    AtendimentoOfflineOut,
     ItemDuplicado,
     LoteSincronizacaoRequest,
     LoteSincronizacaoResponse,

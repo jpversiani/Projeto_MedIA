@@ -4,11 +4,7 @@ Suíte de Testes Automatizados para Autenticação, SSO (Google/Microsoft), Mult
 import urllib.parse
 from pathlib import Path
 
-import pytest
-from fastapi.testclient import TestClient
-from app.main import app
-from app.core.database import SessionLocal
-from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
+from app.models.usuario import VinculoClinica
 from app.models.estabelecimento import Estabelecimento
 from app.services.auth_service import hash_password, verify_password, generate_totp_secret, verify_totp_token, get_totp_token
 

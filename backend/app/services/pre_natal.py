@@ -47,7 +47,6 @@ trimestre; exames laboratoriais são guias de coleta oportuna.
 from __future__ import annotations
 
 import re
-import unicodedata
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
@@ -57,9 +56,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    ValidationError,
     field_validator,
-    model_validator,
 )
 
 # ---------------------------------------------------------------------------

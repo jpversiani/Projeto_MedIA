@@ -86,9 +86,14 @@ class SOAPAssistantService:
         return "Plano Terapêutico:\n" + "\n".join(f"- {item}" for item in plan_items)
     def _calculate_confidence(self, data: SOAPInput) -> float:
         score = 0.0
-        if data.complaints: score += 0.3
-        if data.teleconsultation_notes: score += 0.2
-        if data.vitals: score += 0.2
-        if data.lab_results: score += 0.15
-        if data.past_history: score += 0.15
+        if data.complaints:
+            score += 0.3
+        if data.teleconsultation_notes:
+            score += 0.2
+        if data.vitals:
+            score += 0.2
+        if data.lab_results:
+            score += 0.15
+        if data.past_history:
+            score += 0.15
         return min(score, 1.0)

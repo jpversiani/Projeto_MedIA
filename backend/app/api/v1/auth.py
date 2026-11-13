@@ -1,7 +1,6 @@
 """
 Rotas de Autenticação, SSO (Google e Microsoft), Multi-Tenancy e Auditoria de Acesso.
 """
-import os
 import urllib.parse
 from typing import List, Optional, Tuple
 from fastapi import (
@@ -21,7 +20,6 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.models.usuario import Usuario, VinculoClinica, PapelUsuarioEnum, AuditTrail
 from app.models.estabelecimento import Estabelecimento
-from app.models.profissional import Profissional
 from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
@@ -29,20 +27,16 @@ from app.schemas.auth import (
     TokenResponse,
     UsuarioOut,
     SwitchClinicRequest,
-    MfaSetupResponse,
-    MfaVerifyRequest,
     AuditTrailOut,
 )
 from app.services.auth_service import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     AuthService,
     verify_password,
-    hash_password,
     create_access_token,
     create_refresh_token,
     decode_access_token,
     decode_token,
-    generate_totp_secret,
     revogar_refresh_token,
     revogar_sessoes_do_usuario,
     validar_refresh_token,

@@ -37,7 +37,7 @@ def test_chave_padrao_so_esta_disponivel_em_desenvolvimento():
     dev = Settings(ENVIRONMENT="development")
     assert dev.effective_secret_key  # funciona localmente
     with pytest.raises(RuntimeError):
-        Settings(ENVIRONMENT="production").effective_secret_key
+        _ = Settings(ENVIRONMENT="production").effective_secret_key
 
 
 # ----------------------------------------------------------------------

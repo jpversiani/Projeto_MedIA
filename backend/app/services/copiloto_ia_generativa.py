@@ -239,7 +239,7 @@ class MotorIAGenerativaCopiloto:
         texto_lower = texto.lower()
         
         # Detecção de queixa / motivo
-        linhas = [l.strip() for l in texto.split("\n") if l.strip()]
+        linhas = [linha.strip() for linha in texto.split("\n") if linha.strip()]
         primeira_linha = linhas[0] if linhas else "Consulta Clínica"
         motivo = primeira_linha if len(primeira_linha) < 80 else primeira_linha[:77] + "..."
 

@@ -4,9 +4,8 @@ Permite apurar receitas de consultas presenciais e telemedicina, calcular despes
 e estimar o IRPF mensal do profissional da saúde.
 """
 
-from dataclasses import dataclass, field
-from datetime import date
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List
 
 
 @dataclass

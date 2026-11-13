@@ -4,10 +4,9 @@ Regulamenta a prática da telemedicina no Brasil para consultas médicas, telein
 telediagnóstico, telemonitoramento e teletriagem.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
-import json
 from typing import Dict, List, Optional
 import urllib.parse
 import uuid

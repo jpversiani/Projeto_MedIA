@@ -38,6 +38,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-cov
 
+      - name: Lint (Ruff)
+        # Gate mínimo: E4/E7/E9 + pyflakes (F). A configuração está em
+        # `pyproject.toml`; regras puramente estilísticas ficam de fora.
+        run: ruff check backend
+
       - name: Verificar que a importação da aplicação não quebra
         run: |
           cd backend

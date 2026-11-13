@@ -27,7 +27,6 @@ from app.core.database import get_db
 from app.models.atendimento import AtendimentoProblema, AtendimentoSOAP
 from app.models.cidadao import Cidadao
 from app.models.prontuario import ProntuarioProblema
-from app.schemas.atendimento import AtendimentoSOAPOut
 from app.schemas.prontuario import (
     AlergiaCriadaOut,
     AlergiaCreate,
