@@ -108,10 +108,33 @@ futuro, não é prioridade).
 | **DMED** | **Corrigir agora** (declaração anual). | Fase 6 inclui leiaute posicional IN RFB 1.987/2020 gerado do livro caixa real. |
 | **Lembretes** | **WhatsApp Business API** como primeiro canal. | Fase 7 usa Cloud API (Meta) ou BSP; exige verificação Meta + aprovação de templates — iniciar cadastro na Fase 0/1. |
 | **PIX** | Reconhecido como **mock** (gerador de string sem persistência, conciliação ou uso pela UI). | Fase 6 torna o PIX cobrança real: persistida, vinculada à consulta, com a chave do médico e conciliação. |
+| **Credenciais externas (VIDAAS + Meta/WhatsApp)** | **Adiadas** (decisão de 13/11/2026): negociação/certificado e verificação Meta levam semanas e não bloqueiam o resto. | Construir o código **agora** contra sandbox/abstração, com "modo honesto" como padrão. As credenciais reais só plugam depois. Piloto roda em modo honesto; lançamento comercial aguarda as credenciais. |
 
 Pendências menores que não bloqueiam (decidir durante a execução): gravação de
 teleconsulta e self-booking permanecem adiados para v1.1+ conforme §2; canal
 fallback de lembrete (e-mail/SMS) caso a aprovação do WhatsApp atrase.
+
+### 🔌 Como o adiamento funciona (desacoplar código de credencial)
+
+A regra é separar **o que é código** (fazemos agora) **do que é credencial/aprovação
+externa** (entra depois, sem retrabalho):
+
+- **VIDAAS (Fase 3):** escrever o cliente HTTP real + o fluxo de assinatura +
+  recibo persistido, testável contra o ambiente `HOMOLOGACAO`/mock. **Sem
+  credencial configurada, o sistema opera em "modo honesto"**: o PDF diz
+  "verificação de integridade (hash SHA-256)", nunca "assinado ICP-Brasil".
+  Quando o certificado chegar, basta setar as envs `VIDAAS_*` — o código já está
+  pronto e testado. O passo de honestidade (Fase 3.3) é o que destrava o piloto.
+- **WhatsApp (Fase 7):** construir o motor de lembretes/confirmação (agendamento,
+  opt-in LGPD, link assinado, baixa de status, registro de envio) atrás de uma
+  **abstração de canal** (`EnviadorMensagem`). Adaptadores: `dev` (log/console),
+  `email`/`sms` (fallback real) e `whatsapp` (Cloud API/BSP). O adaptador WhatsApp
+  fica **inativo sem credencial**; o motor roda com o fallback. Quando a Meta
+  aprovar, pluga o token e os templates — sem reescrever o motor.
+
+**Consequência nos marcos:** o **piloto** deixa de depender das duas credenciais
+(roda em modo honesto + fallback de canal). Só o **lançamento comercial**
+(documento com validade jurídica plena + WhatsApp oficial) aguarda VIDAAS e Meta.
 
 ---
 
@@ -156,9 +179,10 @@ servidor real; teste novo reprova import quebrado; 715+ testes verdes.
 4. Remover `GET /dmed/exportar-exemplo` (dado fictício) e o seed de paciente
    fictício remanescente fora de flag demo.
 5. Atualizar `README`, `INDICE.md` e a landing servida com os números reais.
-6. **Iniciar lead times externos:** contrato/certificado VIDAAS (Fase 3) e
-   verificação Meta + templates do WhatsApp Business API (Fase 7) — ambos
-   dependem de terceiros e podem levar semanas; começar agora.
+6. **Credenciais externas adiadas (13/11/2026):** VIDAAS e Meta/WhatsApp não
+   bloqueiam esta fase nem o piloto. O código das Fases 3 e 7 é construído contra
+   sandbox/abstração (modo honesto + canal fallback); a negociação/cadastro pode
+   ser disparada em paralelo, quando conveniente, sem travar o desenvolvimento.
 
 **Aceite:** nenhuma rota/tela entrega dado fictício fora de `DEMO`; nenhuma
 alegação não implementada em página pública; suíte verde após remoções.
@@ -358,17 +382,19 @@ Fase 0 ──► Fase 1 ──► Fase 2 ──► Fase 3 ──► Fase 4 ─�
 ```
 
 - **Marco "piloto controlado"** (poucos médicos, pacientes reais): Fases 0–5
-  fechadas ≈ **4–6 semanas**. Depende do contrato/certificado **VIDAAS** —
-  iniciar na Fase 0/1, é o item de maior lead time externo. O passo de
-  honestidade (Fase 3.3) permite piloto sem assinatura, desde que o texto não
-  alegue o que não tem.
-- **Marco "v1 finalizada"** (vendável): + Fases 6–8 ≈ **+3–5 semanas**.
-- Esforço total estimado: **40–63 dias úteis** (1 dev). Fase 6 cresceu (PIX
-  real + DMED posicional); Fase 7 depende da aprovação do WhatsApp.
+  fechadas ≈ **4–6 semanas**, **sem depender das credenciais externas** (adiadas).
+  Roda em **modo honesto** (PDF sem alegação de assinatura) + canal de lembrete
+  fallback (e-mail/dev). O passo de honestidade (Fase 3.3) é o que o destrava.
+- **Marco "v1 finalizada / vendável"**: + Fases 6–8 ≈ **+3–5 semanas** de código,
+  **mais o lead time externo** de VIDAAS (certificado) e Meta (WhatsApp) quando
+  forem contratados/aprovados. O código já estará pronto para plugá-los.
+- Esforço de código estimado: **40–63 dias úteis** (1 dev). Fase 6 cresceu (PIX
+  real + DMED posicional). O lead time externo corre **em paralelo**, fora desse
+  esforço, e não bloqueia o piloto.
 - Fase 6 e 7 podem correr em paralelo à 8 se houver 2 devs.
-- **Lead times externos a disparar já na Fase 0/1:** contrato VIDAAS +
-  verificação Meta/templates WhatsApp. São os dois itens que não dependem só
-  de código e podem atrasar o piloto se começarem tarde.
+- **Credenciais externas (VIDAAS + Meta/WhatsApp): adiadas por decisão de
+  13/11/2026.** Disparar a negociação/cadastro quando conveniente; o código é
+  construído contra sandbox/abstração e só recebe a credencial depois.
 
 ### Definition of done da v1
 
@@ -392,8 +418,8 @@ Fase 0 ──► Fase 1 ──► Fase 2 ──► Fase 3 ──► Fase 4 ─�
 
 | Risco | Mitigação |
 |---|---|
-| Lead time de contrato/certificado **VIDAAS** (semanas) | Iniciar negociação na Fase 0/1; passo intermediário de honestidade (Fase 3.3) destrava o piloto sem assinatura, desde que o texto não alegue o que não tem. Homologação VIDAAS permite desenvolver/testar antes do certificado de produção. |
-| **WhatsApp Business API** exige verificação Meta + aprovação de templates | Disparar cadastro na Fase 1; fallback e-mail/SMS para não bloquear o piloto; templates de lembrete/confirmação submetidos cedo. |
+| Lead time de contrato/certificado **VIDAAS** (semanas) — **adiado** | Não bloqueia o piloto: modo honesto (Fase 3.3) + cliente testado em homologação. A credencial de produção só pluga nas envs `VIDAAS_*` quando o certificado sair; lançamento comercial aguarda. |
+| **WhatsApp Business API** exige verificação Meta + templates — **adiado** | Não bloqueia o piloto: motor de lembretes roda com canal fallback (e-mail/dev). Adaptador WhatsApp fica inativo sem credencial e pluga quando a Meta aprovar, sem reescrever o motor. |
 | Escopo SUS "quase pronto" tenta voltar | Fase 1 deleta em vez de gaveta; teste de contrato impede rota órfã. |
 | Regressões de merge (como a da Acolhimento) | Teste de contrato de imports (Fase 0.2) + E2E (Fase 8) pegam a classe do problema. |
 | Hub de sinalização em memória (1 worker) | Documentar single-worker na v1; Redis pub/sub só quando houver escala (código já isolado em `SignalingHub`). |
