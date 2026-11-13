@@ -2104,22 +2104,14 @@ function baixarReciboDMED(recibo) {
 }
 
 async function gerarLoteDMED() {
-  try {
-    const res = await fetch("/api/v1/dmed/exportar-exemplo");
-    if (!res.ok) throw new Error("Erro ao gerar arquivo magnético DMED.");
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `DMED_${new Date().getFullYear()}_CLINICA_VERSINI.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    alert("Arquivo magnético oficial da DMED gerado e baixado com sucesso!");
-  } catch (err) {
-    alert("Falha ao gerar DMED: " + err.message);
-  }
+  // O arquivo de exemplo com pacientes fictícios foi removido (escopo consultório
+  // privado, Fase 1). A geração real do DMED sairá dos lançamentos do livro caixa
+  // na Fase 6 do plano de finalização; até lá, não fabricamos arquivo com dados fake.
+  alert(
+    "Geração do arquivo magnético DMED ainda não disponível.\n\n" +
+    "Ela será montada a partir dos lançamentos reais do livro caixa " +
+    "(Fase 6 do plano de finalização). O exemplo com dados fictícios foi removido."
+  );
 }
 
 // =========================================================================

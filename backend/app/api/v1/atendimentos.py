@@ -88,17 +88,3 @@ def obter_atendimento_soap(
         raise HTTPException(status_code=404, detail="Atendimento SOAP não encontrado.")
     exigir_mesmo_estabelecimento(atendimento.estabelecimento_id, contexto, acao="consultar")
     return atendimento
-
-
-@router.get("/{atendimento_id}/exportar-fai")
-def exportar_fai(
-    atendimento_id: int,
-    contexto: Optional[ContextoClinico] = Depends(get_contexto_clinico),
-    db: Session = Depends(get_db),
-):
-    from app.services.fai_exporter import gerar_fai_ledi_payload
-    atendimento = db.query(AtendimentoSOAP).filter(AtendimentoSOAP.id == atendimento_id).first()
-    if not atendimento:
-        raise HTTPException(status_code=404, detail="Atendimento SOAP não encontrado.")
-    exigir_mesmo_estabelecimento(atendimento.estabelecimento_id, contexto, acao="exportar")
-    return gerar_fai_ledi_payload(atendimento)

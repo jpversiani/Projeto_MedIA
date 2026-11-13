@@ -56,11 +56,3 @@ def test_atendimento_soap_com_ciap2_e_cid10(client):
     assert len(historico) >= 1
     assert historico[0]["subjetivo_motivo"] == "Acompanhamento de HAS"
 
-    # Testar exportação oficial FAI (Layout e-SUS APS de Dados e Interface)
-    resp_fai = client.get(f"/api/v1/atendimentos/{atend['id']}/exportar-fai")
-    assert resp_fai.status_code == 200
-    fai = resp_fai.json()
-    assert fai["cabecalho"]["tipoDadoSerializado"] == 7
-    assert fai["cabecalho"]["cnesDadoSerializado"] == "3180115"
-    assert "K86" in fai["fichaAtendimentoIndividualMaster"]["atendimentosIndividuais"][0]["problemaCondicaoAvaliada"]["ciap2"]
-
